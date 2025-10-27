@@ -1,0 +1,20 @@
+{
+    "references": [{ "path": "../sealx-core" }, { "path": "../sealx-message" }],
+    "compilerOptions": {
+        "target": "ES2020",
+        "module": "preserve",
+        "moduleResolution": "bundler",
+        "declaration": true,
+        "declarationDir": "dist",
+        "outDir": "dist",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "paths": {
+            "sealx-core": ["../sealx-core/src"],
+            "sealx-message": ["../sealx-message/src"]
+        }
+    },
+    "include": ["src"],
+    "exclude": ["node_modules"]
+}

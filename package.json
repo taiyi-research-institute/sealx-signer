@@ -1,0 +1,25 @@
+{
+    "name": "sealx-signer",
+    "version": "0.0.1",
+    "description": "sealx signer is a eip-712 struct data signer ",
+    "keywords": [
+        "eip-712",
+        "crypyto",
+        "ts",
+        "evm",
+        "signature"
+    ],
+    "license": "MIT",
+    "author": "Zoran Wong",
+    "type": "commonjs",
+    "main": "index.js",
+    "scripts": {
+        "test": "test"
+    },
+    "workspaces": [
+        "./packages/*"
+    ],
+    "devDependencies": {
+        "rollup-plugin-copy": "^3.5.0"
+    }
+}

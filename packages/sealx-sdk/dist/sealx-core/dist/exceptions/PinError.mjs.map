@@ -1,0 +1,1 @@
+{"version":3,"file":"PinError.mjs","sources":["../../../../../sealx-core/dist/exceptions/PinError.mjs"],"sourcesContent":["class PinError extends Error {\n}\n\nexport { PinError as default };\n//# sourceMappingURL=PinError.mjs.map\n"],"names":[],"mappings":"AAAA,MAAM,QAAQ,SAAS,KAAK,CAAC;AAC7B;;;;"}

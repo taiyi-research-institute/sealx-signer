@@ -1,0 +1,174 @@
+import { localStorageWrapper } from '../storage/index.mjs';
+
+/**
+ * The SealxSigner class provides functionality for managing the Sealx plugin state,
+ * including installation, connection management, and signing operations.
+ *
+ * Key Features:
+ * - Tracks plugin installation state
+ * - Manages plugin open/close state via DOM attributes
+ * - Handles session connections for signing operations
+ * - Provides cryptographic signing capabilities
+ */
+class SealxSigner {
+    id = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    /** Whether the plugin has been installed */
+    installed = false;
+    /** Whether the plugin UI is currently active */
+    active = false;
+    /** Whether a session is currently connected */
+    connected = false;
+    /** Current active session, if connected */
+    session = null;
+    /** Current account information, if available */
+    account = null;
+    autoConnectCallback = null;
+    autoClearTimer = null;
+    /** Storage wrapper for persisting plugin state */
+    storageWrapper = localStorageWrapper('sealx', 'state');
+    constructor() {
+        /**
+         * Initializes a new SealxSigner instance.
+         * Automatically calls initialize() to set up the plugin state.
+         */
+        console.log("SealxSigner initialized");
+        this.initialize();
+    }
+    async initializeAccount(account) {
+        /**
+         * Initializes the account information.
+         * @param userId - Unique identifier for the user
+         * @param userName - Name of the user
+         * @param email - Email address of the user
+         */
+        this.account = account;
+        await this.storageWrapper.setItem('account', account);
+        console.log("SealxSigner account initialized:", this.account);
+    }
+    async initializeSession(session) {
+        this.session = session;
+        await this.storageWrapper.setItem('session', session);
+        this.setAutoClearTimer();
+    }
+    setAutoClearTimer() {
+        if (this.autoClearTimer) {
+            clearTimeout(this.autoClearTimer);
+            this.autoClearTimer = null;
+        }
+        if (this.session)
+            this.autoClearTimer = setTimeout(() => {
+                if (this.autoConnectCallback)
+                    this.autoConnectCallback();
+                this.session = null;
+                // this.storageWrapper.removeItem('account')
+                this.storageWrapper.removeItem('session');
+                this.autoClearTimer = null;
+            }, this.session.expire - Date.now());
+    }
+    /**
+     * Synchronizes the plugin's active state with the DOM attribute.
+     * Called by the MutationObserver when the data-sealx-signer-active attribute changes.
+     */
+    activeStateInitialize() {
+        const isActive = document.body.getAttribute('data-sealx-signer-active') === 'true';
+        if (isActive && !this.active) {
+            this.active = true;
+            console.log("SealxSigner plugin activated via mutation observer");
+        }
+        else if (!isActive && this.active) {
+            this.active = false;
+            console.log("SealxSigner plugin closed via mutation observer");
+        }
+    }
+    /**
+     * Initializes the plugin state:
+     * - Loads installation status from storage
+     * - Sets up MutationObserver to track plugin active state changes
+     * - Initializes current active state
+     */
+    async initialize() {
+        // Load installation status from persistent storage
+        this.installed = await this.storageWrapper.getItem('installed') || false;
+        this.account = await this.storageWrapper.getItem('account');
+        this.session = await this.storageWrapper.getItem('session');
+        this.setAutoClearTimer();
+        // Set up observer for DOM attribute changes
+        const observe = new MutationObserver(() => {
+            // this.activeStateInitialize();
+        });
+        observe.observe(document.body, {
+            attributes: true,
+            attributeFilter: ['data-sealx-signer-active']
+        });
+        // Initialize current state
+        // this.activeStateInitialize();
+    }
+    /**
+     * Marks the plugin as installed and persists this state.
+     * Can only be called once - subsequent calls will warn.
+     */
+    install() {
+        if (!this.installed) {
+            this.installed = true;
+            this.storageWrapper.setItem('installed', true);
+            console.log("SealxSigner installed");
+        }
+        else {
+            console.warn("SealxSigner is already installed.");
+        }
+    }
+    /**
+     * Activates the plugin UI by setting the DOM attribute.
+     * Updates internal state and logs the operation.
+     */
+    activate() {
+        if (!this.active) {
+            this.active = true;
+            document.body.setAttribute('data-sealx-signer-active', 'true');
+            console.log("SealxSigner plugin activated");
+        }
+        else {
+            console.warn("SealxSigner plugin is already activated.");
+        }
+    }
+    /**
+     * Deactivates the plugin UI by clearing the DOM attribute.
+     * Updates internal state and logs the operation.
+     */
+    deactivate() {
+        if (this.active) {
+            this.active = false;
+            this.session = null;
+            this.storageWrapper.removeItem('session');
+            document.body.setAttribute('data-sealx-signer-active', 'false');
+            console.log("SealxSigner plugin deactivated");
+        }
+        else {
+            console.warn("SealxSigner plugin is already deactivated.");
+        }
+    }
+    autoCheckTimer;
+    async autoCheck(checker) {
+        if (this.autoCheckTimer) {
+            clearInterval(this.autoCheckTimer);
+        }
+        this.autoCheckTimer = setInterval(async () => {
+            const res = await checker(this);
+            if (res) {
+                this.active = true;
+                if (!this.session?.userId) {
+                    this.session = null;
+                    this.storageWrapper.removeItem('session');
+                }
+            }
+            else {
+                this.active = false;
+                this.session = null;
+                this.storageWrapper.removeItem('session');
+            }
+        }, 30000);
+    }
+}
+
+export { SealxSigner };
+//# sourceMappingURL=sealx-signer.mjs.map

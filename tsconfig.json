@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "composite": true,
+        "skipLibCheck": true,
+        "module": "ESNext",
+        "moduleResolution": "nodenext",
+        "allowSyntheticDefaultImports": true,
+        "resolveJsonModule": true,
+        "baseUrl": ".",
+        "paths": {
+            "sealx-core": ["./packages/sealx-core/src"],
+            "sealx-message": ["./packages/sealx-message/src"]
+        }
+    },
+    "references": [],
+    "exclude": ["node_modules"]
+}

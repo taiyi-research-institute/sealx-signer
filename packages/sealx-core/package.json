@@ -1,0 +1,41 @@
+{
+    "type": "module",
+    "name": "sealx-core",
+    "version": "0.0.1",
+    "description": "sealx core libary",
+    "keywords": [
+        "sealx",
+        "signature",
+        "eip712"
+    ],
+    "license": "MIT",
+    "author": "Zoran Wong",
+    "main": "dist/index.cjs",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "scripts": {
+        "build": "rollup -c",
+        "prepublishOnly": "npm run build",
+        "test": "test"
+    },
+    "devDependencies": {
+        "@types/chrome": "^0.0.326",
+        "@types/crypto-js": "^4.2.2",
+        "@types/lodash": "^4.17.20",
+        "@types/webextension-polyfill": "^0.10.0",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "crypto-js": "^4.2.0",
+        "ethers": "^6.14.3",
+        "lodash": "^4.17.21",
+        "webextension-polyfill": "^0.10.0"
+    }
+}

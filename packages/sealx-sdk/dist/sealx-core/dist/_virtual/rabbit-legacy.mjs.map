@@ -1,0 +1,1 @@
+{"version":3,"file":"rabbit-legacy.mjs","sources":["../../../../../sealx-core/dist/_virtual/rabbit-legacy.mjs"],"sourcesContent":["var rabbitLegacy = {exports: {}};\n\nexport { rabbitLegacy as __module };\n//# sourceMappingURL=rabbit-legacy.mjs.map\n"],"names":[],"mappings":"AAAG,IAAC,YAAY,GAAG,CAAC,OAAO,EAAE,EAAE;;;;"}

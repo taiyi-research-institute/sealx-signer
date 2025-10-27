@@ -1,0 +1,41 @@
+{
+    "type": "module",
+    "name": "sealx-sdk",
+    "version": "0.0.1",
+    "description": "sealx sdk for web",
+    "main": "dist/index.cjs",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.cjs",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "keywords": [
+        "sealx",
+        "web",
+        "develop"
+    ],
+    "license": "MIT",
+    "author": "Zoran Wong",
+    "scripts": {
+        "test": "test",
+        "build": "rollup -c",
+        "prepublishOnly": "npm run build"
+    },
+    "dependencies": {
+        "rxjs": "^7.8.2",
+        "sealx-core": "^0.0.1",
+        "sealx-message": "^1.0.0"
+    },
+    "devDependencies": {
+        "@rollup/plugin-commonjs": "^28.0.6",
+        "@rollup/plugin-node-resolve": "^16.0.1",
+        "@rollup/plugin-typescript": "^12.1.4",
+        "rollup": "^4.45.1",
+        "rollup-plugin-dts": "^6.2.1",
+        "typescript": "^5.8.3"
+    }
+}
