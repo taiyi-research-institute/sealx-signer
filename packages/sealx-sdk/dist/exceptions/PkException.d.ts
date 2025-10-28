@@ -1,3 +1,0 @@
-export default class PkException extends Error {
-    constructor(message: string);
-}
