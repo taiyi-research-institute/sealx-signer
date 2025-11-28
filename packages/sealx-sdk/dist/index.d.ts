@@ -21,7 +21,7 @@ import { MessageHandle } from 'sealx-message';
  * }
  * ```
  */
-declare const isSealxActive: () => boolean;
+declare const isSealxActive: () => Promise<boolean>;
 /**
  * Initializes the SealX session for a user
  *
@@ -195,7 +195,7 @@ declare const isSessionAvailable: () => boolean;
  * @deprecated Use {@link isSealxActive} instead
  * @returns {boolean} True if SealX extension is installed and active
  */
-declare const sealxActive: () => boolean;
+declare const sealxActive: () => Promise<boolean>;
 /**
  * Sends a sign response message for a completed signing operation
  *

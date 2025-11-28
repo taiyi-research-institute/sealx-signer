@@ -32,7 +32,7 @@ The SDK automatically initializes when imported, but you must explicitly initial
 import * as sealx from 'sealx-sdk';
 
 // Check if SealX extension is available
-if (sealx.isSealxActive()) {
+if (await sealx.isSealxActive()) {
     // Initialize user session
     await sealx.initSealx('user-123');
     console.log('SDK initialized successfully');
@@ -85,7 +85,7 @@ The SDK uses global state management to track plugin status:
 import { isSealxActive, isSessionAvailable } from 'sealx-sdk';
 
 // Check if plugin is installed and active
-if (isSealxActive()) {
+if (await isSealxActive()) {
     console.log('SealX extension is ready');
 }
 
@@ -109,7 +109,7 @@ setInterval(async () => {
     if (pluginStatus === null) {
         console.warn('SealX extension has been disabled or uninstalled');
         // Handle plugin unavailability
-    } else if (!isSealxActive()) {
+    } else if (!(await isSealxActive())) {
         console.warn('SealX extension is no longer active');
         // Handle plugin deactivation
     }
@@ -122,13 +122,25 @@ setInterval(async () => {
 
 Check if SealX extension is installed and active.
 
+**Optimized Features:**
+
+-   **Caching**: Results are cached for 5 seconds to reduce redundant network calls
+-   **Efficient Retry Logic**: Uses optimized retry mechanism with 3 attempts and 100ms delays
+-   **Performance**: Reduces extension check overhead for frequent calls
+
 ```typescript
 import { isSealxActive } from 'sealx-sdk';
 
-if (isSealxActive()) {
+if (await isSealxActive()) {
     console.log('SealX extension is ready');
 }
 ```
+
+**Performance Benefits:**
+
+-   First call: Performs full extension check with retry logic
+-   Subsequent calls within 5 seconds: Returns cached result
+-   Reduces network overhead and improves response time
 
 ### `initSealx(userId: string)`
 
@@ -271,7 +283,7 @@ The SDK automatically detects if the extension is installed:
 ```typescript
 import { isSealxActive } from 'sealx-sdk';
 
-if (isSealxActive()) {
+if (await isSealxActive()) {
     console.log('SealX extension is installed and active');
 } else {
     console.log('SealX extension is not installed or inactive');

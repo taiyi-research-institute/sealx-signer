@@ -51,6 +51,16 @@ const CHANNEL_POPUP = MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
 
 /**
+ * Cache for SealX extension status to reduce redundant checks
+ * @private
+ */
+let sealxStatusCache: {
+    isActive: boolean;
+    timestamp: number;
+} | null = null;
+const CACHE_TTL = 5000; // 5 seconds cache TTL
+
+/**
  * Checks if SealX browser extension is installed and active
  * 
  * @remarks
@@ -69,8 +79,23 @@ const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
  * }
  * ```
  */
-export const isSealxActive = (): boolean => {
-    return sealxSigner?.installed && sealxSigner?.active;
+export const isSealxActive = async (): Promise<boolean> => {
+    // Check cache first
+    const now = Date.now();
+    if (sealxStatusCache && (now - sealxStatusCache.timestamp) < CACHE_TTL) {
+        return sealxStatusCache.isActive;
+    }
+
+    const isActive = (await checkSealx()) !== null;
+    sealxSigner.active = isActive;
+
+    // Update cache
+    sealxStatusCache = {
+        isActive,
+        timestamp: now
+    };
+
+    return sealxSigner?.installed && isActive;
 };
 
 /**
@@ -108,7 +133,7 @@ export const initSealx = async (userId: string | number): Promise<void> => {
     }
     sealxSigner.active = (await checkSealx()) !== null;
     // Check if SealX is active first
-    if (!isSealxActive()) {
+    if (!(await isSealxActive())) {
         throw new SealxUnavailableException(
             'SealX extension is not installed or not active. Please install the SealX browser extension.'
         );
@@ -192,7 +217,7 @@ export const connectSealx = async (
             userId: uId,
         };
     }
-    if (!isSealxActive()) {
+    if (!(await isSealxActive())) {
         throw new SealxUnavailableException(
             'SealX extension is not installed or not active'
         );
@@ -267,7 +292,7 @@ export const connectSealx = async (
  */
 export const bindSealx = async (userId?: string | number): Promise<string> => {
     // Check if SealX is active first
-    if (!isSealxActive()) {
+    if (!(await isSealxActive())) {
         throw new SealxUnavailableException(
             'SealX extension is not installed or not active'
         );
@@ -385,7 +410,7 @@ export const signBySealx = async <T = unknown>(
     task: SealxSignTask | SealxSignTask[],
     userId?: string | number
 ): Promise<T | AsyncGenerator<T> | undefined> => {
-    if (!isSealxActive()) {
+    if (!(await isSealxActive())) {
         throw new SealxUnavailableException(
             'SealX extension is not installed or not active'
         );
@@ -513,7 +538,7 @@ export const sendSignResponse = async (
     error: string = '',
     userId?: string | number
 ): Promise<any> => {
-    if (!isSealxActive()) {
+    if (!(await isSealxActive())) {
         throw new SealxUnavailableException(
             'SealX extension is not installed or not active'
         );
@@ -647,33 +672,32 @@ export const closeSealx = () => {
  * ```
  */
 export const checkSealx = async (): Promise<string | null> => {
-    return new Promise<string | null>(async (resolve) => {
+    const maxRetries = 3;
+    const retryDelay = 100;
+
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            let time = 3;
-            let checked: any = null
-            while (time > 0) {
-                if (checked) {
-                    return
-                }
-                messager
-                    .send(
-                        '',
-                        SealxTopic.CHECK_INITIALIZED,
-                        MessageChannel.BACKGROUND
-                    )
-                    .then((res) => {
-                        resolve(res.payload);
-                        checked = true
-                    })
-                    .catch(() => {
-                        resolve(null);
-                    });
-                await wait(100)
-                time--
+            const res = await messager.send(
+                '',
+                SealxTopic.CHECK_INITIALIZED,
+                MessageChannel.BACKGROUND
+            );
+
+            if (res?.payload) {
+                return res.payload;
             }
-            resolve(null)
-        } catch (e) {
-            resolve(null);
+        } catch (error) {
+            // Log error only on last attempt
+            if (attempt === maxRetries - 1) {
+                console.debug('SealX extension check failed:', error);
+            }
         }
-    });
+
+        // Wait before next retry, except on last attempt
+        if (attempt < maxRetries - 1) {
+            await wait(retryDelay);
+        }
+    }
+
+    return null;
 };
