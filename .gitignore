@@ -10,6 +10,7 @@ yarn.lock
 dist/
 */dist/
 **/dist/
+!packages/sealx-sdk/dist/
 build/
 */build/
 **/build/

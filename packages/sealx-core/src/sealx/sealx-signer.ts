@@ -146,7 +146,7 @@ export class SealxSigner {
             document.body.setAttribute('data-sealx-signer-active', 'true');
             console.log("SealxSigner plugin activated");
         } else {
-            console.warn("SealxSigner plugin is already activated.");
+            //console.warn("SealxSigner plugin is already activated.");
         }
     }
 
