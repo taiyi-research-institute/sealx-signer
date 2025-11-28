@@ -1,8 +1,27 @@
 {
     "type": "module",
     "name": "sealx-sdk",
-    "version": "0.0.1",
-    "description": "sealx sdk for web",
+    "version": "1.0.0",
+    "description": "JavaScript/TypeScript SDK for interacting with the SealX browser extension",
+    "keywords": [
+        "sealx",
+        "sdk",
+        "digital-signature",
+        "eip712",
+        "browser-extension",
+        "web3"
+    ],
+    "license": "MIT",
+    "author": "Zoran Wong",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/taiyi-research-institute/sealx-signer.git",
+        "directory": "packages/sealx-sdk"
+    },
+    "homepage": "https://github.com/taiyi-research-institute/sealx-signer#readme",
+    "bugs": {
+        "url": "https://github.com/taiyi-research-institute/sealx-signer/issues"
+    },
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
@@ -13,21 +32,18 @@
             "types": "./dist/index.d.ts"
         }
     },
-    "keywords": [
-        "sealx",
-        "web",
-        "develop"
+    "files": [
+        "dist/**/*",
+        "README.md"
     ],
-    "license": "MIT",
-    "author": "Zoran Wong",
     "scripts": {
-        "test": "test",
         "build": "rollup -c",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run build",
+        "test": "echo \"No tests specified\""
     },
     "dependencies": {
         "rxjs": "^7.8.2",
-        "sealx-core": "^0.0.1",
+        "sealx-core": "^1.0.0",
         "sealx-message": "^1.0.0"
     },
     "devDependencies": {

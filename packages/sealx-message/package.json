@@ -1,7 +1,26 @@
 {
+    "type": "module",
     "name": "sealx-message",
     "version": "1.0.0",
-    "description": "Message handling library for SealX",
+    "description": "Message handling library for SealX digital signature system",
+    "keywords": [
+        "sealx",
+        "message",
+        "communication",
+        "messaging",
+        "extension"
+    ],
+    "license": "MIT",
+    "author": "Zoran Wong",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/taiyi-research-institute/sealx-signer.git",
+        "directory": "packages/sealx-message"
+    },
+    "homepage": "https://github.com/taiyi-research-institute/sealx-signer#readme",
+    "bugs": {
+        "url": "https://github.com/taiyi-research-institute/sealx-signer/issues"
+    },
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
@@ -12,17 +31,19 @@
             "types": "./dist/index.d.ts"
         }
     },
+    "files": [
+        "dist/**/*",
+        "README.md"
+    ],
     "scripts": {
         "build": "rollup -c",
-        "prepublishOnly": "npm run build"
+        "prepublishOnly": "npm run build",
+        "test": "echo \"No tests specified\""
     },
     "devDependencies": {
         "typescript": "^5.0.0"
     },
-    "files": [
-        "dist/**/*"
-    ],
     "dependencies": {
-        "sealx-core": "^0.0.1"
+        "sealx-core": "^1.0.0"
     }
 }

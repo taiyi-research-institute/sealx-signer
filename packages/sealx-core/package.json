@@ -1,15 +1,26 @@
 {
     "type": "module",
     "name": "sealx-core",
-    "version": "0.0.1",
-    "description": "sealx core libary",
+    "version": "1.0.0",
+    "description": "Core library for SealX digital signature system",
     "keywords": [
         "sealx",
         "signature",
-        "eip712"
+        "eip712",
+        "digital-signature",
+        "cryptography"
     ],
     "license": "MIT",
     "author": "Zoran Wong",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/taiyi-research-institute/sealx-signer.git",
+        "directory": "packages/sealx-core"
+    },
+    "homepage": "https://github.com/taiyi-research-institute/sealx-signer#readme",
+    "bugs": {
+        "url": "https://github.com/taiyi-research-institute/sealx-signer/issues"
+    },
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
@@ -20,10 +31,14 @@
             "types": "./dist/index.d.ts"
         }
     },
+    "files": [
+        "dist/**/*",
+        "README.md"
+    ],
     "scripts": {
         "build": "rollup -c",
         "prepublishOnly": "npm run build",
-        "test": "test"
+        "test": "echo \"No tests specified\""
     },
     "devDependencies": {
         "@types/chrome": "^0.0.326",
