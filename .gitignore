@@ -11,6 +11,8 @@ dist/
 */dist/
 **/dist/
 !packages/sealx-sdk/dist/
+!packages/sealx-core/dist/
+!packages/sealx-message/dist/
 build/
 */build/
 **/build/
