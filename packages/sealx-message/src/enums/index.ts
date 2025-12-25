@@ -58,7 +58,13 @@ export enum SealxTopic {
 
     IMPORT_KEY = 'import-key',
 
+    /** Export private key as hex */
+    PK_HEX = 'pk-hex',
+
     CLOSE = 'close',
+
+    /** Verify temporary code for import */
+    VERIFY_TEMP_CODE = 'verify-temp-code',
 
     /** All topics */
     ALL = '*'

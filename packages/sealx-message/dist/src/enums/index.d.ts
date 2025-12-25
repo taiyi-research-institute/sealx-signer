@@ -39,7 +39,11 @@ export declare enum SealxTopic {
     CHECK_ACTIVE = "check-active",
     BIND_PK = "bind-pk",
     IMPORT_KEY = "import-key",
+    /** Export private key as hex */
+    PK_HEX = "pk-hex",
     CLOSE = "close",
+    /** Verify temporary code for import */
+    VERIFY_TEMP_CODE = "verify-temp-code",
     /** All topics */
     ALL = "*"
 }

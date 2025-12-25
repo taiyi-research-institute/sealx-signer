@@ -49,7 +49,11 @@ var SealxTopic;
     SealxTopic["CHECK_ACTIVE"] = "check-active";
     SealxTopic["BIND_PK"] = "bind-pk";
     SealxTopic["IMPORT_KEY"] = "import-key";
+    /** Export private key as hex */
+    SealxTopic["PK_HEX"] = "pk-hex";
     SealxTopic["CLOSE"] = "close";
+    /** Verify temporary code for import */
+    SealxTopic["VERIFY_TEMP_CODE"] = "verify-temp-code";
     /** All topics */
     SealxTopic["ALL"] = "*";
 })(SealxTopic || (SealxTopic = {}));
