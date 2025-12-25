@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="20px" height="20px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon-14</title>
+    <g id="Web" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="icon" transform="translate(-71, -100)">
+            <g id="oval-eye" transform="translate(71, 100)">
+                <rect id="container" x="0" y="0" width="20" height="20"></rect>
+                <path d="M18.75,10.3125 C18.75,11.7631579 14.9727,16.875 10.3125,16.875 C5.6523,16.875 1.875,11.7631579 1.875,10.3125 C1.875,8.86184211 5.6523,3.75 10.3125,3.75 C14.9727,3.75 18.75,8.86184211 18.75,10.3125 Z" id="cregis-a" stroke="#1F211F" stroke-width="1.5" stroke-linejoin="round"></path>
+                <path d="M10,8.16340286 C10,9.88929268 11.3991101,11.2884029 13.125,11.2884029 L13.2833908,11.2844642 C12.8746926,12.5344781 11.6990523,13.4375 10.3125,13.4375 C8.58661014,13.4375 7.1875,12.0383898 7.1875,10.3125 C7.1875,8.58661017 8.58661014,7.1875 10.3125,7.1875 L10.1543402,7.19073258 C10.0541698,7.49685774 10,7.82380428 10,8.16340286 Z" id="形状结合" fill="#1F211F"></path>
+                <line x1="15.4990053" y1="5.93666351" x2="4.27934178" y2="14.5073799" id="路径" stroke="#1F211F" stroke-width="1.5"></line>
+            </g>
+        </g>
+    </g>
+</svg>

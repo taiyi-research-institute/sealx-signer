@@ -1,0 +1,230 @@
+{
+  "../../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js-BFXGZB5I.js",
+    "name": "crx-manifest.js",
+    "src": "../../../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_client-CRBwutFG.js": {
+    "file": "assets/client-CRBwutFG.js",
+    "name": "client",
+    "imports": [
+      "_index-Bj7Y5nDa.js"
+    ]
+  },
+  "_global-Bi45iRhk.css": {
+    "file": "assets/global-Bi45iRhk.css",
+    "src": "_global-Bi45iRhk.css"
+  },
+  "_global-MAfYf2-K.js": {
+    "file": "assets/global-MAfYf2-K.js",
+    "name": "global",
+    "imports": [
+      "_lodash-BUKDu3TW.js",
+      "_index-8FsSLa_l.js"
+    ],
+    "css": [
+      "assets/global-Bi45iRhk.css"
+    ],
+    "assets": [
+      "assets/Gellix-Regular-gOmSiHtW.woff2",
+      "assets/Gellix-Regular-CfjKS0sp.woff",
+      "assets/Gellix-Medium-Bn7_DK6y.woff2",
+      "assets/Gellix-Medium-Cfpj2c5J.woff",
+      "assets/Gellix-SemiBold-EA9mbYOT.woff2",
+      "assets/Gellix-SemiBold-BSbrEkjj.woff",
+      "assets/Gellix-Bold-BXLTehOV.woff2",
+      "assets/Gellix-Bold-C57gaYvb.woff",
+      "assets/OpenSans-Regular-N6ipOEWl.woff2",
+      "assets/OpenSans-Regular-CoU451P8.woff",
+      "assets/OpenSans-SemiBold-Dwk-yFVb.woff2",
+      "assets/OpenSans-SemiBold-DYaC51ob.woff",
+      "assets/OpenSans-Bold-BcFC6EUS.woff2",
+      "assets/OpenSans-Bold-BpT7zLWs.woff",
+      "assets/NanumPen-D0DULGCg.woff2",
+      "assets/NanumPen-Cx4X1OcW.woff"
+    ]
+  },
+  "_index-8FsSLa_l.js": {
+    "file": "assets/index-8FsSLa_l.js",
+    "name": "index",
+    "imports": [
+      "_lodash-BUKDu3TW.js"
+    ]
+  },
+  "_index-B8SI-SxD.js": {
+    "file": "assets/index-B8SI-SxD.js",
+    "name": "index",
+    "imports": [
+      "_index-ChUXR8u8.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-8FsSLa_l.js",
+      "_index-Bj7Y5nDa.js"
+    ]
+  },
+  "_index-Bj7Y5nDa.js": {
+    "file": "assets/index-Bj7Y5nDa.js",
+    "name": "index",
+    "imports": [
+      "_lodash-BUKDu3TW.js"
+    ]
+  },
+  "_index-ChUXR8u8.js": {
+    "file": "assets/index-ChUXR8u8.js",
+    "name": "index"
+  },
+  "_index.tsx-loader-BDVosc51.js": {
+    "file": "assets/index.tsx-loader-BDVosc51.js",
+    "src": "_index.tsx-loader-BDVosc51.js"
+  },
+  "_lodash-BUKDu3TW.js": {
+    "file": "assets/lodash-BUKDu3TW.js",
+    "name": "lodash"
+  },
+  "_messager-manager-CdeYDOwx.js": {
+    "file": "assets/messager-manager-CdeYDOwx.js",
+    "name": "messager-manager",
+    "imports": [
+      "_lodash-BUKDu3TW.js"
+    ]
+  },
+  "src/assets/fonts/gellix/Gellix-Bold.woff": {
+    "file": "assets/Gellix-Bold-C57gaYvb.woff",
+    "src": "src/assets/fonts/gellix/Gellix-Bold.woff"
+  },
+  "src/assets/fonts/gellix/Gellix-Bold.woff2": {
+    "file": "assets/Gellix-Bold-BXLTehOV.woff2",
+    "src": "src/assets/fonts/gellix/Gellix-Bold.woff2"
+  },
+  "src/assets/fonts/gellix/Gellix-Medium.woff": {
+    "file": "assets/Gellix-Medium-Cfpj2c5J.woff",
+    "src": "src/assets/fonts/gellix/Gellix-Medium.woff"
+  },
+  "src/assets/fonts/gellix/Gellix-Medium.woff2": {
+    "file": "assets/Gellix-Medium-Bn7_DK6y.woff2",
+    "src": "src/assets/fonts/gellix/Gellix-Medium.woff2"
+  },
+  "src/assets/fonts/gellix/Gellix-Regular.woff": {
+    "file": "assets/Gellix-Regular-CfjKS0sp.woff",
+    "src": "src/assets/fonts/gellix/Gellix-Regular.woff"
+  },
+  "src/assets/fonts/gellix/Gellix-Regular.woff2": {
+    "file": "assets/Gellix-Regular-gOmSiHtW.woff2",
+    "src": "src/assets/fonts/gellix/Gellix-Regular.woff2"
+  },
+  "src/assets/fonts/gellix/Gellix-SemiBold.woff": {
+    "file": "assets/Gellix-SemiBold-BSbrEkjj.woff",
+    "src": "src/assets/fonts/gellix/Gellix-SemiBold.woff"
+  },
+  "src/assets/fonts/gellix/Gellix-SemiBold.woff2": {
+    "file": "assets/Gellix-SemiBold-EA9mbYOT.woff2",
+    "src": "src/assets/fonts/gellix/Gellix-SemiBold.woff2"
+  },
+  "src/assets/fonts/nanum-pen/NanumPen.woff": {
+    "file": "assets/NanumPen-Cx4X1OcW.woff",
+    "src": "src/assets/fonts/nanum-pen/NanumPen.woff"
+  },
+  "src/assets/fonts/nanum-pen/NanumPen.woff2": {
+    "file": "assets/NanumPen-D0DULGCg.woff2",
+    "src": "src/assets/fonts/nanum-pen/NanumPen.woff2"
+  },
+  "src/assets/fonts/open-sans/OpenSans-Bold.woff": {
+    "file": "assets/OpenSans-Bold-BpT7zLWs.woff",
+    "src": "src/assets/fonts/open-sans/OpenSans-Bold.woff"
+  },
+  "src/assets/fonts/open-sans/OpenSans-Bold.woff2": {
+    "file": "assets/OpenSans-Bold-BcFC6EUS.woff2",
+    "src": "src/assets/fonts/open-sans/OpenSans-Bold.woff2"
+  },
+  "src/assets/fonts/open-sans/OpenSans-Regular.woff": {
+    "file": "assets/OpenSans-Regular-CoU451P8.woff",
+    "src": "src/assets/fonts/open-sans/OpenSans-Regular.woff"
+  },
+  "src/assets/fonts/open-sans/OpenSans-Regular.woff2": {
+    "file": "assets/OpenSans-Regular-N6ipOEWl.woff2",
+    "src": "src/assets/fonts/open-sans/OpenSans-Regular.woff2"
+  },
+  "src/assets/fonts/open-sans/OpenSans-SemiBold.woff": {
+    "file": "assets/OpenSans-SemiBold-DYaC51ob.woff",
+    "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff"
+  },
+  "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2": {
+    "file": "assets/OpenSans-SemiBold-Dwk-yFVb.woff2",
+    "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
+  },
+  "src/entries/background/index.ts": {
+    "file": "assets/index.ts-CyMAr8ys.js",
+    "name": "index.ts",
+    "src": "src/entries/background/index.ts",
+    "isEntry": true,
+    "imports": [
+      "_messager-manager-CdeYDOwx.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-B8SI-SxD.js",
+      "_index-8FsSLa_l.js",
+      "_index-ChUXR8u8.js",
+      "_index-Bj7Y5nDa.js"
+    ]
+  },
+  "src/entries/content/index.tsx": {
+    "file": "assets/index.tsx-Cb0T3BkA.js",
+    "name": "index.tsx",
+    "src": "src/entries/content/index.tsx",
+    "isEntry": true,
+    "imports": [
+      "_client-CRBwutFG.js",
+      "_index-Bj7Y5nDa.js",
+      "_messager-manager-CdeYDOwx.js",
+      "_lodash-BUKDu3TW.js"
+    ],
+    "css": [
+      "assets/index-CNX89HUS.css"
+    ]
+  },
+  "src/entries/inpage/index.ts": {
+    "file": "inpage.js",
+    "name": "inpage",
+    "src": "src/entries/inpage/index.ts",
+    "isEntry": true,
+    "imports": [
+      "_index-ChUXR8u8.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-8FsSLa_l.js"
+    ]
+  },
+  "src/entries/popup/index.html": {
+    "file": "popup.js",
+    "name": "popup",
+    "src": "src/entries/popup/index.html",
+    "isEntry": true,
+    "imports": [
+      "_global-MAfYf2-K.js",
+      "_client-CRBwutFG.js",
+      "_index-Bj7Y5nDa.js",
+      "_messager-manager-CdeYDOwx.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-B8SI-SxD.js",
+      "_index-ChUXR8u8.js",
+      "_index-8FsSLa_l.js"
+    ],
+    "css": [
+      "assets/popup-Bcz4Wbi-.css"
+    ]
+  },
+  "src/entries/sandbox/index.html": {
+    "file": "sandbox.js",
+    "name": "sandbox",
+    "src": "src/entries/sandbox/index.html",
+    "isEntry": true,
+    "imports": [
+      "_global-MAfYf2-K.js",
+      "_client-CRBwutFG.js",
+      "_index-Bj7Y5nDa.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-8FsSLa_l.js"
+    ],
+    "css": [
+      "assets/sandbox-D8b4DHJx.css"
+    ]
+  }
+}

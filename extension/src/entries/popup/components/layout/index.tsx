@@ -1,0 +1,35 @@
+import { Outlet } from 'react-router-dom';
+import './styles.css';
+import Link from '@assets/svg/link.svg?react'
+import MenuIcon from '@assets/svg/menu-icon.svg?react'
+import { useGlobalContext } from '@src/hooks/useGlobalContext';
+import { PopupMenu } from './popup-menu';
+import { useRef, useState } from 'react';
+import { useClickOutside } from '@src/hooks/useOutsideClick';
+import { useRequestContext } from '@src/hooks/useRequestContextHook';
+
+export default function Layout() {
+    const { address } = useGlobalContext()
+    const [showPopupMenu, setShowPopupMenu] = useState<boolean>(false)
+    const popupMenuRef = useRef<HTMLDivElement>(null);
+    useClickOutside(popupMenuRef, () => setShowPopupMenu(false));
+    const { title } = useRequestContext()
+
+
+    return (
+        <div className="app-layout h-full flex flex-col bg-[#f2f2f2]">
+            <header className="app-header bg-[#fff] flex flex-col  justify-center relative">
+                <div className='flex  justify-center items-center leading-[20px] mt-[24px] font-[500] text-[18px]'><Link className="w-[18px] h-[18px] text-[#00BE78] mr-[8.5px]"></Link>{title}</div>
+                <div className='flex  justify-center leading-[29px] text-[24px] mt-[17px] mb-[16px] font-[500]'>{address?.substring?.(0, 8)}...{address?.substring?.(address?.length - 6, address?.length)}</div>
+                <MenuIcon onClick={() => setShowPopupMenu(!showPopupMenu)} className=" cursor-pointer w-[24px] h-[24px] absolute right-[32px] top-[41px]"></MenuIcon>
+                {showPopupMenu ? <PopupMenu ref={popupMenuRef} className=' py-[12px] absolute z-[999999] right-[12px] top-[100px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupMenu> : ('')}
+            </header>
+            <main className="app-main flex-1 w-[600px] m-auto overflow-y-auto">
+                <Outlet />
+            </main>
+            {/* <footer className="app-footer">
+                <p>© 2025 SealX</p>
+            </footer> */}
+        </div>
+    );
+}

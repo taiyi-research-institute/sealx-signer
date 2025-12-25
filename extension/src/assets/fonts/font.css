@@ -1,0 +1,87 @@
+/* Optimized font definitions */
+@font-face {
+    font-family: 'Gellix';
+    src: local('Gellix Regular'), local('Gellix-Regular'),
+        url('./gellix/Gellix-Regular.woff2') format('woff2'),
+        url('./gellix/Gellix-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gellix';
+    src: local('Gellix Medium'), local('Gellix-Medium'),
+        url('./gellix/Gellix-Medium.woff2') format('woff2'),
+        url('./gellix/Gellix-Medium.woff') format('woff');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gellix';
+    src: local('Gellix SemiBold'), local('Gellix-SemiBold'),
+        url('./gellix/Gellix-SemiBold.woff2') format('woff2'),
+        url('./gellix/Gellix-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Gellix';
+    src: local('Gellix Bold'), local('Gellix-Bold'),
+        url('./gellix/Gellix-Bold.woff2') format('woff2'),
+        url('./gellix/Gellix-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: local('Open Sans Regular'), local('OpenSans-Regular'),
+        url('./open-sans/OpenSans-Regular.woff2') format('woff2'),
+        url('./open-sans/OpenSans-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: local('Open Sans SemiBold'), local('OpenSans-SemiBold'),
+        url('./open-sans/OpenSans-SemiBold.woff2') format('woff2'),
+        url('./open-sans/OpenSans-SemiBold.woff') format('woff');
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Open Sans';
+    src: local('Open Sans Bold'), local('OpenSans-Bold'),
+        url('./open-sans/OpenSans-Bold.woff2') format('woff2'),
+        url('./open-sans/OpenSans-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Nanum Pen';
+    src: local('Nanum Pen'), local('NanumPen'),
+        url('./nanum-pen/NanumPen.woff2') format('woff2'),
+        url('./nanum-pen/NanumPen.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* Font family definitions with fallbacks */
+:root {
+    --font-gellix: 'Gellix', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-open-sans: 'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-nanum-pen: 'Nanum Pen', cursive;
+}

@@ -1,0 +1,72 @@
+/* 1. 首先加载字体定义 */
+@import './fonts/font.css';
+
+/* 2. 基础样式重置 */
+:root {
+    box-sizing: border-box;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: inherit;
+    margin: 0;
+    padding: 0;
+}
+
+/* 3. 基础字体设置 */
+body {
+    font-family: var(--font-gellix), -apple-system, BlinkMacSystemFont,
+        sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    color: #333;
+}
+
+/* 4. 标题字体设置 */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-gellix), -apple-system, BlinkMacSystemFont,
+        sans-serif;
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+/* 5. 代码字体设置 */
+code,
+pre {
+    font-family: var(--font-open-sans), monospace;
+}
+
+/* 6. 确保字体加载完成前有回退显示 */
+.font-loading body {
+    visibility: hidden;
+}
+.font-loaded body {
+    visibility: visible;
+    transition: visibility 0.3s ease;
+}
+
+.font-nanum-pen {
+    font-family: 'Nanum Pen', sans-serif;
+    font-weight: 400;
+    font-style: normal;
+    letter-spacing: 5.48px;
+    line-height: 40px;
+}
+
+input:focus {
+    outline: none;
+    border: 1px solid; /* 自定义边框颜色 */
+    caret-color: #00be78;
+    box-shadow: 0 0 0 1px #00be78; /* 更细的外层阴影 */
+}
+

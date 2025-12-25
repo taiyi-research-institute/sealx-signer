@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="20px" height="20px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>ic2-12</title>
+    <g id="签名器06-18" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Icon" transform="translate(-358, -439)">
+            <g id="oval-asafety" transform="translate(358, 439)">
+                <rect id="container" x="0" y="0" width="20" height="20"></rect>
+                <path d="M11.2458333,18.3598128 L10.446875,18.6694318 C10.158749,18.7768561 9.84125104,18.7768561 9.553125,18.6694318 L8.75416667,18.3598128 C6.73047292,17.5710922 4.9922375,16.1954417 3.76541667,14.4117673 C2.53858229,12.6279717 1.87991563,10.5185916 1.875,8.35777432 L1.875,4.61542345 C3.40858021,4.83269518 4.97272396,4.6347679 6.40265625,4.0424803 C7.832575,3.45020616 9.07533438,2.48550079 10,1.25 C11.6927083,3.70002827 14.4958333,4.85773394 18.125,4.61542345 L18.125,8.35777432 C18.120125,10.5185916 17.4614583,12.6279717 16.2345833,14.4117673 C15.0077083,16.1954417 13.2695271,17.5710922 11.2458333,18.3598128 L11.2458333,18.3598128 Z" id="cregis-a" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                <polyline id="cregis-b" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="13.125 7.34375 8.75 12.65625 6.875 10"></polyline>
+            </g>
+        </g>
+    </g>
+</svg>

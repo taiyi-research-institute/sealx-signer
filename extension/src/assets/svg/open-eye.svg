@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="20px" height="20px" viewBox="0 0 20 20" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>icon-13</title>
+    <g id="Web" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="icon" transform="translate(-106, -100)">
+            <g id="oval-eye" transform="translate(106, 100)">
+                <rect id="container" x="0" y="0" width="20" height="20"></rect>
+                <path d="M18.75,10.3125 C18.75,11.7631579 14.9727,16.875 10.3125,16.875 C5.6523,16.875 1.875,11.7631579 1.875,10.3125 C1.875,8.86184211 5.6523,3.75 10.3125,3.75 C14.9727,3.75 18.75,8.86184211 18.75,10.3125 Z" id="cregis-a" stroke="#1F211F" stroke-width="1.5" stroke-linejoin="round"></path>
+                <path d="M10.3125,13.4375 C12.0383898,13.4375 13.4375,12.0383898 13.4375,10.3125 C13.4375,8.58661016 12.0383898,7.1875 10.3125,7.1875 C8.58661014,7.1875 7.1875,8.58661017 7.1875,10.3125 C7.1875,12.0383898 8.58661014,13.4375 10.3125,13.4375 L10.3125,13.4375 Z" id="cregis-b" stroke="#1F211F" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </g>
+        </g>
+    </g>
+</svg>
