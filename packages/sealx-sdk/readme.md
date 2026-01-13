@@ -97,18 +97,45 @@ if (isSessionAvailable()) {
 
 ### Periodic Status Monitoring
 
-For applications that need to monitor plugin status changes:
+For applications that need to monitor plugin status changes, it's recommended to use the `checkSealxActive()` callback instead of periodic polling with `setInterval()`:
+
+**Recommended approach using `checkSealxActive()`:**
+
+```typescript
+import { checkSealxActive } from 'sealx-sdk';
+
+// Real-time monitoring with callback
+checkSealxActive((status) => {
+    if (status) {
+        console.log('SealX extension activated:', status);
+        // Extension is available and active
+    } else {
+        console.warn('SealX extension has been disabled or uninstalled');
+        // Handle plugin unavailability
+    }
+});
+```
+
+**Benefits over polling:**
+
+-   **Real-time updates**: Immediate notification when extension status changes
+-   **Better performance**: No unnecessary network requests every few seconds
+-   **Resource efficient**: Reduces CPU and network usage
+-   **Simpler code**: No need to manage intervals and cleanup
+
+**Legacy approach (not recommended):**
 
 ```typescript
 import { checkSealx, isSealxActive } from 'sealx-sdk';
 
-// Monitor plugin status every 5 seconds
-setInterval(async () => {
+// Monitor plugin status every 5 seconds (legacy approach)
+const intervalId = setInterval(async () => {
     const pluginStatus = await checkSealx();
 
     if (pluginStatus === null) {
         console.warn('SealX extension has been disabled or uninstalled');
         // Handle plugin unavailability
+        clearInterval(intervalId); // Clean up interval
     } else if (!(await isSealxActive())) {
         console.warn('SealX extension is no longer active');
         // Handle plugin deactivation
@@ -265,6 +292,26 @@ window.addEventListener('beforeunload', () => {
     closeSealx();
 });
 ```
+
+### `checkSealxActive(callback: (address: string) => void)`
+
+Sets up a callback to monitor SealX extension activation status in real-time. The callback will be invoked whenever the extension activation status changes.
+
+```typescript
+checkSealxActive((status) => {
+    if (status) {
+        console.log('SealX extension activated:', status);
+    } else {
+        console.log('SealX extension deactivated');
+    }
+});
+```
+
+**Use Cases:**
+
+-   Real-time monitoring of extension availability
+-   Automatic UI updates when extension status changes
+-   Graceful handling of extension installation/removal during runtime
 
 ## Installation Interfaces
 
