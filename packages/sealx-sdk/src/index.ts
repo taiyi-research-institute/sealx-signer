@@ -75,12 +75,13 @@ const CACHE_TTL = 5000; // 5 seconds cache TTL
  * @remarks
  * This function verifies that the SealX extension is both installed in the browser
  * and currently active. It should be called before attempting any SealX operations.
+ * Uses caching to reduce redundant checks (5-second TTL).
  * 
- * @returns {boolean} True if the SealX extension is installed and active, false otherwise
+ * @returns {Promise<boolean>} True if the SealX extension is installed and active, false otherwise
  * 
  * @example
  * ```typescript
- * if (isSealxActive()) {
+ * if (await isSealxActive()) {
  *   // Proceed with SealX operations
  *   await initSealx('user-123');
  * } else {
@@ -130,7 +131,13 @@ export const isSealxActive = async (): Promise<boolean> => {
  *   await initSealx('user-123');
  *   console.log('SealX session initialized successfully');
  * } catch (error) {
- *   console.error('Failed to initialize SealX session:', error);
+ *   if (error instanceof SealxUnavailableException) {
+ *     console.error('Please install the SealX browser extension');
+ *   } else if (error instanceof SessionException) {
+ *     console.error('Failed to establish session:', error.message);
+ *   } else {
+ *     console.error('Unexpected error:', error);
+ *   }
  * }
  * ```
  */
@@ -212,7 +219,13 @@ export const initSealx = async (userId: string | number): Promise<void> => {
  *   await connectSealx('user-123');
  *   console.log('Connected to SealX extension successfully');
  * } catch (error) {
- *   console.error('Failed to connect to SealX extension:', error);
+ *   if (error instanceof SealxUnavailableException) {
+ *     console.error('SealX extension is not available');
+ *   } else if (error instanceof SealxUninitializedException) {
+ *     console.error('Please initialize SealX first');
+ *   } else if (error instanceof SessionException) {
+ *     console.error('Connection failed:', error.message);
+ *   }
  * }
  * ```
  */
@@ -295,7 +308,13 @@ export const connectSealx = async (
  *   const publicKey = await bindSealx('user-123');
  *   console.log('Public key bound successfully:', publicKey);
  * } catch (error) {
- *   console.error('Failed to bind public key:', error);
+ *   if (error instanceof SealxUnavailableException) {
+ *     console.error('SealX extension is not available');
+ *   } else if (error instanceof SealxUninitializedException) {
+ *     console.error('Please initialize SealX first');
+ *   } else {
+ *     console.error('Failed to bind public key:', error.message);
+ *   }
  * }
  * ```
  */
@@ -394,7 +413,15 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  *   });
  *   console.log('Document signed successfully:', signature);
  * } catch (error) {
- *   console.error('Signing failed:', error);
+ *   if (error instanceof SealxUnavailableException) {
+ *     console.error('SealX extension is not available');
+ *   } else if (error instanceof PkException) {
+ *     console.error('Public key mismatch:', error.message);
+ *   } else if (error instanceof SignException) {
+ *     console.error('Signing failed:', error.message);
+ *   } else {
+ *     console.error('Unexpected error:', error);
+ *   }
  * }
  * 
  * // Batch task signing
@@ -538,7 +565,13 @@ export const sealxActive = isSealxActive;
  *   const response = await sendSignResponse('task-123');
  *   console.log('Sign response sent successfully:', response);
  * } catch (error) {
- *   console.error('Failed to send sign response:', error);
+ *   if (error instanceof SealxUnavailableException) {
+ *     console.error('SealX extension is not available');
+ *   } else if (error instanceof SealxUninitializedException) {
+ *     console.error('Please initialize SealX first');
+ *   } else if (error instanceof SignException) {
+ *     console.error('Sign response failed:', error.message);
+ *   }
  * }
  * ```
  */
@@ -675,6 +708,8 @@ export const closeSealx = () => {
  * const status = await checkSealx();
  * if (status) {
  *   console.log('SealX extension is ready:', status);
+ * } else if (status === '') {
+ *   console.log('SealX extension installed but not initialized');
  * } else {
  *   console.log('SealX extension is not available');
  * }
@@ -712,6 +747,27 @@ export const checkSealx = async (): Promise<string | null> => {
 };
 
 
+/**
+ * Sets up a callback to monitor SealX extension activation status
+ * 
+ * @remarks
+ * This function registers a callback that will be invoked when the SealX extension
+ * activation status changes. Useful for real-time monitoring of extension availability.
+ * 
+ * @param {function} callback - Function to call when activation status changes.
+ * Receives the extension address/status as a string parameter.
+ * 
+ * @example
+ * ```typescript
+ * checkSealxActive((status) => {
+ *   if (status) {
+ *     console.log('SealX extension activated:', status);
+ *   } else {
+ *     console.log('SealX extension deactivated');
+ *   }
+ * });
+ * ```
+ */
 export const checkSealxActive = (callback: (address: string) => void) => {
     messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
         callback(request.payload)
