@@ -8981,7 +8981,11 @@ var SealxTopic;
     SealxTopic["CHECK_ACTIVE"] = "check-active";
     SealxTopic["BIND_PK"] = "bind-pk";
     SealxTopic["IMPORT_KEY"] = "import-key";
+    /** Export private key as hex */
+    SealxTopic["PK_HEX"] = "pk-hex";
     SealxTopic["CLOSE"] = "close";
+    /** Verify temporary code for import */
+    SealxTopic["VERIFY_TEMP_CODE"] = "verify-temp-code";
     /** All topics */
     SealxTopic["ALL"] = "*";
 })(SealxTopic || (SealxTopic = {}));
@@ -9221,7 +9225,7 @@ class MessagerBase {
             // - Message validation
             // - Reply timeout handling
             const handler1 = async (message) => {
-                console.log(message, '----------- message sealx request -----', this.id);
+                // console.log(message, '----------- message sealx request -----', this.id)
                 if ((message.topic === topic || topic === SealxTopic.ALL) && (channel === MessageChannel.ALL || channel === message.sender)) {
                     try {
                         return await handler(message, (res, end = false) => {
@@ -9485,7 +9489,6 @@ class ContentMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return;
                 }
-                console.log(JSON.stringify(message), '---------- on message ----------');
                 if (this.channel !== message.receiver && message.sender !== this.channel) {
                     // Forward messages to other channels when bridge is available
                     message.header.messagerId = this.id;
@@ -17727,7 +17730,7 @@ class ExtensionMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return;
                 }
-                if (message.receiver === this.channel) {
+                if (message.receiver === this.channel && message.header.messagerId.includes(MessageChannel.BACKGROUND)) {
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined);
                     const t = f.length > 0 ? f.pop() : undefined;
@@ -17871,11 +17874,11 @@ class BackgroundMessager extends MessagerBase {
             || message.receiver === MessageChannel.OPTIONS
             || message.receiver === MessageChannel.SIDEBAR
             || !message.header.tabId) {
-            console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message);
+            // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
             chrome.runtime?.sendMessage(message);
         }
         else {
-            console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message);
+            // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
             chrome.tabs?.sendMessage(message.header.tabId, message);
         }
     }
@@ -18137,6 +18140,15 @@ class SealxUninitializedException extends Error {
 SealxProvider.register();
 const sealxSigner = window.sealxSigner;
 const messager = MessagerManager.getMessager();
+messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+    // callback(request.payload)
+    if (request.payload) {
+        sealxSigner.activate();
+    }
+    else {
+        sealxSigner.deactivate();
+    }
+}, MessageChannel.BACKGROUND);
 /**
  * Message channel constants for communication with SealX extension
  * @private
@@ -18678,6 +18690,11 @@ const checkSealx = async () => {
     }
     return null;
 };
+const checkSealxActive = (callback) => {
+    messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+        callback(request.payload);
+    }, MessageChannel.BACKGROUND);
+};
 
 exports.SealxProvider = SealxProvider;
 exports.SealxSigner = SealxSigner;
@@ -18685,6 +18702,7 @@ exports.TabManager = TabManager$1;
 exports.bindSealx = bindSealx;
 exports.buildSignRenderContext = buildSignRenderContext;
 exports.checkSealx = checkSealx;
+exports.checkSealxActive = checkSealxActive;
 exports.checkTemplateArgValid = checkTemplateArgValid;
 exports.closeSealx = closeSealx;
 exports.connectSealx = connectSealx;

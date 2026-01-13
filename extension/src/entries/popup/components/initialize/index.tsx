@@ -73,7 +73,14 @@ export default function Initialize() {
                             );
                             if (res1) {
                                 // setSession(res1);
-                                request.reply?.(res as never);
+                                request.reply?.({
+                                    session: res1,
+                                    account: {
+                                        host: res1.host,
+                                        userId: userId,
+                                        pk: res1.pk
+                                    }
+                                } as never);
                                 return [res, res1];
                             }
                         }

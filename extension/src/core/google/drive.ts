@@ -23,6 +23,7 @@ export class GoogleDrive {
 
     private token: string = '';
     private folder: string = 'sealx';
+    // private authUrl: string = 'https://www.googleapis.com/drive/v3';
     private baseUrl: string = 'https://www.googleapis.com/drive/v3/files';
     private uploadUrl: string = 'https://www.googleapis.com/upload/drive/v3/files';
     private maxRetries: number = 3;
@@ -384,7 +385,7 @@ export class GoogleDrive {
         }
 
         try {
-            const response = await fetch(`${this.baseUrl}/about?fields=user`, {
+            const response = await fetch(`https://www.googleapis.com/drive/v3/about?fields=user`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${this.token}`,

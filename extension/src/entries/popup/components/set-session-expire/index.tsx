@@ -4,6 +4,7 @@ import SelectedIcon from '@assets/svg/selected.svg?react'
 import { setSealxSessionTimeout } from "@src/entries/background/state"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
 import { useSuccessStore } from "@src/core/state"
+import Button from "@src/components/button"
 // import { setSealxSessionTimeout } from "@src/entries/background/state"
 
 export const SetSessionExpire = () => {
@@ -55,15 +56,20 @@ export const SetSessionExpire = () => {
                 </div>
             </div>
         </div>
-        <div className='w-full mt-[32px] flex justify-between mb-[32px]'>
-            <div onClick={() => {
-                navigate(-1)
-            }} className=' cursor-pointer rounded-[34px] border-2 border-[rgba(0,0,0,0.06)] font-[500] text-[24px] leading-[28px] pl-[52.77px] pr-[53.23px] pt-[18px] pb-[22px] text-[#000]'>
+        <div className='w-full mt-[32px] flex justify-between gap-x-[24px] mb-[32px]'>
+            <Button
+                variant="secondary"
+                onClick={() => navigate(-1)}
+            >
                 Cancel
-            </div>
-            <div onClick={onSubmit} className=' w-[346px] cursor-pointer rounded-[34px] bg-[#000] text-[#fff] border-2 border-[#000] font-[500] text-[24px] leading-[28px] pl-[57.77px] pr-[58.23px] pt-[18px] pb-[22px]'>
+            </Button>
+            <Button
+                variant="primary"
+                onClick={onSubmit}
+                className="w-[346px]"
+            >
                 Confirm
-            </div>
+            </Button>
         </div>
     </div>
 }

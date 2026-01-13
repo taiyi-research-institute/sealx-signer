@@ -1,7 +1,11 @@
+// If using TypeScript, add this for Chrome types:
+/// <reference types="chrome"/>
 import { sessionKey } from '@src/core/utils/helper';
 import { type SealxSession } from 'sealx-core';
 import { createStore } from '../internal/createStore';
 import { withSelectors } from '../internal/withSelectors';
+
+// import { now } from 'lodash';
 
 // export const sessionStore = () => {
 //     return localStorageWrapper('sealx', 'session')
@@ -51,7 +55,6 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
     },
     setSession: (session: SealxSession | null) => {
         const state = get()
-
         if (session) {
             // When setting a valid session, always use the session's host and userId
             // to ensure consistency between the session data and the state
@@ -71,8 +74,9 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
             const key = sessionKey(host, userId)
 
             // Remove from sessionMap
-            delete state.sessionMap[key]
-
+            const session = state.sessionMap[key]
+            if (session && session.expire < Date.now() - 5000) delete state.sessionMap[key]
+            console.log('Deleted session from sessionMap with key:', key)
             // Clear session but keep host/userId
             set({ session: null })
         }
@@ -83,6 +87,7 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
         const userId = state.userId ?? ''
         const key = sessionKey(host, userId)
         delete state.sessionMap[key]
+        console.log('Logged out session from sessionMap with key:', key)
         set({ ...state, session: null })
     },
     isSessionConsistent: () => {
@@ -98,16 +103,17 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
         return sessionMatchesState
     },
     clearAllSession: () => {
+        console.log('Clearing all sessions from sessionMap')
         // Clear all sessions from sessionMap and reset current session
         set({ sessionMap: {}, session: null })
     }
 }), {
     persist: {
-        name: 'sesçsion',
+        name: 'session',
         onRehydrateStorage: () => (state) => {
             // This callback runs after the store is rehydrated from storage
-            console.log('Session store rehydrated:', state)
-        }
+            console.log('Session store rehydrated:', JSON.stringify(state));
+        },
     }
 })
 

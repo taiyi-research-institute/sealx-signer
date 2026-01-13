@@ -2,6 +2,9 @@
 /// <reference types="chrome"/>
 
 import { sessionStore } from "@src/core/state"
+import { getSealxInfo } from "./state"
+import { MessageChannel, SealxTopic } from "sealx-message"
+import type { Messager } from "sealx-message"
 
 // import { env } from "process"
 
@@ -12,6 +15,7 @@ export default class PopupManager {
     static openTabs: Map<number, chrome.tabs.Tab> = new Map()
     static callerTabId: number | null = null
     static actionPopupOpened: boolean = false
+    static messager: Messager | null = null
 
     private static async findPopupWindow(): Promise<chrome.windows.Window | undefined> {
         const windows = await chrome.windows.getAll()
@@ -29,6 +33,10 @@ export default class PopupManager {
             }
         })
     }
+    static setMessager(messager: Messager) {
+        PopupManager.messager = messager
+    }
+
     static setPopupWindow() {
         chrome.action.onClicked.addListener(async () => {
             await PopupManager.closeWindow()
@@ -39,6 +47,12 @@ export default class PopupManager {
         chrome.runtime.onInstalled.addListener(async () => {
             sessionStore.getState().clearAllSession()
             PopupManager.popupWindow(3, 'login')
+            setInterval(async () => {
+                const sealx = await getSealxInfo()
+                if (PopupManager.messager) {
+                    PopupManager.messager.send(sealx?.address ?? '', SealxTopic.CHECK_INITIALIZED, MessageChannel.INPAGE)
+                }
+            }, 5000)
         })
     }
 

@@ -43,6 +43,15 @@ SealxProvider.register();
 const sealxSigner = window.sealxSigner;
 const messager = MessagerManager.getMessager();
 
+messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
+    // callback(request.payload)
+    if (request.payload) {
+        sealxSigner.activate()
+    } else {
+        sealxSigner.deactivate()
+    }
+}, MessageChannel.BACKGROUND)
+
 /**
  * Message channel constants for communication with SealX extension
  * @private
@@ -701,3 +710,10 @@ export const checkSealx = async (): Promise<string | null> => {
 
     return null;
 };
+
+
+export const checkSealxActive = (callback: (address: string) => void) => {
+    messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
+        callback(request.payload)
+    }, MessageChannel.BACKGROUND)
+}

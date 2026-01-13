@@ -43,7 +43,10 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                 }
             }, updateInterval)
             // Submit the PIN
-            onSubmit(pin).catch(() => {
+            onSubmit(pin).then(() => {
+                clearInterval(progressInterval)
+                setProgress(100)
+            }).catch(() => {
                 clearInterval(progressInterval)
                 setError('Pin error')
             })
@@ -102,7 +105,11 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                     </svg>
                 </div>
 
-                <div className="text-[24px] font-[500] mb-[24px] text-center">
+
+
+                {/* Progress bar for export mask */}
+                {!isProcessing ? (<>
+                    <div className="text-[24px] font-[500] mb-[24px] text-center">
                     {title}
                 </div>
 
@@ -117,9 +124,7 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                         className="w-full gap-x-[12px]"
                     />
                 </div>
-
-                {/* Progress bar for export mask */}
-                {isProcessing && (
+                </>) : (
                     <div className="mt-[32px]">
                         <div className="flex flex-col items-center w-full">
                             <div className="w-full text-[16px] max-w-[300px] mb-4">

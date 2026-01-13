@@ -1,7 +1,7 @@
 import { TabManager } from "sealx-core";
 import MessagerBase from "./messager";
 // import browser from "webextension-polyfill";
-import { MessageChannel } from "../enums";
+import { MessageChannel, SealxTopic } from "../enums";
 import { SealxRequest } from "../contracts";
 import { SealxResponse } from "../contracts/response";
 
@@ -50,7 +50,8 @@ export default class ExtensionMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return
                 }
-                if (message.receiver === this.channel) {
+                if (message.receiver === this.channel && message.header.messagerId.includes(MessageChannel.BACKGROUND)) {
+
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined)
                     const t = f.length > 0 ? f.pop() : undefined

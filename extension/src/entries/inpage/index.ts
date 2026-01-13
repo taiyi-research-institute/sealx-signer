@@ -1,7 +1,4 @@
 import { SealxProvider } from "sealx-core";
-// import { checkSealxSignerActive } from "sealx-message";
-// import type { Messager } from "sealx-message";
-// import { MessagerManager } from "sealx-message";
 
 
 
@@ -11,5 +8,4 @@ const sealxSigner = window.sealxSigner
 sealxSigner.install()
 sealxSigner.activate()
 
-// checkSealxSignerActive(messager);
 

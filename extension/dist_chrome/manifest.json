@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SealX: Secure Review & Sign What You See for Crypto Assets",
-  "version": "0.0.35",
+  "version": "0.0.40",
   "description": "SealX is a secure plugin for crypto custody, enabling trusted review, signatures, and full transaction visibility across platforms.",
   "action": {
     "default_popup": "src/entries/popup/index.html",
@@ -34,7 +34,8 @@
     "activeTab",
     "storage",
     "scripting",
-    "tabs"
+    "tabs",
+    "identity"
   ],
   "oauth2": {
     "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
@@ -45,7 +46,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.tsx-loader-BDVosc51.js"
+        "assets/index.tsx-loader-tjDXS0J2.js"
       ],
       "matches": [
         "http://*/*",
@@ -54,7 +55,7 @@
       "run_at": "document_start",
       "all_frames": true,
       "css": [
-        "assets/index-CNX89HUS.css"
+        "assets/index-BpzCuD_4.css"
       ]
     }
   ],
@@ -83,9 +84,9 @@
       "resources": [
         "assets/client-CRBwutFG.js",
         "assets/index-Bj7Y5nDa.js",
-        "assets/messager-manager-CdeYDOwx.js",
+        "assets/messager-manager--u8Dt6qa.js",
         "assets/lodash-BUKDu3TW.js",
-        "assets/index.tsx-Cb0T3BkA.js"
+        "assets/index.tsx-vpDUdx35.js"
       ],
       "use_dynamic_url": false
     }

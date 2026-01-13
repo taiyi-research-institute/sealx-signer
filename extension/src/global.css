@@ -1,6 +1,15 @@
 @import 'tailwindcss/preflight';
 @tailwind utilities;
 
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .top-0 {
     top: 0;
 }

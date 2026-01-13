@@ -6,7 +6,7 @@ export { isNativeFullscreen, isViewportFullscreenBySize } from './sealx-core/dis
 export { dbStorageWrapper, localStorageWrapper } from './sealx-core/dist/storage/index.mjs';
 export { buildSignRenderContext, checkTemplateArgValid, convertToISOFormat, layoutRender, parseSignContent } from './sealx-core/dist/utils/eip712-helper.mjs';
 export { decryptPrivateKey, deriveKeyFromPin, encryptPrivateKey, pinGenerator, slatGenerator } from './sealx-core/dist/utils/cropto.mjs';
-import { MessagerManager, MessageChannel, SealxTopic } from './sealx-message/dist/index.mjs';
+import { MessagerManager, SealxTopic, MessageChannel } from './sealx-message/dist/index.mjs';
 import PkException from './exceptions/PkException.mjs';
 import SignException from './exceptions/SignException.mjs';
 import SessionException from './exceptions/SessionException.mjs';
@@ -44,6 +44,15 @@ import SealxUninitializedException from './exceptions/SealxUninitializedExceptio
 SealxProvider.register();
 const sealxSigner = window.sealxSigner;
 const messager = MessagerManager.getMessager();
+messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+    // callback(request.payload)
+    if (request.payload) {
+        sealxSigner.activate();
+    }
+    else {
+        sealxSigner.deactivate();
+    }
+}, MessageChannel.BACKGROUND);
 /**
  * Message channel constants for communication with SealX extension
  * @private
@@ -585,6 +594,11 @@ const checkSealx = async () => {
     }
     return null;
 };
+const checkSealxActive = (callback) => {
+    messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+        callback(request.payload);
+    }, MessageChannel.BACKGROUND);
+};
 
-export { SealxProvider, bindSealx, checkSealx, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx, wait };
+export { SealxProvider, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx, wait };
 //# sourceMappingURL=index.mjs.map

@@ -13,6 +13,7 @@ import { useRequestStore } from "@src/core/state/request";
 const DB_VERSION = 1
 // Initialize message handler and popup manager
 const messager = MessagerManager.getMessager()
+PopupManager.setMessager(messager)
 PopupManager.setPopupWindow()
 
 /**
@@ -39,9 +40,13 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         user = await addUser(userId, host)
     }
     console.log('CONNECT user:', user, request, state.session)
+    state.setHost(host)
+    state.setUserId(userId)
+    state.setSession(state.session) // Refresh session based on updated host/userId
     if (state.session && state.session.expire > (Date.now() + 10000) && state.session.userId == userId && state.session.userId) {
         return { session: state.session, account: user }
     } else {
+        console.log('CONNECT need login:', request, state.session, state.session ? state.session.expire > (Date.now() + 10000) : false)
         state.setSession(null)
         const setRequest = useRequestStore.getState().setRequest
         setRequest(request)
@@ -78,7 +83,6 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
         request.header.tabId = TabManager.getInstance().currentTabId
     }
     const userId = request.header.userId
-    // const title = request.payload.title
     const host = request.header.host
     const state = sessionStore.getState()
     if (host) state.setHost(host)
@@ -355,8 +359,14 @@ messager.on(SealxTopic.SIGN, async (request: SealxRequest<{ host: string, userId
     state.setHost(request.payload.host)
     state.setUserId(request.payload.userId)
     const session = state.session
+    console.log('-------- sign handle ----', request, session, state)
     if (session) {
+        const info = await getSealxInfo()
+        if (info?.pks) {
+            session.pk = info.pks[session.pk] ?? session.pk
+        }
         const pk = await decodeSessionPrivateKey(session)
+        // const record = await getPrivateKey
         if (pk) {
             //
             return await signTypeContent(request.payload.signContent, pk)

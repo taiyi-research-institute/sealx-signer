@@ -1,6 +1,7 @@
 import { useGlobalContext } from "@src/hooks/useGlobalContext"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
 import AddressCardIcon from '@assets/svg/address-card.svg?react'
+import Button from "@src/components/button"
 
 export const KeyManage = () => {
     const navigate = useSealXNavigate()
@@ -15,12 +16,20 @@ export const KeyManage = () => {
                     <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
                         <AddressCardIcon className='mr-[11px]'></AddressCardIcon>Pubkey
                         <div className=" flex-1 text-right">
-                            <span className="pt-[3px] pb-[4px] px-[6px] border-[0.5px] border-[rgba(0,0,0,0.2)] cursor-pointer rounded-[6px] text-[16px] font-[500] leading-[24px] mr-[12px]" onClick={() => {
-                                navigate('/key-export')
-                            }}>Export</span>
-                            <span className="pt-[3px] pb-[4px] px-[6px] border-[0.5px] border-[rgba(0,0,0,0.2)] cursor-pointer rounded-[6px] text-[16px] font-[500] leading-[24px]" onClick={() => {
-                                navigate('/key-import')
-                            }}>Import</span>
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/key-export')}
+                                className="!pt-[2px] !pb-[6px] !px-[12px] !text-[16px] !leading-[24px] !mr-[12px]"
+                            >
+                                Export
+                            </Button>
+                            <Button
+                                variant="primary"
+                                onClick={() => navigate('/key-import')}
+                                className="!pt-[2px] !pb-[6px] !px-[12px] !text-[16px] !leading-[24px]"
+                            >
+                                Import
+                            </Button>
                         </div>
                     </div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
@@ -30,11 +39,12 @@ export const KeyManage = () => {
             </div>
         </div>
         <div className='w-full mt-[32px] flex justify-between mb-[32px]'>
-            <div onClick={() => {
-                navigate(-1)
-            }} className=' cursor-pointer rounded-[34px] border-2 border-[rgba(0,0,0,0.06)] font-[500] text-[24px] leading-[28px] pl-[52.77px] pr-[53.23px] pt-[18px] pb-[22px] text-[#000]'>
+            <Button
+                variant="secondary"
+                onClick={() => navigate(-1)}
+            >
                 Back
-            </div>
+            </Button>
         </div>
     </div>
 }

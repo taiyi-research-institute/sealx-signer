@@ -1,5 +1,5 @@
 import path, { resolve } from 'path';
-import { mergeConfig, defineConfig } from 'vite';
+import { mergeConfig, defineConfig, type PluginOption } from 'vite';
 import { crx, ManifestV3Export } from '@crxjs/vite-plugin';
 import baseConfig, { baseManifest, baseBuildOptions } from './base'
 import copy from 'rollup-plugin-copy';
@@ -15,7 +15,7 @@ export default mergeConfig(
                     { src: path.resolve(__dirname, '../dist_inpage/inpage.js'), dest: outDir },
                 ],
                 hook: 'writeBundle',
-            }),
+            }) as PluginOption,
             crx({
                 manifest: {
                     ...baseManifest,
@@ -35,5 +35,5 @@ export default mergeConfig(
             outDir,
             target: 'esnext',
         },
-    })
+    }) as never
 )

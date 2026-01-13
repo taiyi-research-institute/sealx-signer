@@ -12,13 +12,17 @@ import svgr from 'vite-plugin-svgr';
 
 
 const isDev = process.env.__DEV__ === 'true';
+console.log('Vite build __DEV__:', process.env);
+console.log(`Building extension in ${isDev ? 'development' : 'production'} mode.`);
 // set this flag to true, if you want localization support
 const localize = false;
 
 // Public key for Chrome extension (from extension.pem)
 // This ensures a fixed extension ID during development
 const extensionKey = 'MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqOMn0GPvx3IYpHGK+Hf0YatEjrfEspIbAl0UP+C64uHch+2E9tskudfTsa+58mQjNwztIDHPQCXfpl0d0/rXFtZL4BBU7H4Z3/KSrxCSLwocDeoLIzjrlcErb1xPQ9a0oK8mFnObl+/qFLH1RVcLGCSViJZerDmR2kiJrK2pdn/rVvmCiNVYWECAguQXjeetZ5HdoLp73V3mFtgtS/BUN+iY+9YDaxyOWvw7TAZMk+ntRm1wm78YnyDo4q9bp2MQdzbbGqLE2YAcEPp15PqKkYSRDB1s+tFMqNmCZlxyXOau+wy+x9Vxw4qUDjKDnPtjy/J2ib3EVH+qzQhYX+kf/wIDAQAB';
-
+// const clientId = isDev ? "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com" : '978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com';
+const clientId = isDev ? "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com" : '978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com';
+manifest.oauth2.client_id = clientId;
 export const baseManifest = {
     ...manifest,
     version: pkg.version,

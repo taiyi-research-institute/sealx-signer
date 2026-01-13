@@ -6,6 +6,7 @@ import { useRequestContext } from "@src/hooks/useRequestContextHook"
 import { bindKey, closeWindow } from "@src/core/background"
 import { SealxTopic, type ReplyFunc } from "sealx-message"
 import messager from "@src/core/messager"
+import Button from "@src/components/button"
 export const BindPubKey = () => {
     // const navigate = useSealXNavigate()
     const { address } = useGlobalContext()
@@ -41,14 +42,18 @@ export const BindPubKey = () => {
             </div>
         </div>
         <div className='w-full mt-[32px] flex justify-between mb-[32px]'>
-            <div onClick={() => {
-                closeWindow()
-            }} className=' cursor-pointer rounded-[34px] border-2 border-[rgba(0,0,0,0.06)] font-[500] text-[24px] leading-[28px] pl-[52.77px] pr-[53.23px] pt-[18px] pb-[22px] text-[#000]'>
+            <Button
+                variant="secondary"
+                onClick={() => closeWindow()}
+            >
                 Cancel
-            </div>
-            <div onClick={onSubmit} className=' w-[346px] cursor-pointer rounded-[34px] bg-[#000] text-[#fff] border-2 border-[#000] font-[500] text-[24px] leading-[28px] pl-[57.77px] pr-[58.23px] pt-[18px] pb-[22px]'>
+            </Button>
+            <Button
+                variant="primary"
+                onClick={onSubmit}
+            >
                 Bind Now
-            </div>
+            </Button>
         </div>
     </div>
 }

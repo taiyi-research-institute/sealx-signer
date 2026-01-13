@@ -1,6 +1,6 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-BFXGZB5I.js",
+    "file": "assets/crx-manifest.js-_1-PkgRS.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
@@ -12,19 +12,15 @@
       "_index-Bj7Y5nDa.js"
     ]
   },
-  "_global-Bi45iRhk.css": {
-    "file": "assets/global-Bi45iRhk.css",
-    "src": "_global-Bi45iRhk.css"
-  },
-  "_global-MAfYf2-K.js": {
-    "file": "assets/global-MAfYf2-K.js",
+  "_global-B51haWMX.js": {
+    "file": "assets/global-B51haWMX.js",
     "name": "global",
     "imports": [
       "_lodash-BUKDu3TW.js",
       "_index-8FsSLa_l.js"
     ],
     "css": [
-      "assets/global-Bi45iRhk.css"
+      "assets/global-D1hfDLdb.css"
     ],
     "assets": [
       "assets/Gellix-Regular-gOmSiHtW.woff2",
@@ -45,21 +41,15 @@
       "assets/NanumPen-Cx4X1OcW.woff"
     ]
   },
+  "_global-D1hfDLdb.css": {
+    "file": "assets/global-D1hfDLdb.css",
+    "src": "_global-D1hfDLdb.css"
+  },
   "_index-8FsSLa_l.js": {
     "file": "assets/index-8FsSLa_l.js",
     "name": "index",
     "imports": [
       "_lodash-BUKDu3TW.js"
-    ]
-  },
-  "_index-B8SI-SxD.js": {
-    "file": "assets/index-B8SI-SxD.js",
-    "name": "index",
-    "imports": [
-      "_index-ChUXR8u8.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-8FsSLa_l.js",
-      "_index-Bj7Y5nDa.js"
     ]
   },
   "_index-Bj7Y5nDa.js": {
@@ -73,16 +63,26 @@
     "file": "assets/index-ChUXR8u8.js",
     "name": "index"
   },
-  "_index.tsx-loader-BDVosc51.js": {
-    "file": "assets/index.tsx-loader-BDVosc51.js",
-    "src": "_index.tsx-loader-BDVosc51.js"
+  "_index-Da-zrhFm.js": {
+    "file": "assets/index-Da-zrhFm.js",
+    "name": "index",
+    "imports": [
+      "_index-ChUXR8u8.js",
+      "_lodash-BUKDu3TW.js",
+      "_index-8FsSLa_l.js",
+      "_index-Bj7Y5nDa.js"
+    ]
+  },
+  "_index.tsx-loader-tjDXS0J2.js": {
+    "file": "assets/index.tsx-loader-tjDXS0J2.js",
+    "src": "_index.tsx-loader-tjDXS0J2.js"
   },
   "_lodash-BUKDu3TW.js": {
     "file": "assets/lodash-BUKDu3TW.js",
     "name": "lodash"
   },
-  "_messager-manager-CdeYDOwx.js": {
-    "file": "assets/messager-manager-CdeYDOwx.js",
+  "_messager-manager--u8Dt6qa.js": {
+    "file": "assets/messager-manager--u8Dt6qa.js",
     "name": "messager-manager",
     "imports": [
       "_lodash-BUKDu3TW.js"
@@ -153,32 +153,32 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-CyMAr8ys.js",
+    "file": "assets/index.ts-G9WJQu8o.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,
     "imports": [
-      "_messager-manager-CdeYDOwx.js",
+      "_messager-manager--u8Dt6qa.js",
       "_lodash-BUKDu3TW.js",
-      "_index-B8SI-SxD.js",
+      "_index-Da-zrhFm.js",
       "_index-8FsSLa_l.js",
       "_index-ChUXR8u8.js",
       "_index-Bj7Y5nDa.js"
     ]
   },
   "src/entries/content/index.tsx": {
-    "file": "assets/index.tsx-Cb0T3BkA.js",
+    "file": "assets/index.tsx-vpDUdx35.js",
     "name": "index.tsx",
     "src": "src/entries/content/index.tsx",
     "isEntry": true,
     "imports": [
       "_client-CRBwutFG.js",
       "_index-Bj7Y5nDa.js",
-      "_messager-manager-CdeYDOwx.js",
+      "_messager-manager--u8Dt6qa.js",
       "_lodash-BUKDu3TW.js"
     ],
     "css": [
-      "assets/index-CNX89HUS.css"
+      "assets/index-BpzCuD_4.css"
     ]
   },
   "src/entries/inpage/index.ts": {
@@ -198,17 +198,17 @@
     "src": "src/entries/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_global-MAfYf2-K.js",
+      "_global-B51haWMX.js",
       "_client-CRBwutFG.js",
       "_index-Bj7Y5nDa.js",
-      "_messager-manager-CdeYDOwx.js",
+      "_messager-manager--u8Dt6qa.js",
       "_lodash-BUKDu3TW.js",
-      "_index-B8SI-SxD.js",
+      "_index-Da-zrhFm.js",
       "_index-ChUXR8u8.js",
       "_index-8FsSLa_l.js"
     ],
     "css": [
-      "assets/popup-Bcz4Wbi-.css"
+      "assets/popup-BwOFEGeh.css"
     ]
   },
   "src/entries/sandbox/index.html": {
@@ -217,7 +217,7 @@
     "src": "src/entries/sandbox/index.html",
     "isEntry": true,
     "imports": [
-      "_global-MAfYf2-K.js",
+      "_global-B51haWMX.js",
       "_client-CRBwutFG.js",
       "_index-Bj7Y5nDa.js",
       "_lodash-BUKDu3TW.js",

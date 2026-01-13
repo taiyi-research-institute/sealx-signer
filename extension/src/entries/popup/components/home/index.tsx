@@ -3,11 +3,13 @@ import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
 import FilterMenu from '@assets/svg/filter-menu.svg?react';
 import { useClickOutside } from '@src/hooks/useOutsideClick';
+import { usePopupType } from '@src/hooks/usePopupType';
 import './styles.css';
 
 const Home: React.FC = () => {
     const navigate = useSealXNavigate();
     const { address } = useGlobalContext();
+    const { isActionPopup, isLoading: isPopupTypeLoading } = usePopupType();
     const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
     const settingsMenuRef = useRef<HTMLDivElement>(null);
     useClickOutside(settingsMenuRef, () => setShowSettingsMenu(false));
@@ -26,7 +28,18 @@ const Home: React.FC = () => {
                 navigate('/reset-pin');
                 break;
             case 'key-manage':
-                navigate('/key-manage');
+
+                // // If we're in an action popup (icon弹框模式), open in new tab
+                // // Otherwise, navigate normally
+                if (!isPopupTypeLoading && isActionPopup && chrome?.tabs?.create) {
+                    console.log('Opening key-manage in new tab (action popup detected)');
+                    chrome.tabs.create({
+                        url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
+                    });
+                } else {
+                    console.log('Navigating to key-manage normally');
+                    navigate('/key-manage');
+                }
                 break;
             case 'set-screen-timer':
                 navigate('/set-screen-timer');
@@ -42,8 +55,8 @@ const Home: React.FC = () => {
     };
 
     return (
-        <div className='home-container flex'>
-            <div className='w-[600px] flex flex-col min-h-full py-[24px] mx-auto relative'>
+        <div className='home-container flex w-full flex-col h-fit overflow-auto'>
+            <div className='w-[600px]  flex flex-col h-fit py-[24px] mx-auto relative'>
                 {/* Header with Settings Button */}
                 <div className='w-full px-[26.25px]  flex items-center justify-end relative'>
                     <FilterMenu
@@ -53,25 +66,25 @@ const Home: React.FC = () => {
                     {showSettingsMenu && (
                         <div
                             ref={settingsMenuRef}
-                            className='absolute z-[999999] right-[12px] top-[30px] rounded-[8px] w-[242px] bg-[#fff] shadow-lg border border-[#000]/[10%]'
+                            className='absolute z-[999999] px-[12px] right-[12px] top-[30px] rounded-[8px] w-fit bg-[#fff] shadow-lg border border-[#000]/[10%]'
                         >
                             <div
                                 onClick={() => handleSettingsOption('reset-pin')}
-                                className="pt-[18px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center"
+                                className="pt-[18px] px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
                             >
                                 Reset PIN
                             </div>
                             <div
                                 onClick={() => handleSettingsOption('key-manage')}
-                                className="pt-[18px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center"
+                                className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
                             >
                                 Key Management
                             </div>
                             <div
                                 onClick={() => handleSettingsOption('set-screen-timer')}
-                                className="pt-[18px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center"
+                                className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
                             >
-                                Screen Timer
+                                Set Screen Off Time
                             </div>
                         </div>
                     )}
@@ -101,7 +114,7 @@ const Home: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className='space-y-[16px] text-[18px] text-[#000]/[80%] leading-relaxed'>
+                    <div className='space-y-[16px] text-left text-[18px] text-[#000]/[80%] leading-relaxed'>
                         <p>
                             A "What You See Is What You Sign" EIP712 structure data signing plugin
                             that provides secure and transparent digital signatures for blockchain transactions.

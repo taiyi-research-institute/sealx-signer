@@ -1,7 +1,7 @@
 import { resolve } from 'path';
 import { mergeConfig, defineConfig } from 'vite';
 import { crx, ManifestV3Export } from '@crxjs/vite-plugin';
-import baseConfig, { baseManifest, baseBuildOptions } from './base'
+import baseConfig, { baseManifest, baseBuildOptions } from './base.ts'
 
 const outDir = resolve(__dirname, 'dist_firefox');
 

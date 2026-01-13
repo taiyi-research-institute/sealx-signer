@@ -1,18 +1,21 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
-import { Password } from "../password"
 import { PinPopup } from "./PinPopup"
-import CopyBtn from '@assets/svg/copy.svg?react'
+// import CopyBtn from '@assets/svg/copy.svg?react'
 import './password.css'
 import Warning from '@assets/svg/warning.svg?react'
 import CloseEye from '@assets/svg/close-eye.svg?react'
 import OpenEye from '@assets/svg/open-eye.svg?react'
 import { useRequestContext } from "@src/hooks/useRequestContextHook"
-import { pinGenerator } from "sealx-core"
 import { encodeSession } from "@src/core/utils/helper"
 import { hashPin, pkHex } from "@src/core/background"
-import copy from 'copy-text-to-clipboard'
+// import copy from 'copy-text-to-clipboard'
 import { useErrorStore, useSuccessStore } from "@src/core/state"
+import Radio from "@src/components/radio"
+import Button from "@src/components/button"
+import GoogleDriveAuthMask from "@src/components/google-drive-auth-mask"
+import { GoogleDrive } from "@src/core/google/drive"
+// import { error } from "console"
 
 declare global {
     interface Window {
@@ -28,19 +31,82 @@ declare global {
 export const KeyExport = () => {
     const navigate = useSealXNavigate()
     const { session } = useRequestContext()
-    const [tpPin, setTpPin] = useState<string>('') // 临时密码
+    const [tpPin, setTpPin] = useState<string>('') // 临时密码 - 改为用户输入
+    const [confirmPin, setConfirmPin] = useState<string>('') // 确认密码
     const [closeEye, setCloseEye] = useState<boolean>(true)
+    const [closeEyeConfirm, setCloseEyeConfirm] = useState<boolean>(true)
     const [directoryPath, setDirectoryPath] = useState('')
     const [directoryHandle, setDirectoryHandle] = useState<FileSystemFileHandle | null>(null)
     const [showPinModal, setShowPinModal] = useState<boolean>(false)
+    const [isAuthing, setIsAuthing] = useState<boolean>(false)
+    const [exportMethod, setExportMethod] = useState<'local' | 'google-drive'>('local')
+    const [googleDrive, setGoogleDrive] = useState<GoogleDrive | null>(null)
+    const [googleDriveStatus, setGoogleDriveStatus] = useState<'unauthenticated' | 'authenticated' | 'uploading' | 'error'>('unauthenticated')
     const setSuccess = useSuccessStore.use.setSuccess()
     const setError = useErrorStore.use.setError()
 
-    // 初始化临时密码
+    // Validation states
+    const [tpPinError, setTpPinError] = useState<string>('')
+    const [confirmPinError, setConfirmPinError] = useState<string>('')
+    const [matchError, setMatchError] = useState<string>('')
+
+    // 初始化Google Drive
     useEffect(() => {
-        const p = pinGenerator()
-        setTpPin(p)
+        const drive = new GoogleDrive('sealx')
+        setGoogleDrive(drive)
+
+        // 检查Google Drive认证状态
+        const checkAuth = async () => {
+            try {
+                const isValid = await drive.checkTokenValidity()
+                setGoogleDriveStatus(isValid ? 'authenticated' : 'unauthenticated')
+            } catch (error) {
+                console.error('Error checking Google Drive auth:', error)
+                setGoogleDriveStatus('unauthenticated')
+            }
+        }
+
+        checkAuth()
     }, [])
+    // Validation functions
+    const validateTpPin = useCallback((value: string): boolean => {
+        if (!value || value.length < 6) {
+            setTpPinError('Password must be at least 6 characters')
+            return false
+        }
+        setTpPinError('')
+        return true
+    }, [])
+
+    const validateConfirmPin = useCallback((value: string): boolean => {
+        if (!value || value.length < 6) {
+            setConfirmPinError('Password must be at least 6 characters')
+            return false
+        }
+        setConfirmPinError('')
+        return true
+    }, [])
+
+    const validateMatch = useCallback((tp: string, confirm: string): boolean => {
+        if (tp && confirm && tp !== confirm) {
+            setMatchError('Passwords do not match')
+            return false
+        }
+        setMatchError('')
+        return true
+    }, [])
+
+    // Handle blur validation
+    const handleTpPinBlur = useCallback(() => {
+        validateTpPin(tpPin)
+        validateMatch(tpPin, confirmPin)
+    }, [tpPin, confirmPin, validateTpPin, validateMatch])
+
+    const handleConfirmPinBlur = useCallback(() => {
+        validateConfirmPin(confirmPin)
+        validateMatch(tpPin, confirmPin)
+    }, [tpPin, confirmPin, validateConfirmPin, validateMatch])
+
     const onSelectDir = useCallback(async () => {
         try {
             const dirHandle = await window.showDirectoryPicker({
@@ -51,21 +117,25 @@ export const KeyExport = () => {
             setDirectoryHandle(fileHandle)
             const file = await fileHandle.getFile()
             setDirectoryPath(`${dirHandle.name}/${file.name} (selected)`)
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Error selecting directory:', err)
             setDirectoryPath('')
             setDirectoryHandle(null)
+            if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
+                // setError('User refuse')
+            } else if (err && typeof err === 'object' && 'name' in err && err.name === 'SecurityError') {
+                setError('Permission not allowed')
+            } else {
+                const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+                setError(`Error selecting directory: ${errorMessage}`)
+            }
         }
     }, [])
     // 处理PIN码输入和导出
     const handleExportWithPin = useCallback(async (userPin: string) => {
+        // 优化验证：确保PIN码最小6位
         if (!userPin || userPin.length < 6) {
-            setError('Please enter a valid 6-digit PIN')
-            return
-        }
-
-        if (!directoryHandle) {
-            setError('Please select a destination directory first')
+            setError('Please enter at least 6 characters for your PIN')
             return
         }
 
@@ -88,13 +158,49 @@ export const KeyExport = () => {
             // 3. 使用临时密码加密更新后的session
             const encoded = await encodeSession(hashPin(tpPin), updatedSession)
 
-            // 4. 导出文件
-            const writable = await directoryHandle.createWritable()
-            await writable.write(encoded)
-            await writable.close()
+            if (exportMethod === 'local') {
+                // 本地导出
+                if (!directoryHandle) {
+                    setError('Please select a destination directory first')
+                    return
+                }
 
-            // 5. 显示成功消息并关闭模态框
-            setSuccess('Export successful. Key file has been saved as "sealx.key".')
+                const writable = await directoryHandle.createWritable()
+                await writable.write(encoded)
+                await writable.close()
+
+                setSuccess('Export successful. Key file has been saved as "sealx.key".')
+            } else {
+                // Google Drive导出
+                if (googleDrive && googleDriveStatus !== 'authenticated') {
+                    await googleDrive.reauthorize()
+                    if (!await googleDrive.checkTokenValidity()) {
+                        setError('Please connect to Google Drive Failed')
+                        return
+                    }
+                }
+                if (!googleDrive || googleDriveStatus === 'unauthenticated') {
+                    setError('Please connect to Google Drive first')
+                    return
+                }
+
+                setGoogleDriveStatus('uploading')
+                try {
+                    const fileId = await googleDrive.uploadFile('sealx.key', encoded)
+                    console.log('File uploaded to Google Drive with ID:', fileId)
+                    setSuccess('Export successful. Key file has been uploaded to Google Drive as "sealx.key".')
+                } catch (err) {
+                    console.error('Google Drive upload failed:', err)
+                    setGoogleDriveStatus('error')
+                    const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+                    setError(`Google Drive upload failed: ${errorMessage}`)
+                    throw err
+                } finally {
+                    setGoogleDriveStatus('authenticated')
+                }
+            }
+
+            // 显示成功消息并关闭模态框
             setShowPinModal(false)
 
             setTimeout(() => {
@@ -108,20 +214,54 @@ export const KeyExport = () => {
                     : err.message
                 : 'Unknown error occurred'
             setError(`Export failed: ${errorMessage}`)
+            setShowPinModal(false)
             throw err // Re-throw to let PinPopup handle the error
         }
-    }, [directoryHandle, session, tpPin, navigate, setError, setSuccess])
+    }, [directoryHandle, session, tpPin, navigate, setError, setSuccess, exportMethod, googleDrive, googleDriveStatus])
 
     const onSubmit = useCallback(async () => {
-        // 点击导出时弹出PIN码输入框
-        if (!directoryHandle) {
-            setError('Please select a destination directory first')
+        console.log('Export method selected:', exportMethod)
+
+        // Validate all fields
+        const isTpPinValid = validateTpPin(tpPin)
+        const isConfirmPinValid = validateConfirmPin(confirmPin)
+        const isMatchValid = validateMatch(tpPin, confirmPin)
+
+        if (!isTpPinValid || !isConfirmPinValid || !isMatchValid) {
+            // Error messages are already set by validation functions
             return
         }
 
+        // 点击导出时弹出PIN码输入框
+        if (exportMethod === 'local') {
+            if (!directoryHandle) {
+                setError('Please select a destination directory first')
+                return
+            }
+        } else {
+            if (!googleDrive || googleDriveStatus === 'unauthenticated') {
+                // 显示Google Drive授权mask
+                setIsAuthing(true)
+                try {
+                    await new Promise(resolve => setTimeout(resolve, 3000)) // 确保mask显示
+                    await googleDrive?.reauthorize()
+                    if (googleDrive?.checkTokenValidity()) {
+                        setGoogleDriveStatus('authenticated')
+                        setShowPinModal(true)
+                    }
+                } catch (err) {
+                    console.error('Google Drive authorization failed:', err)
+                    setError('Google Drive authorization failed. Please try again.')
+                } finally {
+                    setIsAuthing(false)
+                }
+                return
+            }
+        }
+
         setShowPinModal(true)
-    }, [directoryHandle, setError])
-    return <div className=" key-manage px-[24px] pt-[24px] w-full h-full flex flex-col">
+    }, [directoryHandle, setError, exportMethod, googleDrive, googleDriveStatus, tpPin, confirmPin, validateTpPin, validateConfirmPin, validateMatch])
+    return <div className=" key-manage px-[24px] py-[24px] w-full h-fit flex flex-col">
         <div className="w-full rounded-[20px] bg-[#fff] flex-1">
             <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-[#fff]">
                 Export Signature Key
@@ -129,33 +269,76 @@ export const KeyExport = () => {
             <div className="w-full px-[24px] pt-[24px]">
                 <div className='  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
                     <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        Destination Path
+                        Where we save the encrypted backup?
                     </div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        <input
-                            id="directory-input"
-                            onClick={onSelectDir}
-                            value={directoryPath}
-                            readOnly
-                            placeholder="Select export directory"
-                            className="w-2/3 px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#000]/[5%]"
-                            aria-label="Export directory path"
+                    <div className='w-full mt-[16px]'>
+                        <Radio
+                            selected={exportMethod}
+                            items={[
+                                { label: 'Save Locally', value: 'local' },
+                                { label: 'Save to Google Drive', value: 'google-drive' }
+                            ]}
+                            onChange={(value) => setExportMethod(value as 'local' | 'google-drive')}
                         />
-                        <button
-                            type="button"
-                            onClick={onSelectDir}
-                            className="cursor-pointer px-[12px] py-[8px] bg-[#000]/[10%] rounded-[8px] ml-[12px] hover:bg-[#000]/[15%] transition-colors"
-                        >
-                            Select
-                        </button>
                     </div>
+
+                    {exportMethod === 'local' ? (
+                        <>
+                            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%] mt-[24px]'>
+                                Choose where to save your encrypted backup
+                            </div>
+                            <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] flex items-center'>
+                                <input
+                                    id="directory-input"
+                                    onClick={onSelectDir}
+                                    value={directoryPath}
+                                    readOnly
+                                    placeholder="Select export directory"
+                                    className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border-[#000]/[10%] border cursor-pointer"
+                                    aria-label="Export directory path"
+                                />
+                                <Button
+                                    variant="primary"
+                                    onClick={onSelectDir}
+                                    className="!px-[24px] !pb-[8px] !pt-[6px] !text-[20px] ml-[12px]"
+                                >
+                                    Select
+                                </Button>
+                            </div>
+                        </>
+                    ) : (<></>)}
                 </div>
                 <div className=' mt-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
                     <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        Temporary Password
+                        Recovery Password
                     </div>
                     <div className=' w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        <Password seePassword={!closeEye} password={tpPin} readonly={true} className="export-password key-manage-password flex-1"></Password>
+                        <div className="flex-1 relative">
+                            <input
+                                type={closeEye ? "password" : "text"}
+                                value={tpPin}
+                                onChange={(e) => {
+                                    const newValue = e.target.value
+                                    setTpPin(newValue)
+                                    // Clear error when user starts typing
+                                    if (tpPinError) setTpPinError('')
+                                    if (matchError) setMatchError('')
+                                    // Validate in real-time if confirmPin exists
+                                    if (confirmPin) {
+                                        validateMatch(newValue, confirmPin)
+                                    }
+                                }}
+                                onBlur={handleTpPinBlur}
+                                placeholder="Enter recovery password"
+                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${tpPinError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                aria-label="Recovery password"
+                            />
+                            {tpPinError && (
+                                <div className="text-[#ff0000] text-[14px] mt-1">
+                                    {tpPinError}
+                                </div>
+                            )}
+                        </div>
                         <div className="ml-[24px] cursor-pointer">
                             {closeEye ? <CloseEye onClick={() => {
                                 setCloseEye(false)
@@ -163,40 +346,75 @@ export const KeyExport = () => {
                                 setCloseEye(true)
                             }}></OpenEye>}
                         </div>
-                        <div onClick={() => {
-                            copy(tpPin)
-                            setSuccess('Password copied successfully.')
-                        }} className="ml-[24px] w-[20px] h-[20px] cursor-pointer">
-                            <CopyBtn className="w-full h-full"></CopyBtn>
+                    </div>
+
+                    {/* Password Confirmation Field */}
+                    <div className=' w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                        <div className="flex-1 relative">
+                            <input
+                                type={closeEyeConfirm ? "password" : "text"}
+                                value={confirmPin}
+                                onChange={(e) => {
+                                    const newValue = e.target.value
+                                    setConfirmPin(newValue)
+                                    // Clear error when user starts typing
+                                    if (confirmPinError) setConfirmPinError('')
+                                    if (matchError) setMatchError('')
+                                    // Validate in real-time if tpPin exists
+                                    if (tpPin) {
+                                        validateMatch(tpPin, newValue)
+                                    }
+                                }}
+                                onBlur={handleConfirmPinBlur}
+                                placeholder="Confirm recovery password"
+                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                aria-label="Confirm recovery password"
+                            />
+                            {(confirmPinError || matchError) && (
+                                <div className="text-[#ff0000] text-[14px] mt-1">
+                                    {confirmPinError || matchError}
+                                </div>
+                            )}
+                        </div>
+                        <div className="ml-[24px] cursor-pointer">
+                            {closeEyeConfirm ? <CloseEye onClick={() => {
+                                setCloseEyeConfirm(false)
+                            }}></CloseEye> : <OpenEye onClick={() => {
+                                setCloseEyeConfirm(true)
+                            }}></OpenEye>}
                         </div>
                     </div>
+
                     <div className=" relative text-[#E99E42] pl-[40px] mt-[12px] text-[16px] font-[500] leading-[24px] flex text-left">
                         <Warning className=' absolute left-[0px] top-[6px] mr-[13.25px] text-[#E99E42] w-[24px] h-[24px]' />
-                        Your signature key recovery temporary password has been automatically generated. To ensure you can recover your signature key if needed, please immediately copy and save this temporary password to a secure location.
+                        Please enter a recovery password (minimum 6 characters). This password will be used to encrypt your signature key backup. Make sure to save it securely.
                     </div>
                 </div>
 
-                <div className='font-[500] text-[19px] mt-[24px] bg-[#0E41F5] mb-[24px] text-[#fff] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
+                <div className='font-[500] text-[19px] text-left mt-[24px] bg-[#00be78]/10 mb-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
                     After exporting the key file, please securely back up both the file and its password. Both are required to recover the key in case of emergency.
                 </div>
             </div>
         </div>
-        <div className='w-full mt-[32px] flex justify-between mb-[32px]'>
-            <div onClick={() => {
-                navigate(-1)
-            }} className=' cursor-pointer rounded-[34px] border-2 border-[rgba(0,0,0,0.06)] font-[500] text-[24px] leading-[28px] pl-[52.77px] pr-[53.23px] pt-[18px] pb-[22px] text-[#000]'>
+        <div className='w-full mt-[32px] flex gap-x-[24px] justify-between '>
+            <Button
+                variant="secondary"
+                onClick={() => navigate(-1)}
+            >
                 Cancel
-            </div>
-            <button
+            </Button>
+            <Button
+                variant="primary"
                 onClick={onSubmit}
-                className={`w-[346px] rounded-[34px] border-2 font-[500] text-[24px] leading-[28px] pl-[57.77px] pr-[58.23px] pt-[18px] pb-[22px] ${!directoryHandle
-                    ? 'bg-gray-400 text-[#fff] border-gray-400 cursor-not-allowed'
-                    : 'bg-[#000] text-[#fff] border-[#000] cursor-pointer'
-                    }`}
-                disabled={!directoryHandle}
+                className="w-[346px]"
+                disabled={
+                    (exportMethod === 'local' && !directoryHandle) ||
+                    !tpPin || tpPin.length < 6 || tpPin !== confirmPin ||
+                    !!tpPinError || !!confirmPinError || !!matchError
+                }
             >
                 Export Now
-            </button>
+            </Button>
         </div>
 
         {/* PIN码输入模态框 */}
@@ -210,5 +428,8 @@ export const KeyExport = () => {
                 instructionText="PIN entered. Export will start automatically..."
             />
         )}
+
+        {/* Google Drive授权mask */}
+        <GoogleDriveAuthMask visible={isAuthing} />
     </div>
 }

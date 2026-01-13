@@ -19,6 +19,7 @@ import { SealxTopic } from 'sealx-message';
 import type { SealxRequest } from 'sealx-message';
 import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
+import Button from '@src/components/button';
 // import moment from 'moment';
 
 /**
@@ -432,22 +433,25 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
             </div>
 
             {!props.preViewUrl ? (<div className='w-full mt-[32px] flex justify-between mb-[32px]'>
-                <div
+                <Button
+                    variant="secondary"
                     onClick={() => onRejected(props)}
-                    className=' cursor-pointer rounded-[34px] border-2 border-[rgba(0,0,0,0.06)] font-[500] text-[24px] leading-[28px] pl-[57.77px] pr-[58.23px] pt-[18px] pb-[22px] text-[#000]'>
+                >
                     {props.cencelText ?? 'Reject'}
-                </div>
-                <div
+                </Button>
+                <Button
+                    variant="primary"
                     onClick={() => onApproval(props, request)}
-                    className=' cursor-pointer rounded-[34px] bg-[#000] text-[#fff] border-2 border-[#000] font-[500] text-[24px] leading-[28px] pl-[57.77px] pr-[58.23px] pt-[18px] pb-[22px]'>
+                >
                     {props.confirmText ?? 'Sign to Approve'}
-                </div>
+                </Button>
             </div>) : (<div className='w-full my-[32px] flex justify-center'>
-                <div
+                <Button
+                    variant="primary"
                     onClick={onReview}
-                    className=' px-[36px] cursor-pointer rounded-[34px] bg-[#000] text-[#fff] border-2 border-[#000] font-[500] text-[24px] leading-[28px]  pt-[18px] pb-[22px]'>
-                    Click to Review Detials
-                </div>
+                >
+                    Click to Review Details
+                </Button>
             </div>)}
         </div>
     );

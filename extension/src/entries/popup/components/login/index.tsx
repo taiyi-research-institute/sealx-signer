@@ -10,7 +10,8 @@ import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { lockLogin } from '../../state/session';
 import { SealxTopic } from 'sealx-message';
 import type { ReplyFunc } from 'sealx-message';
-import messager from '@src/core/messager';
+// import { useErrorStore } from '@src/core/state';
+// import messager from '@src/core/messager';
 // import { useSessionStore } from '@src/core/state';
 // import { useSessionStore } from '@src/core/state/session';
 
@@ -19,10 +20,12 @@ export default function Login() {
     const [password, setPassword] = useState<string>('');
     const [countdown, setCountdown] = useState<string>(''); // Store formatted countdown
     const { userId } = useRequestContext()
+    // const setError = useErrorStore.use.setError()
     const { attempt, setAttempt, lockTime, setLockTime, maxAttempt, maxLockTime } = useGlobalContext()
     // const setSession = useSessionStore.use.setSession()
     const { setSession, activeTabHost, request } = useRequestContext()
     const reply = useRef<ReplyFunc>(null)
+    // useEffect(() => setError('Test error 5342523453453425234 4352345345 3453245345234 4352345234 345324523 34543534 345234534 popup!!!!!'), [setError])
     useEffect(() => {
         if (request.topic === SealxTopic.LOGIN || request.topic === SealxTopic.CONNECT) {
             reply.current = request.reply ?? null
@@ -66,7 +69,13 @@ export default function Login() {
                 if (res) {
                     // console.log(res)
                     setSession(res)
-                    reply.current?.(res as never)
+                    reply.current?.({
+                        session: res, account: {
+                            userId: res.userId,
+                            host: res.host,
+                            pk: res.pk
+                        }
+                    } as never)
                     console.log('---------- topic -------', request?.topic)
                     if (request.topic === SealxTopic.BIND_PK) {
                         navigate('/bind-pubkey', { replace: true })
@@ -100,7 +109,7 @@ export default function Login() {
         <div className="login-container flex ">
             <div className='w-[600px] min-h-[780px] flex flex-col mx-auto relative'>
                 <div className='sealx-logo w-full mt-[120px] '>
-                    <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
+                    <img className='m-auto w-[190px] h-[184px]' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
                 <div className='mx-auto px-[41px] w-full flex mt-[91.57px] mb-[24px]'>
                     <Password

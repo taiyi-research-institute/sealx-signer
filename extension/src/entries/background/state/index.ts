@@ -149,6 +149,18 @@ export const getSealxInfo = async (): Promise<SealxBaseInfo | null> => {
     }
 }
 
+export const saveSealxInfo = async (info: SealxBaseInfo): Promise<SealxBaseInfo | null> => {
+    const db = sealxTable()
+    try {
+        return await db.setItem<SealxBaseInfo>(baseInfoKey, info);
+    } catch (error) {
+        console.error('Failed to save SealX info:', error);
+        return null;
+    } finally {
+        db.close()
+    }
+}
+
 /**
  * Initializes the base information record for SealX extension
  * 
@@ -238,19 +250,31 @@ export const generateSession = async (pin: string, host: string = '', userId: st
         throw new PinError()
     }
     const setSession = sessionStore.getState().setSession
-    // const pk = await getPrivateKey(pin)
+    const pk = await getPrivateKey(pin)
     // // 存在风险问题，要上代码分析得到这里的信息，可能获得密钥
-    // const k = CryptoJS.MD5(sessionId + host + userId + expire).toString()
-    // const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
-    // const pkHex = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
+    const k = CryptoJS.MD5(sessionId + host + userId + expire).toString()
+    const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
+    const pkHex = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
+    const info = await getSealxInfo()
+    const pkHash = CryptoJS.MD5(pkHex).toString()
+    if (info) {
+        info.pks = info.pks ? { ...info.pks } : {}
+        info.pks[pkHash] = pkHex
+        const res = await saveSealxInfo(info)
+        if (!res) {
+            throw new Error('save sealx info failed')
+        }
+    }
+
     const session: SealxSession = {
         address,
         expire,
         host,
         userId,
         sessionId,
-        pk: ''
+        pk: pkHash
     }
+
     setSession(session)
     return session
 }

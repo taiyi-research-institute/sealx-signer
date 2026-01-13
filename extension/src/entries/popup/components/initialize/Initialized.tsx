@@ -2,6 +2,7 @@ import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { MessageChannel } from 'sealx-message';
 import { closeWindow } from '@src/core/background';
 import { useMemo } from 'react';
+import Button from '@src/components/button';
 
 export function Initialized() {
     // const navigate = useSealXNavigate();
@@ -43,12 +44,13 @@ export function Initialized() {
                         }
                     </div>
 
-                    <button
+                    <Button
+                        variant="primary"
                         onClick={handleAction}
-                        className='w-full bg-[#000] text-[#fff] border-2 border-[#000] rounded-[34px] text-[24px] font-[500] leading-[28px] pt-[18px] pb-[22px] cursor-pointer hover:opacity-90 transition-opacity'
+                        className="w-full"
                     >
                         {isPageInitiated ? 'Return to Page' : 'Go to Home'}
-                    </button>
+                    </Button>
                 </div>
 
                 <div className='text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>

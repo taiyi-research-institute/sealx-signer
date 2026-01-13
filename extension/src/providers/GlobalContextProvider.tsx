@@ -137,7 +137,6 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
     useEffect(() => {
         if (!address) refreshAddress();
     }, [address, refreshAddress]);
-
     /**
      * Effect to check lock status on component mount
      */

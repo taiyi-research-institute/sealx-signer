@@ -449,7 +449,7 @@ export default abstract class MessagerBase implements Messager {
         // - Message validation
         // - Reply timeout handling
         const handler1 = async (message: SealxRequest) => {
-            console.log(message, '----------- message sealx request -----', this.id)
+            // console.log(message, '----------- message sealx request -----', this.id)
             if ((message.topic === topic || topic === SealxTopic.ALL) && (channel === MessageChannel.ALL || channel === message.sender)) {
                 try {
                     return await handler(message, (res: any, end: boolean = false) => {

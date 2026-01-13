@@ -52,7 +52,6 @@ export default class ContentMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return
                 }
-                console.log(JSON.stringify(message), '---------- on message ----------')
                 if (this.channel !== message.receiver && message.sender !== this.channel) {
                     // Forward messages to other channels when bridge is available
                     message.header.messagerId = this.id

@@ -98,10 +98,10 @@ export default class BackgroundMessager extends MessagerBase {
             || message.receiver === MessageChannel.OPTIONS
             || message.receiver === MessageChannel.SIDEBAR
             || !message.header.tabId) {
-            console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
+            // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
             chrome.runtime?.sendMessage(message);
         } else {
-            console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
+            // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
             chrome.tabs?.sendMessage(message.header.tabId, message);
         }
     }

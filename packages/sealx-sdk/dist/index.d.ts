@@ -294,5 +294,6 @@ declare const closeSealx: () => void;
  * ```
  */
 declare const checkSealx: () => Promise<string | null>;
+declare const checkSealxActive: (callback: (address: string) => void) => void;
 
-export { bindSealx, checkSealx, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx };
+export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx };

@@ -9,6 +9,8 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
+import { MessageChannel } from 'sealx-message';
+import { usePopupType } from '@src/hooks/usePopupType';
 
 /**
  * Props for RequestContextProvider component
@@ -45,12 +47,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     // State management
     const [request, setRequest] = useState<SealxRequest>({} as SealxRequest);
     const [title, setTitle] = useState<string>('Sealx Sign What You See');
+    const [loading, setLoading] = useState(false);
 
-    // Use ref to track pending request to avoid race conditions
-    const pendingRequestRef = useRef<{
-        req: SealxRequest;
-        reply?: ReplyFunc;
-    } | null>(null);
+    // Use ref to track initialization status and prevent duplicate operations
+    const initializedRef = useRef(false);
 
     // Session related state from store (single source of truth)
     const host = useSessionStore.use.host();
@@ -59,32 +59,95 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const setUserId = useSessionStore.use.setUserId();
     const session = useSessionStore.use.session();
     const setSession = useSessionStore.use.setSession();
-    // const [oldPath, setOldPath] = useState('')
 
     // Navigation and initialization state
     const address = useInitializedStore.use.address();
     const navigate = useSealXNavigate();
-    const { pathname, state: locationState } = useLocation() as {
-        pathname: string;
-        state: { fromInitialize?: boolean } | null;
-    };
+    const { pathname } = useLocation();
+
+    // Popup type detection
+    const { popupType, isLoading: isPopupTypeLoading } = usePopupType();
 
     /**
-     * Clear host and userId when request has no header
-     * (i.e., not triggered by page/dApp - user opened popup manually)
+     * Determine target route based on request topic and session state
      */
-    useEffect(() => {
-        if (!request.header) {
-            setHost('');
-            setUserId('');
-        }
-    }, [request.header, setHost, setUserId]);
+    const getTargetRoute = useCallback(
+        (
+            req: SealxRequest,
+            currentSession: SealxSession | null
+        ): string | null => {
+            const sessionValid = isSessionValid(
+                currentSession,
+                req.payload?.host,
+                req.payload?.userId
+            );
 
-    useEffect(() => {
-        const storeRequest = useRequestStore.getState().request;
-        if (storeRequest) setRequest(storeRequest);
-        if (storeRequest) useRequestStore.getState().clearRequest()
-    }, [])
+            // For CONNECT requests
+            if (req.topic === SealxTopic.CONNECT) {
+                // If session valid, reply with session and stay on current route
+                if (currentSession && sessionValid) {
+                    req.reply?.({
+                        session: currentSession,
+                        account: {
+                            userId: currentSession.userId,
+                            host: currentSession.host,
+                            pk: currentSession.pk
+                        }
+                    });
+                }
+                return null;
+            }
+
+            // If session invalid, redirect to login
+            if (!sessionValid) {
+                return '/login';
+            }
+
+            // Handle specific routes based on current pathname and request topic
+            if (
+                pathname === '/task-detail' ||
+                (pathname === '/task-home' &&
+                    (req.topic === SealxTopic.SIGN ||
+                        req.topic === SealxTopic.BATCH_SIGN))
+            ) {
+                return pathname;
+            }
+
+            // Determine target route based on request topic
+            switch (req.topic) {
+                case SealxTopic.BIND_PK:
+                    return '/bind-pubkey';
+                case SealxTopic.SIGN:
+                case SealxTopic.BATCH_SIGN:
+                    return '/task-home';
+                case SealxTopic.SIGN_RESPONSE:
+                    return pathname;
+                default:
+                    return '/';
+            }
+        },
+        [pathname]
+    );
+
+    /**
+     * Handle routing based on request
+     */
+    const routeByRequest = useCallback(
+        (req: SealxRequest) => {
+            if (loading) return;
+
+            setLoading(true);
+            const currentSession = useSessionStore.getState().session;
+            const targetRoute = getTargetRoute(req, currentSession);
+
+            if (targetRoute && targetRoute !== pathname) {
+                navigate(targetRoute, { replace: true });
+            }
+
+            setLoading(false);
+        },
+        [pathname, getTargetRoute, navigate, loading]
+    );
 
     /**
      * Helper function to update host and userId from request
@@ -94,8 +157,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             if (req.topic === SealxTopic.CONNECT) {
                 const newHost = req.payload?.host ?? '';
                 const newUserId = req.payload?.userId ?? '';
-                const newTitle =
-                    req.payload?.title ?? 'Sealx Sign What You See';
+                const newTitle = req.payload?.title ?? 'Sealx Sign What You See';
 
                 setHost(newHost);
                 setUserId(newUserId);
@@ -108,239 +170,170 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
         [setHost, setUserId]
     );
 
-    /**
-     * Determine target route based on request topic and session state
-     */
-    const getTargetRoute = useCallback(
-        (
-            req: SealxRequest,
-            currentSession: SealxSession | null
-        ): string | null => {
-            // if (!address) return '/initialize';
+    useEffect(() => {
+        // Tab模式下打开插件页面不用发送这个信息
+        // Only send CHECK_ACTIVED messages when not in tab mode
+        if (popupType === 'tab') {
+            return;
+        }
 
-            // For CONNECT requests
-            if (req.topic === SealxTopic.CONNECT) {
-                const sessionValid = isSessionValid(
-                    currentSession,
-                    req.payload?.host,
-                    req.payload?.userId
-                );
-                if (!sessionValid) return '/login';
-
-                // If session valid, reply with session and stay on current route
-                if (currentSession) {
-                    req.reply?.(currentSession);
-                }
-                return null;
-            }
-            if (
-                pathname === '/task-detail' &&
-                (req.topic === SealxTopic.SIGN ||
-                    req.topic === SealxTopic.BATCH_SIGN)
-            ) {
-                return '/task-detail';
-            }
-
-            // return req.topic === SealxTopic.BIND_PK ? '/bind-pubkey' : '/task-home';
-            switch (req.topic) {
-                case SealxTopic.BIND_PK:
-                    return '/bind-pubkey';
-                case SealxTopic.SIGN:
-                case SealxTopic.BATCH_SIGN:
-                    return '/task-home';
-                case SealxTopic.SIGN_RESPONSE:
-                    return pathname;
-                default:
-                    return '/';
-            }
-
-            // return null;
-        },
-        [pathname]
-    );
+        messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+        const timer = setInterval(() => {
+            messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+        }, 10000);
+        return () => {
+            clearInterval(timer)
+        }
+    }, [popupType])
 
     /**
      * Handle incoming SealX requests
      */
-    const handler = useCallback(
+    const handleRequest = useCallback(
         async (req: SealxRequest, reply?: ReplyFunc) => {
+            // Skip invalid requests
+            if (!req || !req.topic) {
+                return;
+            }
+
+            // Handle CHECK_ACTIVE immediately
+            if (req.topic === SealxTopic.CHECK_ACTIVE) {
+                reply?.(true);
+                return;
+            }
+
+
+
             try {
-                if (!req?.topic) return;
-                req.reply = reply;
-                // Handle CHECK_ACTIVE immediately
-                if (req.topic === SealxTopic.CHECK_ACTIVE) {
-                    reply?.(true);
-                    return;
-                }
+                // Bind reply function to request
+                req.reply = (res, end?: boolean) => {
+                    if (reply) reply(res, end);
+                };
 
                 // Update host and userId from request
                 updateHostAndUserId(req);
-
-                // Check if this topic requires a valid session
-                const requiresSession =
-                    req.topic === SealxTopic.BIND_PK ||
-                    req.topic === SealxTopic.SIGN ||
-                    req.topic === SealxTopic.BATCH_SIGN;
-
-                // If session required but invalid, store as pending
-                if (
-                    requiresSession &&
-                    !session &&
-                    !isSessionValid(
-                        session,
-                        req.header?.host,
-                        req.header?.userId
-                    )
-                ) {
-                    pendingRequestRef.current = { req, reply };
+                // Skip duplicate request IDs
+                if (req.header?.requestId === request.header?.requestId) {
                     return;
                 }
-
-                // Determine and navigate to target route if needed
-                const targetRoute = getTargetRoute(req, session);
-                console.log(
-                    '========= update route ======',
-                    req,
-                    targetRoute,
-                    pathname
-                );
-                if (targetRoute && targetRoute !== pathname) {
-                    navigate(targetRoute, { replace: true });
-                }
-
-                // Update current request
+                // Set request state and trigger routing
                 setRequest(req);
             } catch (error) {
                 console.error('Error handling SealX request:', error);
                 throw error;
             }
         },
-        [session, pathname, navigate, updateHostAndUserId, getTargetRoute]
+        [request.header?.requestId, updateHostAndUserId]
     );
 
     /**
-     * Process pending request when session becomes available
+     * Initialize application based on current state
      */
-    useEffect(() => {
-        const pending = pendingRequestRef.current;
-        console.log('------- restry request -----', pending);
+    const initializeApplication = useCallback(async () => {
+        if (initializedRef.current) return;
 
-        // Only process if we have a pending request and a valid session
-        if (!pending || !session || !isSessionValid(session, host, userId)) {
-            return;
-        }
-        console.log('------- restry request success -----', pending, session);
-        // Attach reply function
-        if (pending.reply) {
-            pending.req.reply = pending.reply;
-        }
+        setLoading(true);
 
-        // Determine and navigate to target route if needed
-        const targetRoute = getTargetRoute(pending.req, session);
-        console.log(
-            '------- restry request success -----',
-            targetRoute,
-            pathname
-        );
-        // Update request and clear pending
-        setRequest(pending.req);
-        if (targetRoute && targetRoute !== pathname) {
-            navigate(targetRoute, { replace: true });
-        }
-    }, [session, host, userId, pathname, navigate, getTargetRoute]);
-
-    /**
-     * Setup messager listener
-     */
-    useEffect(() => {
-        const off = messager.on(SealxTopic.ALL, handler);
-        return () => off();
-    }, [handler]);
-
-    /**
-     * Handle session expiration and route guards
-     */
-    useEffect(() => {
-        // Redirect to initialize if no address
-        if (!address && pathname !== '/initialize') {
-            navigate('/initialize', { replace: true });
+        // Wait for store hydration
+        const addressLoaded = useInitializedStore.persist.hasHydrated();
+        if (!addressLoaded) {
+            // Wait a bit for hydration to complete
+            setTimeout(() => initializeApplication(), 100);
             return;
         }
 
-        if (!address) return;
-
-        // Skip route guards for /initialize page - it has its own flow
-        if (pathname === '/initialize') {
-            return;
-        }
-        const sessionValid = isSessionValid(session, host, userId);
-        // Handle /initialized page specially
-        if (pathname === '/initialized') {
-            const fromInitialize = locationState?.fromInitialize;
-
-            if (fromInitialize) {
-                // Coming from initialize page, skip validation to allow session setup
-                return;
-            } else {
-                // User refreshed or directly accessed /initialized page
-                if (!sessionValid) {
-                    // No valid session on refresh, redirect to login
-                    navigate('/login', { replace: true });
-                    return;
-                }
-                // Has valid session, allow staying on page
-                return;
+        // Check if address exists (plugin initialization)
+        const currentAddress = useInitializedStore.getState().address;
+        if (!currentAddress) {
+            if (pathname !== '/initialize') {
+                navigate('/initialize', { replace: true });
             }
+            setLoading(false);
+            return;
         }
 
-        // const sessionValid = isSessionValid(session, host, userId);
-        // Redirect to login if session invalid and not already there
-        console.log('----------- check session ----------', [pathname, session, request.topic])
+        // Check for cached request data
+        const storeRequest = useRequestStore.getState().request;
+        if (storeRequest) {
+            // Restore request with reply function binding
+            if (storeRequest.once) {
+                storeRequest.reply = (res, end?: boolean) => {
+                    messager.reply(res, storeRequest, end);
+                };
+            }
+            setRequest(storeRequest);
+            useRequestStore.getState().clearRequest();
+            setLoading(false);
+            return;
+        }
+
+        // No cached request, check session
+        const currentSession = useSessionStore.getState().session;
+        const sessionValid = isSessionValid(currentSession);
+
         if (!sessionValid) {
-            setSession(null)
-            if (pathname !== '/login') navigate('/login', { replace: true });
-            return;
-        }
-        const topic =
-            request.topic ?? pendingRequestRef.current?.req?.topic ?? '';
-        if (topic === SealxTopic.CONNECT && session && sessionValid) {
-            request.reply?.(session);
-            return;
-        }
-        // if(sessionValid){}
-        // Redirect away from login if session is valid and no active request
-        if (
-            sessionValid &&
-            pathname === '/login' &&
-            topic !== SealxTopic.BATCH_SIGN &&
-            topic !== SealxTopic.BIND_PK &&
-            topic !== SealxTopic.SIGN
-        ) {
-            console.log('----------- enter main ---', request.topic);
-            navigate('/', { replace: true });
-            return
-        }
-        if (topic === SealxTopic.SIGN || topic === SealxTopic.BATCH_SIGN) {
-            if (pathname !== '/task-home' && pathname !== '/task-detail') {
-                navigate('/task-home', { replace: true })
-                return
+            setHost('')
+            setUserId('')
+            // Clear session if invalid
+            if (currentSession) {
+
+                setSession(null);
             }
-        } else if (topic === SealxTopic.BIND_PK) {
-            if (pathname !== '/bind-pubkey') {
-                navigate('/bind-pubkey', { replace: true })
-                return
+            // Redirect to login if not already there
+            if (pathname !== '/login') {
+                navigate('/login', { replace: true });
             }
+        } else {
+            // Session is valid
+            // If on login or initialize pages, redirect to main page
+            if (pathname === '/login' || pathname === '/initialize' || pathname === '/initialized') {
+                navigate('/', { replace: true });
+            }
+            // Otherwise stay on current page
         }
-    }, [address, session, host, userId, pathname, locationState, request.topic, navigate, request, setSession]);
+
+        setLoading(false);
+        initializedRef.current = true;
+    }, [pathname, navigate, setHost, setUserId, setSession]);
 
     /**
-     * Clear expired session
+     * Setup messager listener - runs once on mount
      */
     useEffect(() => {
+        const off = messager.on(SealxTopic.ALL, handleRequest);
+        return () => off();
+    }, [handleRequest]);
+
+    /**
+     * Initialize application on mount - runs once
+     */
+    useEffect(() => {
+        initializeApplication();
+    }, [initializeApplication]);
+
+    /**
+     * Handle request-based routing
+     */
+    useEffect(() => {
+        if (request.header) {
+            routeByRequest(request);
+        }
+    }, [request, routeByRequest]);
+
+    /**
+     * Clear expired session and handle address changes
+     */
+    useEffect(() => {
+        // Clear expired session
         if (session && session.expire <= Date.now()) {
             setSession(null);
         }
-    }, [session, setSession]);
+
+        // Handle address changes
+        if (!address && pathname !== '/initialize') {
+            navigate('/initialize', { replace: true });
+        }
+    }, [session, setSession, address, pathname, navigate]);
 
     return (
         <RequestContext.Provider
@@ -355,6 +348,31 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                 title,
             }}>
             {children}
+            {loading && <Loading />}
         </RequestContext.Provider>
+    );
+};
+
+const Loading: React.FC = () => {
+    return (
+        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#000]/10 backdrop-blur-sm'>
+            <div className='relative flex flex-col items-center justify-center p-[32px]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
+                {/* Spinner */}
+                <div
+                    className='w-[64px] h-[64px] mb-[24px] border-4 border-[#fff]/20   rounded-full animate-spin'
+                    style={{
+                        borderTopColor: '#00be78',
+                        animation: 'spin 1s linear infinite',
+                    }}></div>
+
+                {/* Loading text */}
+                <div className='text-[24px] font-medium text-gray-800'>
+                    Loading...
+                </div>
+
+                {/* Optional subtle pulsing background */}
+                <div className='absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
+            </div>
+        </div>
     );
 };
