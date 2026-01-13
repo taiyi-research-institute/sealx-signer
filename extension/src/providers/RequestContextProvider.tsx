@@ -66,7 +66,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const { pathname } = useLocation();
 
     // Popup type detection
-    const { popupType, isLoading: isPopupTypeLoading } = usePopupType();
+    const { popupType } = usePopupType();
 
     /**
      * Determine target route based on request topic and session state
