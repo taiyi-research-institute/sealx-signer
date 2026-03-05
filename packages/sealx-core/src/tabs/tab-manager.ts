@@ -25,12 +25,15 @@ export class TabManager implements ITabManager {
             });
 
             chrome.tabs.onActivated.addListener(
-                (tab: chrome.tabs.TabActiveInfo) => {
-                    chrome.tabs.get(tab.tabId).then((tab) => {
+                (tabInfo: chrome.tabs.TabActiveInfo) => {
+                    chrome.tabs.get(tabInfo.tabId).then((tab) => {
                         if (this.tabs.findIndex(t => t.id === tab.id) === -1) this.tabs.push(tab);
                         if (tab.active) {
                             this.currentTab = tab;
+                            console.log('TabManager: current tab updated to', tab.id, tab.url);
                         }
+                    }).catch((error) => {
+                        console.error('TabManager: failed to get tab', tabInfo.tabId, error);
                     });
                 }
             );
@@ -52,5 +55,15 @@ export class TabManager implements ITabManager {
 
     get currentTabId() {
         return this.currentTab?.id;
+    }
+
+    async updateActiveTab() {
+        const tabs = await chrome.tabs.query({
+            active: true,
+            currentWindow: true
+        })
+        if (tabs[0]) {
+            this.currentTab = tabs[0]
+        }
     }
 }

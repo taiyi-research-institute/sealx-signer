@@ -203,6 +203,8 @@ console.log('Bound public key:', publicKey);
 
 Sign documents with SealX service.
 
+**Important: After signing operations, you must send a sign response to notify the plugin of success or failure.** This can be done automatically using the `onSign()` listener or manually with `sendSignResponse()`.
+
 #### Single document:
 
 ```typescript
@@ -210,6 +212,9 @@ const signature = await signBySealx({
     documentId: 'doc123',
     content: 'Document content to sign',
 });
+
+// Send success response to plugin
+await sendSignResponse('doc123');
 ```
 
 #### Batch documents:
@@ -222,8 +227,37 @@ const signStream = (await signBySealx([
 
 for await (const signature of signStream) {
     console.log('Received signature:', signature);
+    // Send response for each document
+    await sendSignResponse(signature.documentId);
 }
 ```
+
+#### Using `onSign()` for automatic response handling (recommended):
+
+```typescript
+// Set up listener before signing
+const cleanup = onSign((request, reply) => {
+    console.log('Sign response received:', request.payload);
+    // Process the signature...
+    // sendSignResponse is automatically called by onSign()
+}, 'doc123');
+
+// Perform signing
+const signature = await signBySealx({
+    documentId: 'doc123',
+    content: 'Document content to sign',
+});
+
+// Clean up listener when done
+cleanup();
+```
+
+**Response Requirements:**
+
+-   After each signing operation, the plugin expects a response via `sendSignResponse()`
+-   Failure to send a response may cause the plugin to timeout or behave unexpectedly
+-   Use `onSign()` for automatic response handling with error propagation
+-   For batch operations, send individual responses for each document
 
 ### `isSessionAvailable()`
 
@@ -252,16 +286,41 @@ if (status) {
 
 ### `sendSignResponse(taskId: string, error?: string, userId?: string | number)`
 
-Send sign response message for completed signing operations.
+Send sign response message for completed signing operations. **This function is required after every signing operation to notify the plugin of success or failure.**
+
+**Important:** If you're using `onSign()` to listen for sign responses, `sendSignResponse()` is automatically called for you. Otherwise, you must call it manually after processing each signed document.
 
 ```typescript
 try {
+    // After successful signing
+    const signature = await signBySealx({
+        documentId: 'task-123',
+        content: 'Document content',
+    });
+
+    // Send success response to plugin
     const response = await sendSignResponse('task-123');
     console.log('Sign response sent successfully:', response);
 } catch (error) {
+    // Send error response to plugin
+    await sendSignResponse('task-123', error.message);
     console.error('Failed to send sign response:', error);
 }
 ```
+
+**Parameters:**
+
+-   `taskId`: The unique identifier of the task that was signed
+-   `error`: Optional error message if the signing operation failed. If provided, indicates failure to the plugin
+-   `userId`: Optional user ID to use for the response
+
+**Returns:** The response payload from the extension
+
+**Throws:**
+
+-   `SealxUnavailableException`: If SealX extension is not installed or not active
+-   `SealxUninitializedException`: If SealX plugin is not properly initialized
+-   `SignException`: If the response contains an error or no payload is received
 
 ### `onSign(callback: MessageHandle, taskId?: any)`
 

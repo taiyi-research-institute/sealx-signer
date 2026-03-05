@@ -1,7 +1,7 @@
 {
     "type": "module",
     "name": "sealx-sdk",
-    "version": "1.0.21",
+    "version": "1.0.24",
     "description": "JavaScript/TypeScript SDK for interacting with the SealX browser extension",
     "keywords": [
         "sealx",
@@ -43,8 +43,8 @@
     },
     "dependencies": {
         "rxjs": "^7.8.2",
-        "sealx-core": "^1.0.0",
-        "sealx-message": "^1.0.1"
+        "sealx-core": "^1.0.10",
+        "sealx-message": "^1.0.11"
     },
     "devDependencies": {
         "@rollup/plugin-commonjs": "^28.0.6",

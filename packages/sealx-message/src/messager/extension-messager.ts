@@ -90,7 +90,11 @@ export default class ExtensionMessager extends MessagerBase {
         if (!message.header.tabId) {
             chrome.runtime?.sendMessage(message);
         } else {
-            chrome.tabs?.sendMessage(message.header.tabId, message);
+            try {
+                chrome.tabs?.sendMessage(message.header.tabId, message);
+            } catch (e) {
+                chrome.runtime?.sendMessage(message)
+            }
         }
     }
 

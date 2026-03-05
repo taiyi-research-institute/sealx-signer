@@ -10,6 +10,7 @@ declare class TabManager implements ITabManager {
     private constructor();
     static getInstance(): TabManager;
     get currentTabId(): number | undefined;
+    updateActiveTab(): Promise<void>;
 }
 
 interface StorageLike {

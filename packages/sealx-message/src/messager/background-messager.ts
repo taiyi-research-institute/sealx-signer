@@ -2,8 +2,8 @@
 import { TabManager } from "sealx-core";
 import MessagerBase from "./messager";
 // import browser from "webextension-polyfill";
-import { MessageChannel } from "../enums";
-import { SealxRequest } from "../contracts";
+import { MessageChannel, SealxTopic } from "../enums";
+import { MessageSend, SealxRequest } from "../contracts";
 import { SealxResponse } from "../contracts/response";
 
 /**
@@ -53,7 +53,12 @@ export default class BackgroundMessager extends MessagerBase {
         this.addListener(async (event: any, sender?: chrome.runtime.MessageSender) => {
             const message: SealxRequest = event;
             if (message && message.header) {
-                if (sender?.tab) message.header.tabId = sender.tab.id
+                if (sender?.tab) {
+                    message.header.tabId = sender.tab.id
+                    TabManager.getInstance().currentTab = sender.tab
+                } else {
+                    await (TabManager.getInstance().updateActiveTab())
+                }
                 if (message.header.messagerId === this.id) {
                     return
                 }
@@ -101,8 +106,15 @@ export default class BackgroundMessager extends MessagerBase {
             // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
             chrome.runtime?.sendMessage(message);
         } else {
+            try {
+                chrome.tabs?.sendMessage(message.header.tabId, message);
+            } catch (e) {
+                const tab = TabManager.getInstance().currentTab;
+                if (tab && tab.id) {
+                    chrome.tabs?.sendMessage(tab.id, message)
+                }
+            }
             // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
-            chrome.tabs?.sendMessage(message.header.tabId, message);
         }
     }
 

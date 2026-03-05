@@ -1,7 +1,7 @@
 import { Topic, MessageHandle, MessageListener, Messager, MessageSend, SealxRequest, MessageReply, OffMessageListener, SealxHeader } from "../contracts";
 import { SealxResponse } from "../contracts/response";
 import { MessageChannel, SealxTopic } from "../enums";
-import type { SealxSession } from "sealx-core";
+import { type SealxSession } from "sealx-core";
 /**
  * Abstract base class for message communication between channels.
  *

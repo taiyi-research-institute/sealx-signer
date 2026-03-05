@@ -1,7 +1,7 @@
 {
     "type": "module",
     "name": "sealx-message",
-    "version": "1.0.1",
+    "version": "1.0.12",
     "description": "Message handling library for SealX digital signature system",
     "keywords": [
         "sealx",
@@ -44,6 +44,6 @@
         "typescript": "^5.0.0"
     },
     "dependencies": {
-        "sealx-core": "^1.0.0"
+        "sealx-core": "^1.0.10"
     }
 }

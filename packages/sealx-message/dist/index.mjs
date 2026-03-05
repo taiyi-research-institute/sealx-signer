@@ -82,561 +82,6 @@ var MessageChannel;
     MessageChannel["ALL"] = "*";
 })(MessageChannel || (MessageChannel = {}));
 
-/**
- * Abstract base class for message communication between channels.
- *
- * `MessagerBase` provides a framework for sending, receiving, and handling messages
- * across different contexts (content scripts, background, etc.) with these features:
- *
- * - Topic-based message handling with wildcard support
- * - Request/response and streaming message patterns
- * - Cross-channel communication with security considerations
- * - Automatic message correlation and response routing
- *
- * @typeParam T - Type of message payload (defaults to any)
- *
- * @property {Record<string, MessageHandle[]>} handlers - Topic to handlers mapping
- * @property {MessageChannel} channel - Communication channel for this instance
- * @property {string} id - Unique messager identifier
- * @property {SealxSession} [session] - Optional session context
- *
- * @constructor
- * @param channel - The message channel this instance will use for communication
- * @param session - Optional session information containing host and sessionId
- *
- * @example Basic implementation:
- * ```typescript
- * class MyMessager extends MessagerBase {
- *   onMessage() {
- *     // Implement message handling
- *   }
- *   postMessage(message) {
- *     // Implement message sending
- *   }
- *   // ... other abstract methods
- * }
- * ```
- *
- * @see {@link MessageChannel} for available communication channels
- * @see {@link SealxRequest} for message request structure
- * @see {@link SealxResponse} for response structure
- * @see {@link SealxSession} for session context details
- */
-class MessagerBase {
-    /**
-     * Creates a new MessagerBase instance
-     * @param channel - The message channel this instance will use for communication
-     * @param session - Optional session information containing host and sessionId
-     */
-    constructor(channel, session) {
-        /** Unique identifier for this messager instance */
-        this.id = 'messager-base';
-        /**
-         * Sends a reply message in response to a received message
-         * @param message - The payload to send
-         * @param topic - The topic to reply on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @param messageId - Optional message ID to reply to (if replying to specific message)
-         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
-         * @returns Promise that resolves when message is sent
-         *
-         * @note Subclasses must implement the actual message posting logic in postMessage()
-         */
-        this.reply = async (message, request, end = true) => {
-            const id = this.messageId();
-            const header = {
-                ...request.header,
-                messagerId: this.id
-            };
-            const response = {
-                ...request,
-                header,
-                payload: message,
-                receiver: request.sender,
-                sender: request.receiver,
-                responseId: id,
-                end: end ? end : (request.once ?? false)
-            };
-            if (this.session) {
-                response.session = this.session;
-            }
-            this.postMessage(response);
-            return Promise.resolve(response);
-        };
-        /**
-         * Sends a reply message in response to a received message
-         * @param message - The payload to send
-         * @param topic - The topic to reply on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @param messageId - Optional message ID to reply to (if replying to specific message)
-         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
-         * @returns Promise that resolves when message is sent
-         *
-         * @note Subclasses must implement the actual message posting logic in postMessage()
-         */
-        this.replyError = async (error, request, end = true) => {
-            const id = this.messageId();
-            const header = {
-                ...request.header,
-                messagerId: this.id
-            };
-            const response = {
-                ...request,
-                header,
-                error: error,
-                receiver: request.sender,
-                sender: request.receiver,
-                responseId: id,
-                end: end ? end : (request.once ?? false)
-            };
-            if (this.session) {
-                response.session = this.session;
-            }
-            this.postMessage(response);
-            return Promise.resolve(response);
-        };
-        /**
-         * Sends a message and waits for a single response
-         *
-         * @remarks
-         * This method:
-         * - Automatically adds and removes a temporary listener for the response
-         * - Uses the message's requestId to correlate requests and responses
-         * - Handles both success and error responses
-         * - Cleans up listeners when complete
-         *
-         * @throws Will reject the promise if:
-         * - The message cannot be sent
-         * - The receiver returns an error response
-         * - The request times out (implementation dependent)
-         *
-         * @typeParam T - The type of the message payload
-         * @param message - The payload to send
-         * @param topic - The topic to send on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @returns Promise that resolves with the response payload or rejects on error
-         */
-        this.send = async (message, topic, receiver) => {
-            // const id = this.messageId()
-            const sendMsg = {
-                header: this.header,
-                payload: message,
-                receiver: receiver ?? MessageChannel.ALL,
-                sender: this.channel,
-                topic: topic,
-                once: true,
-            };
-            // this.postMessage(sendMsg)
-            return new Promise((resolve, rejected) => {
-                try {
-                    this.postMessage(sendMsg);
-                }
-                catch (e) {
-                    rejected(e);
-                }
-                const handle = (event) => {
-                    const message = event instanceof MessageEvent ? event.data : event;
-                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
-                        this.removeListener(handle);
-                        if (message.error) {
-                            rejected(message.error);
-                        }
-                        else {
-                            resolve(message);
-                        }
-                    }
-                };
-                this.addListener(handle);
-            });
-        };
-        /**
-         * Registers a handler for messages on a specific topic
-         * @param topic - The topic to listen on (supports wildcards via SealxTopic.ALL)
-         * @param handler - Function to handle incoming messages
-         * @param channel - Optional specific channel to filter messages by (defaults to ALL)
-         * @returns Function to unsubscribe the handler
-         *
-         * @remarks
-         * The handler receives two arguments:
-         * 1. The incoming message
-         * 2. A reply function that can be used to send a response
-         *
-         * @example Basic usage
-         * ```typescript
-         * // Register handler
-         * const unsubscribe = messager.on('data-update', (message, reply) => {
-         *   console.log('Received update:', message);
-         *   reply({ status: 'acknowledged' });
-         * });
-         *
-         * // Later, to unsubscribe:
-         * unsubscribe();
-         * ```
-         *
-         * @example Wildcard handler
-         * ```typescript
-         * // Handle all messages regardless of topic
-         * messager.on(SealxTopic.ALL, (message) => {
-         *   console.log('Received message:', message);
-         * });
-         * ```
-         */
-        this.on = (topic, handler, channel) => {
-            channel = channel ?? MessageChannel.ALL;
-            const topicKey = this.topic(channel ?? MessageChannel.ALL, topic);
-            if (!this.handlers[topicKey]) {
-                this.handlers[topicKey] = [];
-            }
-            console.log(topic, topicKey);
-            // TODO: Implement full handler logic including:
-            // - Better error handling
-            // - Message validation
-            // - Reply timeout handling
-            const handler1 = async (message) => {
-                // console.log(message, '----------- message sealx request -----', this.id)
-                if ((message.topic === topic || topic === SealxTopic.ALL) && (channel === MessageChannel.ALL || channel === message.sender)) {
-                    try {
-                        return await handler(message, (res, end = false) => {
-                            this.reply(res, message, end);
-                        });
-                    }
-                    catch (e) {
-                        this.replyError(e, message);
-                    }
-                }
-            };
-            this.handlers[topicKey].push(handler1);
-            // 返回取消订阅函数
-            return () => {
-                this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== handler1);
-            };
-        };
-        /**
-         * Unregisters a message handler for a specific topic
-         * @param topic - The topic to stop listening on
-         * @param callback - Handler function to remove
-         * @param channel - Optional channel filter for messages
-         * @returns Function that can be used to re-register the handler
-         *
-         *
-         * @example
-         * ```typescript
-         * // Remove a specific handler
-         * messager.off('data-update', handler);
-         * ```
-         */
-        this.off = (topic, callback, channel) => {
-            channel = channel ?? MessageChannel.ALL;
-            const topicKey = this.topic(channel, topic);
-            if (!this.handlers[topicKey]) {
-                return;
-            }
-            // Remove the handler
-            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
-        };
-        this.channel = channel;
-        this.forwardHandlers = {};
-        this.handlers = {};
-        this.onMessage();
-        this.session = session;
-        this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
-    }
-    /**
-     * Formats a topic with the standard prefix
-     * @param topic - The base topic name
-     * @returns Formatted topic string with prefix
-     * @example
-     * ```typescript
-     * const fullTopic = messager.topic('data-update');
-     * // Returns: 'sealx:data-update'
-     * ```
-     */
-    topic(channel, topic) {
-        return `${TOPIC_PREFIX}-${channel}-${topic}`;
-    }
-    /**
-     * Handles incoming messages by routing them to registered handlers
-     * @param message - The received message to process
-     * @remarks
-     * Only processes messages that:
-     * - Are addressed to this channel or ALL channels
-     * - Have registered handlers for their topic
-     */
-    async receiveMessage(message) {
-        const channelTopicKey = this.topic(message.sender, message.topic);
-        const channelAllTopicKey = this.topic(message.sender, SealxTopic.ALL);
-        const allChannelAllTopicKey = this.topic(MessageChannel.ALL, SealxTopic.ALL);
-        const allChannelTopicKey = this.topic(MessageChannel.ALL, message.topic);
-        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
-            channelTopicKey, allChannelAllTopicKey];
-        const response = [];
-        for (const topicKey of topicKeys) {
-            const handles = this.handlers[topicKey] ?? [];
-            for (const handle of handles) {
-                if (!('responseId' in message))
-                    response.push(await handle(message));
-            }
-        }
-        return response;
-    }
-    /**
-     * Generates a response topic name from a base topic
-     * @param topic - The base topic name
-     * @returns Response topic string with ':response' suffix
-     * @example
-     * ```typescript
-     * const responseTopic = messager.responseTopic('data-update');
-     * // Returns: 'data-update:response'
-     * ```
-     */
-    responseTopic(topic) {
-        return `${topic}:response`;
-    }
-    /**
-     * Generates a unique message ID with QN prefix
-     * @returns Unique message ID string combining:
-     * - QN prefix
-     * - Current timestamp
-     * - Random number suffix
-     *
-     * @example
-     * ```typescript
-     * const id = messager.messageId();
-     * // Returns: "QN-1624798800000-123"
-     * ```
-     */
-    messageId() {
-        return `QN-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
-    }
-    get host() {
-        return window.location.host;
-    }
-    get header() {
-        const id = this.messageId();
-        return {
-            host: this.host,
-            requestId: id,
-            sessionId: this.session?.sessionId ?? '',
-            messagerId: this.id,
-            userId: this.session?.userId
-        };
-    }
-    /**
-     * Sends a message and returns an async generator that yields multiple responses
-     * Useful for streaming or long-running operations that return multiple chunks
-     *
-     * @typeParam T - The type of the message payload
-     * @param message - The initial payload to send
-     * @param topic - The topic to send on
-     * @param receiver - Optional specific receiver channel (defaults to ALL)
-     * @returns AsyncGenerator that yields response payloads
-     *
-     * @example
-     * ```typescript
-     * // Using the stream
-     * const stream = messager.sendStream(data, 'stream-topic');
-     * for await (const chunk of stream) {
-     *   console.log('Received chunk:', chunk);
-     * }
-     * ```
-     */
-    async *sendStream(message, topic, receiver) {
-        // const id = this.messageId()
-        const sendMsg = {
-            header: this.header,
-            payload: message,
-            receiver: receiver ?? MessageChannel.ALL,
-            sender: this.channel,
-            topic: topic,
-            once: false
-        };
-        this.postMessage(sendMsg);
-        // Internal queue for buffering incoming messages
-        const queue = [];
-        // Callbacks for resolving/rejecting the next promise
-        let resolveNext = null;
-        let rejectNext = null;
-        // Flag indicating if the stream has completed
-        let done = false;
-        /**
-         * Handles incoming stream messages
-         * @param event - Message event containing the response
-         */
-        const handle = (event) => {
-            const data = event.data;
-            if (!data.header) {
-                return;
-            }
-            if (data.header.requestId !== sendMsg.header.requestId)
-                return;
-            if (data.header.messagerId === sendMsg.header.messagerId) {
-                return;
-            }
-            if (data.error) {
-                done = true;
-                this.removeListener(handle);
-                rejectNext?.(data.error);
-            }
-            else {
-                queue.push(data);
-                resolveNext?.(queue.shift());
-                resolveNext = null;
-                rejectNext = null;
-            }
-            if (data.end) {
-                done = true;
-                this.removeListener(handle);
-            }
-        };
-        this.addListener(handle);
-        try {
-            while (!done || queue.length) {
-                if (queue.length) {
-                    yield queue.shift();
-                }
-                else {
-                    // Yield control and wait for next message
-                    yield await new Promise((resolve, reject) => {
-                        resolveNext = resolve;
-                        rejectNext = reject;
-                    });
-                }
-            }
-        }
-        finally {
-            this.removeListener(handle);
-        }
-        return;
-    }
-    onForward(receiver, handle) {
-        this.forwardHandlers[receiver] = handle;
-    }
-}
-
-// import { TabManager } from "sealx-core";
-/**
- * Handles message communication for content scripts in browser extensions.
- * Manages message passing between:
- * - Content scripts and background pages
- * - Content scripts and iframes
- * - Content scripts and inpage scripts
- */
-class ContentMessager extends MessagerBase {
-    constructor() {
-        super(MessageChannel.CONTENT);
-        /**
-         * Flag indicating whether messages should be forwarded to other channels
-         */
-        this.forwardMessage = null;
-    }
-    /**
-     * Enables message forwarding capability
-     */
-    setMessageBridgeAvailable(forward = MessageChannel.ALL) {
-        this.forwardMessage = forward;
-    }
-    /**
-     * Sets up message listeners for:
-     * - Window messages (from iframes/pages)
-     * - Runtime messages (from background/other content scripts)
-     * Handles message filtering and forwarding logic
-     */
-    onMessage() {
-        this.addListener(async (event, sender) => {
-            let message = null;
-            if (event instanceof MessageEvent) {
-                message = event.data;
-            }
-            else {
-                message = event;
-                if (message && message.header && sender?.tab)
-                    message.header.tabId = sender.tab.id;
-            }
-            if (message && message.header) {
-                // Skip messages sent by this messager to prevent loops
-                if (message.header.messagerId === this.id) {
-                    return;
-                }
-                if (this.channel !== message.receiver && message.sender !== this.channel) {
-                    // Forward messages to other channels when bridge is available
-                    message.header.messagerId = this.id;
-                    await this.forwardHandlers[message.receiver]?.(message);
-                    this.postMessage(message);
-                }
-                else {
-                    const response = await this.receiveMessage(message);
-                    const f = response.filter(r => r !== undefined);
-                    const t = f.length > 0 ? f.pop() : undefined;
-                    if (!('responseId' in message) && !message.reply)
-                        this.reply(t, message);
-                }
-            }
-        });
-    }
-    /**
-     * Gets all iframe windows in the current document
-     * @returns NodeList of all iframe elements
-     */
-    get iframeWindows() {
-        const iframes = document.querySelectorAll('iframe');
-        return iframes;
-    }
-    /**
-     * Posts a message to the appropriate receiver:
-     * - inpage: Uses postMessage API with targetOrigin '*'
-     * - Background: Uses browser.runtime.sendMessage
-     * @param message The message to send
-     */
-    postMessage(message) {
-        message.header.messagerId = this.id;
-        if (message.receiver === MessageChannel.INPAGE || message.receiver === MessageChannel.IFRAME) {
-            window.postMessage(message, '*');
-            if (this.iframeWindows) {
-                this.iframeWindows.forEach((iframe) => {
-                    // Note: Using '*' targetOrigin allows any iframe to receive the message
-                    // Optional chaining (?.) safely handles cases where contentWindow is null
-                    iframe.contentWindow?.postMessage(message, '*');
-                });
-            }
-        }
-        else {
-            try {
-                const runtime = chrome.runtime;
-                if (runtime)
-                    runtime.sendMessage(message);
-            }
-            catch (e) {
-                console.error('postMessage error:', e);
-                this.replyError(e, message);
-            }
-        }
-    }
-    /**
-     * Adds message listeners for:
-     * - Window messages (from iframes/pages)
-     * - Runtime messages (from background/other content scripts)
-     * @param callback Function to handle incoming messages
-     */
-    addListener(callback) {
-        const runtime = chrome.runtime;
-        // Listen for messages from window (iframes/pages)
-        window.addEventListener('message', callback);
-        // Listen for messages from extension runtime (background/other content scripts)
-        if (runtime)
-            runtime.onMessage.addListener(callback);
-    }
-    /**
-     * Removes previously added message listeners
-     * @param callback The callback function to remove
-     */
-    removeListener(callback) {
-        const runtime = chrome.runtime;
-        window.removeEventListener('message', callback);
-        if (runtime)
-            runtime.onMessage.removeListener(callback);
-    }
-}
-
 class TabManager {
     tabs = [];
     currentTab;
@@ -653,13 +98,16 @@ class TabManager {
                     });
                 }
             });
-            chrome.tabs.onActivated.addListener((tab) => {
-                chrome.tabs.get(tab.tabId).then((tab) => {
+            chrome.tabs.onActivated.addListener((tabInfo) => {
+                chrome.tabs.get(tabInfo.tabId).then((tab) => {
                     if (this.tabs.findIndex(t => t.id === tab.id) === -1)
                         this.tabs.push(tab);
                     if (tab.active) {
                         this.currentTab = tab;
+                        console.log('TabManager: current tab updated to', tab.id, tab.url);
                     }
+                }).catch((error) => {
+                    console.error('TabManager: failed to get tab', tabInfo.tabId, error);
                 });
             });
             // 分离
@@ -676,6 +124,15 @@ class TabManager {
     }
     get currentTabId() {
         return this.currentTab?.id;
+    }
+    async updateActiveTab() {
+        const tabs = await chrome.tabs.query({
+            active: true,
+            currentWindow: true
+        });
+        if (tabs[0]) {
+            this.currentTab = tabs[0];
+        }
     }
 }
 
@@ -8759,6 +8216,564 @@ keccak256.register = function (func) {
 Object.freeze(keccak256);
 
 /**
+ * Abstract base class for message communication between channels.
+ *
+ * `MessagerBase` provides a framework for sending, receiving, and handling messages
+ * across different contexts (content scripts, background, etc.) with these features:
+ *
+ * - Topic-based message handling with wildcard support
+ * - Request/response and streaming message patterns
+ * - Cross-channel communication with security considerations
+ * - Automatic message correlation and response routing
+ *
+ * @typeParam T - Type of message payload (defaults to any)
+ *
+ * @property {Record<string, MessageHandle[]>} handlers - Topic to handlers mapping
+ * @property {MessageChannel} channel - Communication channel for this instance
+ * @property {string} id - Unique messager identifier
+ * @property {SealxSession} [session] - Optional session context
+ *
+ * @constructor
+ * @param channel - The message channel this instance will use for communication
+ * @param session - Optional session information containing host and sessionId
+ *
+ * @example Basic implementation:
+ * ```typescript
+ * class MyMessager extends MessagerBase {
+ *   onMessage() {
+ *     // Implement message handling
+ *   }
+ *   postMessage(message) {
+ *     // Implement message sending
+ *   }
+ *   // ... other abstract methods
+ * }
+ * ```
+ *
+ * @see {@link MessageChannel} for available communication channels
+ * @see {@link SealxRequest} for message request structure
+ * @see {@link SealxResponse} for response structure
+ * @see {@link SealxSession} for session context details
+ */
+class MessagerBase {
+    /**
+     * Creates a new MessagerBase instance
+     * @param channel - The message channel this instance will use for communication
+     * @param session - Optional session information containing host and sessionId
+     */
+    constructor(channel, session) {
+        /** Unique identifier for this messager instance */
+        this.id = 'messager-base';
+        /**
+         * Sends a reply message in response to a received message
+         * @param message - The payload to send
+         * @param topic - The topic to reply on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @param messageId - Optional message ID to reply to (if replying to specific message)
+         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
+         * @returns Promise that resolves when message is sent
+         *
+         * @note Subclasses must implement the actual message posting logic in postMessage()
+         */
+        this.reply = async (message, request, end = true) => {
+            const id = this.messageId();
+            const header = {
+                ...request.header,
+                messagerId: this.id
+            };
+            const response = {
+                ...request,
+                header,
+                payload: message,
+                receiver: request.sender,
+                sender: request.receiver,
+                responseId: id,
+                end: end ? end : (request.once ?? false)
+            };
+            if (this.session) {
+                response.session = this.session;
+            }
+            this.postMessage(response);
+            return Promise.resolve(response);
+        };
+        /**
+         * Sends a reply message in response to a received message
+         * @param message - The payload to send
+         * @param topic - The topic to reply on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @param messageId - Optional message ID to reply to (if replying to specific message)
+         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
+         * @returns Promise that resolves when message is sent
+         *
+         * @note Subclasses must implement the actual message posting logic in postMessage()
+         */
+        this.replyError = async (error, request, end = true) => {
+            const id = this.messageId();
+            const header = {
+                ...request.header,
+                messagerId: this.id
+            };
+            const response = {
+                ...request,
+                header,
+                error: error,
+                receiver: request.sender,
+                sender: request.receiver,
+                responseId: id,
+                end: end ? end : (request.once ?? false)
+            };
+            if (this.session) {
+                response.session = this.session;
+            }
+            this.postMessage(response);
+            return Promise.resolve(response);
+        };
+        /**
+         * Sends a message and waits for a single response
+         *
+         * @remarks
+         * This method:
+         * - Automatically adds and removes a temporary listener for the response
+         * - Uses the message's requestId to correlate requests and responses
+         * - Handles both success and error responses
+         * - Cleans up listeners when complete
+         *
+         * @throws Will reject the promise if:
+         * - The message cannot be sent
+         * - The receiver returns an error response
+         * - The request times out (implementation dependent)
+         *
+         * @typeParam T - The type of the message payload
+         * @param message - The payload to send
+         * @param topic - The topic to send on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @returns Promise that resolves with the response payload or rejects on error
+         */
+        this.send = async (message, topic, receiver) => {
+            // const id = this.messageId()
+            const sendMsg = {
+                header: this.header,
+                payload: message,
+                receiver: receiver ?? MessageChannel.ALL,
+                sender: this.channel,
+                topic: topic,
+                once: true,
+            };
+            if (chrome.tabs) {
+                await (TabManager.getInstance().updateActiveTab());
+            }
+            // this.postMessage(sendMsg)
+            return new Promise((resolve, rejected) => {
+                try {
+                    this.postMessage(sendMsg);
+                }
+                catch (e) {
+                    rejected(e);
+                }
+                const handle = (event) => {
+                    const message = event instanceof MessageEvent ? event.data : event;
+                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
+                        this.removeListener(handle);
+                        if (message.error) {
+                            rejected(message.error);
+                        }
+                        else {
+                            resolve(message);
+                        }
+                    }
+                };
+                this.addListener(handle);
+            });
+        };
+        /**
+         * Registers a handler for messages on a specific topic
+         * @param topic - The topic to listen on (supports wildcards via SealxTopic.ALL)
+         * @param handler - Function to handle incoming messages
+         * @param channel - Optional specific channel to filter messages by (defaults to ALL)
+         * @returns Function to unsubscribe the handler
+         *
+         * @remarks
+         * The handler receives two arguments:
+         * 1. The incoming message
+         * 2. A reply function that can be used to send a response
+         *
+         * @example Basic usage
+         * ```typescript
+         * // Register handler
+         * const unsubscribe = messager.on('data-update', (message, reply) => {
+         *   console.log('Received update:', message);
+         *   reply({ status: 'acknowledged' });
+         * });
+         *
+         * // Later, to unsubscribe:
+         * unsubscribe();
+         * ```
+         *
+         * @example Wildcard handler
+         * ```typescript
+         * // Handle all messages regardless of topic
+         * messager.on(SealxTopic.ALL, (message) => {
+         *   console.log('Received message:', message);
+         * });
+         * ```
+         */
+        this.on = (topic, handler, channel) => {
+            channel = channel ?? MessageChannel.ALL;
+            const topicKey = this.topic(channel ?? MessageChannel.ALL, topic);
+            if (!this.handlers[topicKey]) {
+                this.handlers[topicKey] = [];
+            }
+            console.log(topic, topicKey);
+            // TODO: Implement full handler logic including:
+            // - Better error handling
+            // - Message validation
+            // - Reply timeout handling
+            const handler1 = async (message) => {
+                // console.log(message, '----------- message sealx request -----', this.id)
+                if ((message.topic === topic || topic === SealxTopic.ALL) && (channel === MessageChannel.ALL || channel === message.sender)) {
+                    try {
+                        return await handler(message, (res, end = false) => {
+                            this.reply(res, message, end);
+                        });
+                    }
+                    catch (e) {
+                        this.replyError(e, message);
+                    }
+                }
+            };
+            this.handlers[topicKey].push(handler1);
+            // 返回取消订阅函数
+            return () => {
+                this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== handler1);
+            };
+        };
+        /**
+         * Unregisters a message handler for a specific topic
+         * @param topic - The topic to stop listening on
+         * @param callback - Handler function to remove
+         * @param channel - Optional channel filter for messages
+         * @returns Function that can be used to re-register the handler
+         *
+         *
+         * @example
+         * ```typescript
+         * // Remove a specific handler
+         * messager.off('data-update', handler);
+         * ```
+         */
+        this.off = (topic, callback, channel) => {
+            channel = channel ?? MessageChannel.ALL;
+            const topicKey = this.topic(channel, topic);
+            if (!this.handlers[topicKey]) {
+                return;
+            }
+            // Remove the handler
+            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
+        };
+        this.channel = channel;
+        this.forwardHandlers = {};
+        this.handlers = {};
+        this.onMessage();
+        this.session = session;
+        this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
+    }
+    /**
+     * Formats a topic with the standard prefix
+     * @param topic - The base topic name
+     * @returns Formatted topic string with prefix
+     * @example
+     * ```typescript
+     * const fullTopic = messager.topic('data-update');
+     * // Returns: 'sealx:data-update'
+     * ```
+     */
+    topic(channel, topic) {
+        return `${TOPIC_PREFIX}-${channel}-${topic}`;
+    }
+    /**
+     * Handles incoming messages by routing them to registered handlers
+     * @param message - The received message to process
+     * @remarks
+     * Only processes messages that:
+     * - Are addressed to this channel or ALL channels
+     * - Have registered handlers for their topic
+     */
+    async receiveMessage(message) {
+        const channelTopicKey = this.topic(message.sender, message.topic);
+        const channelAllTopicKey = this.topic(message.sender, SealxTopic.ALL);
+        const allChannelAllTopicKey = this.topic(MessageChannel.ALL, SealxTopic.ALL);
+        const allChannelTopicKey = this.topic(MessageChannel.ALL, message.topic);
+        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
+            channelTopicKey, allChannelAllTopicKey];
+        const response = [];
+        for (const topicKey of topicKeys) {
+            const handles = this.handlers[topicKey] ?? [];
+            for (const handle of handles) {
+                if (!('responseId' in message))
+                    response.push(await handle(message));
+            }
+        }
+        return response;
+    }
+    /**
+     * Generates a response topic name from a base topic
+     * @param topic - The base topic name
+     * @returns Response topic string with ':response' suffix
+     * @example
+     * ```typescript
+     * const responseTopic = messager.responseTopic('data-update');
+     * // Returns: 'data-update:response'
+     * ```
+     */
+    responseTopic(topic) {
+        return `${topic}:response`;
+    }
+    /**
+     * Generates a unique message ID with QN prefix
+     * @returns Unique message ID string combining:
+     * - QN prefix
+     * - Current timestamp
+     * - Random number suffix
+     *
+     * @example
+     * ```typescript
+     * const id = messager.messageId();
+     * // Returns: "QN-1624798800000-123"
+     * ```
+     */
+    messageId() {
+        return `QN-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
+    }
+    get host() {
+        return window.location.host;
+    }
+    get header() {
+        const id = this.messageId();
+        return {
+            host: this.host,
+            requestId: id,
+            sessionId: this.session?.sessionId ?? '',
+            messagerId: this.id,
+            userId: this.session?.userId
+        };
+    }
+    /**
+     * Sends a message and returns an async generator that yields multiple responses
+     * Useful for streaming or long-running operations that return multiple chunks
+     *
+     * @typeParam T - The type of the message payload
+     * @param message - The initial payload to send
+     * @param topic - The topic to send on
+     * @param receiver - Optional specific receiver channel (defaults to ALL)
+     * @returns AsyncGenerator that yields response payloads
+     *
+     * @example
+     * ```typescript
+     * // Using the stream
+     * const stream = messager.sendStream(data, 'stream-topic');
+     * for await (const chunk of stream) {
+     *   console.log('Received chunk:', chunk);
+     * }
+     * ```
+     */
+    async *sendStream(message, topic, receiver) {
+        // const id = this.messageId()
+        const sendMsg = {
+            header: this.header,
+            payload: message,
+            receiver: receiver ?? MessageChannel.ALL,
+            sender: this.channel,
+            topic: topic,
+            once: false
+        };
+        this.postMessage(sendMsg);
+        // Internal queue for buffering incoming messages
+        const queue = [];
+        // Callbacks for resolving/rejecting the next promise
+        let resolveNext = null;
+        let rejectNext = null;
+        // Flag indicating if the stream has completed
+        let done = false;
+        /**
+         * Handles incoming stream messages
+         * @param event - Message event containing the response
+         */
+        const handle = (event) => {
+            const data = event.data;
+            if (!data.header) {
+                return;
+            }
+            if (data.header.requestId !== sendMsg.header.requestId)
+                return;
+            if (data.header.messagerId === sendMsg.header.messagerId) {
+                return;
+            }
+            if (data.error) {
+                done = true;
+                this.removeListener(handle);
+                rejectNext?.(data.error);
+            }
+            else {
+                queue.push(data);
+                resolveNext?.(queue.shift());
+                resolveNext = null;
+                rejectNext = null;
+            }
+            if (data.end) {
+                done = true;
+                this.removeListener(handle);
+            }
+        };
+        this.addListener(handle);
+        try {
+            while (!done || queue.length) {
+                if (queue.length) {
+                    yield queue.shift();
+                }
+                else {
+                    // Yield control and wait for next message
+                    yield await new Promise((resolve, reject) => {
+                        resolveNext = resolve;
+                        rejectNext = reject;
+                    });
+                }
+            }
+        }
+        finally {
+            this.removeListener(handle);
+        }
+        return;
+    }
+    onForward(receiver, handle) {
+        this.forwardHandlers[receiver] = handle;
+    }
+}
+
+// import { TabManager } from "sealx-core";
+/**
+ * Handles message communication for content scripts in browser extensions.
+ * Manages message passing between:
+ * - Content scripts and background pages
+ * - Content scripts and iframes
+ * - Content scripts and inpage scripts
+ */
+class ContentMessager extends MessagerBase {
+    constructor() {
+        super(MessageChannel.CONTENT);
+        /**
+         * Flag indicating whether messages should be forwarded to other channels
+         */
+        this.forwardMessage = null;
+    }
+    /**
+     * Enables message forwarding capability
+     */
+    setMessageBridgeAvailable(forward = MessageChannel.ALL) {
+        this.forwardMessage = forward;
+    }
+    /**
+     * Sets up message listeners for:
+     * - Window messages (from iframes/pages)
+     * - Runtime messages (from background/other content scripts)
+     * Handles message filtering and forwarding logic
+     */
+    onMessage() {
+        this.addListener(async (event, sender) => {
+            let message = null;
+            if (event instanceof MessageEvent) {
+                message = event.data;
+            }
+            else {
+                message = event;
+                if (message && message.header && sender?.tab)
+                    message.header.tabId = sender.tab.id;
+            }
+            if (message && message.header) {
+                // Skip messages sent by this messager to prevent loops
+                if (message.header.messagerId === this.id) {
+                    return;
+                }
+                if (this.channel !== message.receiver && message.sender !== this.channel) {
+                    // Forward messages to other channels when bridge is available
+                    message.header.messagerId = this.id;
+                    await this.forwardHandlers[message.receiver]?.(message);
+                    this.postMessage(message);
+                }
+                else {
+                    const response = await this.receiveMessage(message);
+                    const f = response.filter(r => r !== undefined);
+                    const t = f.length > 0 ? f.pop() : undefined;
+                    if (!('responseId' in message) && !message.reply)
+                        this.reply(t, message);
+                }
+            }
+        });
+    }
+    /**
+     * Gets all iframe windows in the current document
+     * @returns NodeList of all iframe elements
+     */
+    get iframeWindows() {
+        const iframes = document.querySelectorAll('iframe');
+        return iframes;
+    }
+    /**
+     * Posts a message to the appropriate receiver:
+     * - inpage: Uses postMessage API with targetOrigin '*'
+     * - Background: Uses browser.runtime.sendMessage
+     * @param message The message to send
+     */
+    postMessage(message) {
+        message.header.messagerId = this.id;
+        if (message.receiver === MessageChannel.INPAGE || message.receiver === MessageChannel.IFRAME) {
+            window.postMessage(message, '*');
+            if (this.iframeWindows) {
+                this.iframeWindows.forEach((iframe) => {
+                    // Note: Using '*' targetOrigin allows any iframe to receive the message
+                    // Optional chaining (?.) safely handles cases where contentWindow is null
+                    iframe.contentWindow?.postMessage(message, '*');
+                });
+            }
+        }
+        else {
+            try {
+                const runtime = chrome.runtime;
+                if (runtime)
+                    runtime.sendMessage(message);
+            }
+            catch (e) {
+                console.error('postMessage error:', e);
+                this.replyError(e, message);
+            }
+        }
+    }
+    /**
+     * Adds message listeners for:
+     * - Window messages (from iframes/pages)
+     * - Runtime messages (from background/other content scripts)
+     * @param callback Function to handle incoming messages
+     */
+    addListener(callback) {
+        const runtime = chrome.runtime;
+        // Listen for messages from window (iframes/pages)
+        window.addEventListener('message', callback);
+        // Listen for messages from extension runtime (background/other content scripts)
+        if (runtime)
+            runtime.onMessage.addListener(callback);
+    }
+    /**
+     * Removes previously added message listeners
+     * @param callback The callback function to remove
+     */
+    removeListener(callback) {
+        const runtime = chrome.runtime;
+        window.removeEventListener('message', callback);
+        if (runtime)
+            runtime.onMessage.removeListener(callback);
+    }
+}
+
+/**
  * ExtensionMessager handles message communication for browser extension UI components
  *
  * This class extends MessagerBase to provide browser extension-specific message handling:
@@ -8836,7 +8851,12 @@ class ExtensionMessager extends MessagerBase {
             chrome.runtime?.sendMessage(message);
         }
         else {
-            chrome.tabs?.sendMessage(message.header.tabId, message);
+            try {
+                chrome.tabs?.sendMessage(message.header.tabId, message);
+            }
+            catch (e) {
+                chrome.runtime?.sendMessage(message);
+            }
         }
     }
     /**
@@ -8896,8 +8916,13 @@ class BackgroundMessager extends MessagerBase {
         this.addListener(async (event, sender) => {
             const message = event;
             if (message && message.header) {
-                if (sender?.tab)
+                if (sender?.tab) {
                     message.header.tabId = sender.tab.id;
+                    TabManager.getInstance().currentTab = sender.tab;
+                }
+                else {
+                    await (TabManager.getInstance().updateActiveTab());
+                }
                 if (message.header.messagerId === this.id) {
                     return;
                 }
@@ -8946,8 +8971,16 @@ class BackgroundMessager extends MessagerBase {
             chrome.runtime?.sendMessage(message);
         }
         else {
+            try {
+                chrome.tabs?.sendMessage(message.header.tabId, message);
+            }
+            catch (e) {
+                const tab = TabManager.getInstance().currentTab;
+                if (tab && tab.id) {
+                    chrome.tabs?.sendMessage(tab.id, message);
+                }
+            }
             // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
-            chrome.tabs?.sendMessage(message.header.tabId, message);
         }
     }
     /**

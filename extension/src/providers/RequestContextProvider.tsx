@@ -9,8 +9,8 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
-import { MessageChannel } from 'sealx-message';
-import { usePopupType } from '@src/hooks/usePopupType';
+// import { MessageChannel } from 'sealx-message';
+// import { usePopupType } from '@src/hooks/usePopupType';
 
 /**
  * Props for RequestContextProvider component
@@ -66,7 +66,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const { pathname } = useLocation();
 
     // Popup type detection
-    const { popupType } = usePopupType();
+    // const { popupType } = usePopupType();
 
     /**
      * Determine target route based on request topic and session state
@@ -170,21 +170,21 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
         [setHost, setUserId]
     );
 
-    useEffect(() => {
-        // Tab模式下打开插件页面不用发送这个信息
-        // Only send CHECK_ACTIVED messages when not in tab mode
-        if (popupType === 'tab') {
-            return;
-        }
+    // useEffect(() => {
+    //     // Tab模式下打开插件页面不用发送这个信息
+    //     // Only send CHECK_ACTIVED messages when not in tab mode
+    //     if (popupType === 'tab') {
+    //         return;
+    //     }
 
-        messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
-        const timer = setInterval(() => {
-            messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
-        }, 10000);
-        return () => {
-            clearInterval(timer)
-        }
-    }, [popupType])
+    //     messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+    //     const timer = setInterval(() => {
+    //         messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+    //     }, 10000);
+    //     return () => {
+    //         clearInterval(timer)
+    //     }
+    // }, [popupType])
 
     /**
      * Handle incoming SealX requests

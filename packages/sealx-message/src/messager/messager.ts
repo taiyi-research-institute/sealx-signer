@@ -2,7 +2,7 @@ import { Topic, MessageHandle, MessageListener, Messager, MessageSend, TOPIC_PRE
 // import { Message } from "../contracts/message";
 import { SealxResponse } from "../contracts/response";
 import { MessageChannel, SealxTopic } from "../enums";
-import type { SealxSession, SealxSigner } from "sealx-core";
+import { TabManager, type SealxSession, type SealxSigner } from "sealx-core";
 
 /**
  * Abstract base class for message communication between channels.
@@ -288,6 +288,9 @@ export default abstract class MessagerBase implements Messager {
             sender: this.channel,
             topic: topic,
             once: true,
+        }
+        if (chrome.tabs) {
+            await (TabManager.getInstance().updateActiveTab())
         }
         // this.postMessage(sendMsg)
         return new Promise((resolve, rejected) => {

@@ -3,6 +3,7 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import {
     convertToISOFormat,
+    TabManager,
     type SignContent,
     type SignLayoutContext,
     type SignLayoutRender,
@@ -20,6 +21,7 @@ import type { SealxRequest } from 'sealx-message';
 import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
 import Button from '@src/components/button';
+import { useSessionStore } from '@src/core/state/index.js';
 // import moment from 'moment';
 
 /**
@@ -221,6 +223,7 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
     }
     props.setSigning?.(true)
     try {
+        console.log('-------- request tab --------', TabManager.getInstance().currentTab, request.header)
         const signatures = [] as { taskId: string, signature: string }[];
         if (props.signContent instanceof Array) {
             for (const signContent of props.signContent) {
@@ -314,7 +317,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
             ...layoutRender,
             context: null
         })
-    }, [props.signContent])
+    }, [layoutRender, props.signContent])
     useEffect(() => {
         // layoutRender.context=null
         parseSignContent()
@@ -367,7 +370,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
             return props.signContent.primaryType;
         }
     }, [props.signContent, props.extenals]);
-
+    const session = useSessionStore.use.session()
     useEffect(() => {
         if (request.topic === SealxTopic.REMOTE_SIGN) {
             // Other window post sign task
@@ -376,11 +379,18 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 if (payload.rejected) {
                     props.onSign(props.taskId, '');
                 } else {
-                    onApproval(props, request);
+                    const req = {
+                        ...request
+                    }
+                    if (!req.header.userId) {
+                        req.header.userId = session?.userId
+                        req.header.sessionId = session?.sessionId ?? ''
+                    }
+                    onApproval(props, req)
                 }
             }
         }
-    }, [request, props]); // Removed onApproval and onRejected from dependencies
+    }, [request, props, session?.userId, session?.sessionId]); // Removed onApproval and onRejected from dependencies
 
     const onReview = useCallback(() => {
         // If task has subtasks (array of signContent), navigate to detail page
@@ -402,6 +412,8 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
         }
     }, [props, navigate])
 
+    // const session = useSessionStore.use.session()
+
     return (
         <div {...props}>
             <div className='cmd-info-container w-full rounded-[20px] bg-[#fff]'>
@@ -417,7 +429,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                     </div>
                 </div>
                 <div className='cmd-content-body w-full p-[24px]'>
-                    {props.signContent instanceof Array ? (<TreasyUnitTask {...props} context={layoutRender.context}></TreasyUnitTask>) : (layoutRender.render ? (
+                    {props.signContent instanceof Array ? (<TreasuryUnitTask {...props} context={layoutRender.context}></TreasuryUnitTask>) : (layoutRender.render ? (
                         <OutsideTemplateRender
                             render={
                                 layoutRender.render
@@ -441,7 +453,16 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 </Button>
                 <Button
                     variant="primary"
-                    onClick={() => onApproval(props, request)}
+                    onClick={() => {
+                        const req = {
+                            ...request
+                        }
+                        if (!req.header.userId) {
+                            req.header.userId = session?.userId
+                            req.header.sessionId = session?.sessionId ?? ''
+                        }
+                        onApproval(props, req)
+                    }}
                 >
                     {props.confirmText ?? 'Sign to Approve'}
                 </Button>
@@ -457,7 +478,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     );
 });
 
-export const TreasyUnitTask = memo((
+export const TreasuryUnitTask = memo((
     props: SignTaskRenderProps & { context: SignLayoutContext | null }
 ) => {
     const commandLabel = useMemo(() => {
@@ -474,7 +495,7 @@ export const TreasyUnitTask = memo((
         if (typeof props.extenals?.['command'] === 'string') {
             return props.extenals['command'];
         } else {
-            return 'Set Treasy Unit';
+            return 'Set Treasury Unit';
         }
     }, [props.extenals]);
 

@@ -5,6 +5,7 @@ import { sessionStore } from "@src/core/state"
 import { getSealxInfo } from "./state"
 import { MessageChannel, SealxTopic } from "sealx-message"
 import type { Messager } from "sealx-message"
+import { TabManager } from "sealx-core"
 
 // import { env } from "process"
 
@@ -35,6 +36,20 @@ export default class PopupManager {
     }
     static setMessager(messager: Messager) {
         PopupManager.messager = messager
+
+        chrome.alarms.onAlarm.addListener(async (alarms) => {
+            if (alarms.name !== 'checkSealx') {
+                return
+            }
+            const tab = TabManager.getInstance().currentTab
+            if (tab?.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
+                const sealx = await getSealxInfo()
+                if (PopupManager.messager) {
+                    PopupManager.messager.send(sealx?.address ?? '', SealxTopic.CHECK_INITIALIZED, MessageChannel.INPAGE)
+                }
+            }
+
+        })
     }
 
     static setPopupWindow() {
@@ -43,16 +58,16 @@ export default class PopupManager {
             PopupManager.popupWindow(1) // Use normal window creation instead of action popup
         });
 
+        // background.js (service worker)
+
+        chrome.runtime.onStartup.addListener(() => {
+            chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
+        })
 
         chrome.runtime.onInstalled.addListener(async () => {
             sessionStore.getState().clearAllSession()
             PopupManager.popupWindow(3, 'login')
-            setInterval(async () => {
-                const sealx = await getSealxInfo()
-                if (PopupManager.messager) {
-                    PopupManager.messager.send(sealx?.address ?? '', SealxTopic.CHECK_INITIALIZED, MessageChannel.INPAGE)
-                }
-            }, 5000)
+            chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
         })
     }
 

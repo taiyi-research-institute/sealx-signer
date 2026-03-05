@@ -223,7 +223,8 @@ const connectSealx = async (uId = '') => {
     const userId = sealxSigner.account.userId;
     if (!sealxSigner.session ||
         sealxSigner.session.expire < Date.now() ||
-        !sealxSigner.account) {
+        !sealxSigner.account || !sealxSigner.session.sessionId
+        || sealxSigner.session.userId !== sealxSigner.account.userId) {
         try {
             const res = await messager.send({ userId, title }, SealxTopic.CONNECT, CHANNEL_BACKGROUND);
             if (!res?.payload?.session || !res?.payload?.account) {
@@ -294,9 +295,13 @@ const bindSealx = async (userId) => {
     }
     if (!sealxSigner.session ||
         !sealxSigner.account ||
-        sealxSigner.session.expire < Date.now()) {
+        sealxSigner.session.expire < Date.now()
+        || sealxSigner.session.userId != userId
+        || !sealxSigner.session.sessionId) {
         await connectSealx();
     }
+    if (sealxSigner.session)
+        messager.session = sealxSigner.session;
     if (sealxSigner.account) {
         try {
             const res = await messager.send(sealxSigner.account.userId, SealxTopic.BIND_PK, CHANNEL_POPUP);
@@ -395,9 +400,13 @@ const signBySealx = async (task, userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()) {
+    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()
+        || sealxSigner.session.userId != userId || !sealxSigner.session.sessionId) {
         await connectSealx();
     }
+    if (sealxSigner.session)
+        messager.session = sealxSigner.session;
+    console.log('---------- sealx session -----', messager.session);
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
         throw new PkException('Public key mismatch - new key does not match registered key');
@@ -629,6 +638,7 @@ const checkSealx = async () => {
     }
     return null;
 };
+let checkTimer = null;
 /**
  * Sets up a callback to monitor SealX extension activation status
  *
@@ -654,6 +664,19 @@ const checkSealxActive = (callback) => {
     messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
         callback(request.payload);
     }, MessageChannel.BACKGROUND);
+    if (checkTimer) {
+        clearInterval(checkTimer);
+    }
+    checkTimer = setInterval(async () => {
+        const res = await messager.send('', SealxTopic.CHECK_INITIALIZED, MessageChannel.BACKGROUND);
+        if (res.payload) {
+            sealxSigner.activate();
+        }
+        else {
+            sealxSigner.deactivate();
+        }
+        callback(res.payload);
+    }, 2000);
 };
 
 export { SealxProvider, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx, wait };

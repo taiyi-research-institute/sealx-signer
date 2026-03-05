@@ -257,7 +257,8 @@ export const connectSealx = async (
     if (
         !sealxSigner.session ||
         sealxSigner.session.expire < Date.now() ||
-        !sealxSigner.account
+        !sealxSigner.account || !sealxSigner.session.sessionId
+        || sealxSigner.session.userId !== sealxSigner.account.userId
     ) {
         try {
             const res = await messager.send(
@@ -344,10 +345,13 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
         !sealxSigner.session ||
         !sealxSigner.account ||
         sealxSigner.session.expire < Date.now()
+        || sealxSigner.session.userId != userId
+        || !sealxSigner.session.sessionId
     ) {
         await connectSealx();
     }
-
+    if (sealxSigner.session)
+        messager.session = sealxSigner.session
     if (sealxSigner.account) {
         try {
             const res = await messager.send(
@@ -464,9 +468,12 @@ export const signBySealx = async <T = unknown>(
         );
     }
 
-    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()) {
+    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()
+        || sealxSigner.session.userId != userId || !sealxSigner.session.sessionId) {
         await connectSealx();
     }
+    if (sealxSigner.session) messager.session = sealxSigner.session
+    console.log('---------- sealx session -----', messager.session)
     if (
         sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk
@@ -746,7 +753,7 @@ export const checkSealx = async (): Promise<string | null> => {
     return null;
 };
 
-
+let checkTimer: any = null
 /**
  * Sets up a callback to monitor SealX extension activation status
  * 
@@ -772,4 +779,20 @@ export const checkSealxActive = (callback: (address: string) => void) => {
     messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
         callback(request.payload)
     }, MessageChannel.BACKGROUND)
+    if (checkTimer) {
+        clearInterval(checkTimer)
+    }
+    checkTimer = setInterval(async () => {
+        const res = await messager.send(
+            '',
+            SealxTopic.CHECK_INITIALIZED,
+            MessageChannel.BACKGROUND
+        );
+        if (res.payload) {
+            sealxSigner.activate()
+        } else {
+            sealxSigner.deactivate()
+        }
+        callback(res.payload)
+    }, 2000)
 }

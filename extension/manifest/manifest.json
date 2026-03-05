@@ -28,7 +28,14 @@
         ],
         "object-src": "'self'"
     },
-    "permissions": ["activeTab", "storage", "scripting", "tabs", "identity"],
+    "permissions": [
+        "activeTab",
+        "storage",
+        "scripting",
+        "tabs",
+        "identity",
+        "alarms"
+    ],
     "oauth2": {
         "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
         "scopes": ["https://www.googleapis.com/auth/drive.file"]

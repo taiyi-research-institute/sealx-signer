@@ -113,10 +113,12 @@ export const TaskHome = () => {
         if (!signing && (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN) && state && state.result && state.result.taskId && state.result.signatures.length > 0 && state.result.signCount > 0) {
             setSigning(true)
             const reply = replyRef.current ? replyRef.current : request.reply
-            reply?.(state)
-
+            try {
+                reply?.(state)
             messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-
+            } catch (e) {
+                console.debug(e, '--------------- 00000 ---------')
+            }
         }
     }, [
         state,
@@ -161,7 +163,12 @@ export const TaskHome = () => {
                 }
                 return items
             })
-            request.reply?.(request.payload as never)
+            try {
+                request.reply?.(request.payload as never)
+            } catch (e) {
+                console.debug(e, '----------- 11111 ------------')
+            }
+
         }
     }, [request])
 
