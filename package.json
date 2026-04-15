@@ -16,10 +16,12 @@
     "scripts": {
         "test": "test"
     },
-    "workspaces": [
-        "./packages/*"
-    ],
     "devDependencies": {
-        "rollup-plugin-copy": "^3.5.0"
+        "@rollup/plugin-commonjs": "^28.0.9",
+        "@rollup/plugin-node-resolve": "^16.0.3",
+        "@rollup/plugin-typescript": "^12.3.0",
+        "rollup": "^4.59.0",
+        "rollup-plugin-copy": "^3.5.0",
+        "rollup-plugin-dts": "^6.3.0"
     }
 }

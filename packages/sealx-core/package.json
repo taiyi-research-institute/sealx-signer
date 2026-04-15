@@ -1,7 +1,7 @@
 {
     "type": "module",
     "name": "sealx-core",
-    "version": "1.0.10",
+    "version": "1.0.12",
     "description": "Core library for SealX digital signature system",
     "keywords": [
         "sealx",
@@ -29,6 +29,11 @@
             "import": "./dist/index.mjs",
             "require": "./dist/index.cjs",
             "types": "./dist/index.d.ts"
+        },
+        "./exceptions/*": {
+            "types": "./dist/exceptions/*.d.ts",
+            "import": "./dist/exceptions/*.mjs",
+            "require": "./dist/exceptions/*.cjs"
         }
     },
     "files": [

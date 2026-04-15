@@ -1,0 +1,8 @@
+src/
+tsconfig.json
+tsconfig.tsbuildinfo
+*.ts
+!*.d.ts
+node_modules/
+.git/
+rollup.config.js

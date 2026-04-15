@@ -1,10 +1,9 @@
-import { dbStorageWrapper, type SealxAccount, type SealxSession } from "sealx-core";
+import { dbStorageWrapper, type SealxAccount, type SealxSession, PinError } from "sealx-core";
 import type { PrivateKeyStoreRecord, SealxBaseInfo } from "../models";
 import { createWallet } from "../utils/wallet";
 import { decodeEncryptedPrivateKey, encodePrivateKey, strToHex } from "../utils/crypto";
 import CryptoJS from "crypto-js";
 import { sessionKey } from "@src/core/utils/helper";
-import PinError from "../../../../../packages/sealx-core/src/exceptions/PinError";
 import { sessionStore } from "@src/core/state/session";
 import { syncStores } from "@src/core/state/internal/syncStores";
 syncStores()

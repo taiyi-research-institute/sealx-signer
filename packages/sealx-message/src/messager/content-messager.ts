@@ -61,7 +61,7 @@ export default class ContentMessager extends MessagerBase {
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined)
                     const t = f.length > 0 ? f.pop() : undefined
-                    if (!('responseId' in message) && !message.reply) this.reply(t, message)
+                    if (t && !(('responseId' in message) && !message.reply)) this.reply(t, message)
                 }
             }
         })

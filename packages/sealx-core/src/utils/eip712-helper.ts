@@ -280,7 +280,8 @@ export const buildSignRenderContext = (keyMap: KeyMap, message: Record<string, a
             }
             context[originKey] = {
                 label: key,
-                value: value
+                value: value,
+                originKey: originKey
             }
         })
         return context

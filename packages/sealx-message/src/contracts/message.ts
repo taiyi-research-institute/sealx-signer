@@ -116,9 +116,20 @@ export interface ConnectionSession {
 
 /**
  * Represents a response message for a connection request.
- * 
+ *
  * @property result - The session information associated with the connection.
  */
 export interface ConnectionResponseMessage {
     result: ConnectionSession
+}
+
+/**
+ * Represents a message for locating an element in the page.
+ *
+ * @property key - The data-key attribute value to locate.
+ * @property value - Optional value of the element for matching.
+ */
+export interface LocateElementMessage {
+    key: string
+    value?: string
 }

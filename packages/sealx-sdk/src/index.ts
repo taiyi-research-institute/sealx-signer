@@ -9,6 +9,7 @@ import { MessageHandle } from 'sealx-message';
 import { SealxRequest } from 'sealx-message';
 
 export * from 'sealx-core';
+export * from 'sealx-message';
 
 /**
  * @file SealX SDK main module
@@ -796,3 +797,201 @@ export const checkSealxActive = (callback: (address: string) => void) => {
         callback(res.payload)
     }, 2000)
 }
+
+/**
+ * Highlight style for located elements
+ */
+const HIGHLIGHT_STYLE = {
+    border: '2px solid #007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    transition: 'all 0.3s ease'
+};
+
+/**
+ * Remove highlight style from element
+ */
+const removeHighlight = (element: HTMLElement) => {
+    element.style.border = '';
+    element.style.backgroundColor = '';
+    element.style.transition = '';
+    element.classList.remove('sealx-located-element');
+};
+
+/**
+ * Add highlight style to element
+ */
+const addHighlight = (element: HTMLElement) => {
+    Object.assign(element.style, HIGHLIGHT_STYLE);
+    element.classList.add('sealx-located-element');
+};
+
+/**
+ * Locate and highlight an element in the page by data-key attribute
+ *
+ * @param key - The data-key attribute value to locate
+ * @param value - Optional value for additional matching
+ * @returns true if element was found and highlighted, false otherwise
+ */
+const locateElementByKey = (key: string, value?: string): boolean => {
+    // Find element with matching data-key attribute
+    const element = document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+
+    if (!element) {
+        console.log('[SealX] Element not found for key:', key);
+        return false;
+    }
+
+    // If value is provided, verify it matches
+    if (value && element.textContent?.trim() !== value) {
+        console.log('[SealX] Value mismatch:', { expected: value, actual: element.textContent?.trim() });
+        // Continue anyway - value is optional
+    }
+
+    // Remove any existing highlights first
+    const existingHighlighted = document.querySelectorAll('.sealx-located-element');
+    existingHighlighted.forEach(el => removeHighlight(el as HTMLElement));
+
+    // Add highlight to the element
+    addHighlight(element);
+
+    // Scroll element into view
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    // Remove highlight after 3 seconds
+    setTimeout(() => {
+        removeHighlight(element);
+    }, 3000);
+
+    console.log('[SealX] Element highlighted:', key);
+    return true;
+};
+
+/**
+ * Callback function to locate element by key and value
+ * @param key - The data-key attribute value to locate
+ * @param value - Optional value of the element
+ * @returns The element to highlight, or null if not found
+ */
+export type LocateElementCallback = (key: string, value?: string) => HTMLElement | null;
+
+/**
+ * Set of registered locatable keys
+ * If empty, all keys are allowed (backward compatibility)
+ */
+let registeredKeys: Set<string> = new Set();
+
+/**
+ * Register keys that can be located from the extension
+ *
+ * @param keys - Array of data-key values that can be located
+ *
+ * @example
+ * ```typescript
+ * import { registerLocatableKeys } from 'sealx-sdk';
+ *
+ * // Register keys that can be located
+ * registerLocatableKeys(['orderId', 'message.from', 'message.to']);
+ * ```
+ */
+export const registerLocatableKeys = (keys: string[]): void => {
+    if (!keys || keys.length === 0) {
+        console.log('[SealX] No keys to register, clearing registered keys');
+        registeredKeys.clear();
+        return;
+    }
+
+    keys.forEach(key => {
+        // Filter out empty strings
+        if (key && key.trim()) {
+            registeredKeys.add(key);
+        }
+    });
+
+    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
+};
+
+/**
+ * Check if a key is registered for location
+ * @param key - The key to check
+ * @returns true if key is registered or no keys are registered (backward compatibility)
+ */
+const isKeyRegistered = (key: string): boolean => {
+    // If no keys are registered, allow all keys (backward compatibility)
+    if (registeredKeys.size === 0) {
+        return true;
+    }
+    return registeredKeys.has(key);
+};
+
+/**
+ * Default locate function - finds element by data-key attribute
+ */
+const defaultLocateCallback: LocateElementCallback = (key: string, value?: string): HTMLElement | null => {
+    return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+};
+
+/**
+ * Listen for LOCATE_ELEMENT messages from the extension and highlight corresponding elements
+ *
+ * @param locateCallback - Optional callback function to find the element to highlight
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { onLocateElement } from 'sealx-sdk';
+ *
+ * // Using default element location (by data-key attribute)
+ * const unsubscribe = onLocateElement();
+ *
+ * // Or with custom element location logic
+ * const unsubscribe = onLocateElement((key, value) => {
+ *   // Custom logic to find element based on key and value
+ *   return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+ * });
+ *
+ * // Later, stop listening
+ * unsubscribe();
+ * ```
+ */
+export const onLocateElement = (locateCallback?: LocateElementCallback): (() => void) => {
+    const locator = locateCallback || defaultLocateCallback;
+
+    const handleLocate = async (request: SealxRequest<{ key: string; value?: string }>) => {
+        const { key, value } = request.payload;
+        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
+
+        // Check if key is registered (if any keys are registered)
+        if (!isKeyRegistered(key)) {
+            console.log('[SealX] Key not registered, ignoring:', key);
+            return;
+        }
+
+        // Call the callback to get the element to highlight
+        const element = locator(key, value);
+
+        if (!element) {
+            console.log('[SealX] Element not found for key:', key);
+            return;
+        }
+
+        // Remove any existing highlights first
+        const existingHighlighted = document.querySelectorAll('.sealx-located-element');
+        existingHighlighted.forEach(el => removeHighlight(el as HTMLElement));
+
+        // Add highlight to the element
+        addHighlight(element);
+
+        // Scroll element into view
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            removeHighlight(element);
+        }, 3000);
+
+        console.log('[SealX] Element highlighted:', key);
+    };
+
+    const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
+    return off;
+};

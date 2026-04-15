@@ -289,9 +289,9 @@ export default abstract class MessagerBase implements Messager {
             topic: topic,
             once: true,
         }
-        if (chrome.tabs) {
-            await (TabManager.getInstance().updateActiveTab())
-        }
+        // if (chrome.tabs) {
+        //     await (TabManager.getInstance().updateActiveTab())
+        // }
         // this.postMessage(sendMsg)
         return new Promise((resolve, rejected) => {
             try {

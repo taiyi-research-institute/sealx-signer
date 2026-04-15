@@ -98,6 +98,8 @@ export interface SignContent extends Eip712Struct {
 export interface SignContextItem {
     label: string
     value: Record<string, SignContextItem> | string | number | boolean | SignLayoutContext[]
+    /** Original key name from the message object (for element location) */
+    originKey?: string
 }
 
 export type SignLayoutContext = Record<string, SignContextItem>

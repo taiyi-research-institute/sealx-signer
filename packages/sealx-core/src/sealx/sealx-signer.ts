@@ -73,15 +73,20 @@ export class SealxSigner {
             clearTimeout(this.autoClearTimer)
             this.autoClearTimer = null
         }
-        if (this.session)
-            this.autoClearTimer = setTimeout(() => {
-                if (this.autoConnectCallback)
-                    this.autoConnectCallback()
-                this.session = null
-                // this.storageWrapper.removeItem('account')
-                this.storageWrapper.removeItem('session')
-                this.autoClearTimer = null
-            }, this.session.expire - Date.now())
+        if (this.session) {
+            const timeUntilExpire = this.session.expire - Date.now()
+            // Only set timer if session is not already expired
+            if (timeUntilExpire > 0) {
+                this.autoClearTimer = setTimeout(() => {
+                    if (this.autoConnectCallback)
+                        this.autoConnectCallback()
+                    this.session = null
+                    // this.storageWrapper.removeItem('account')
+                    this.storageWrapper.removeItem('session')
+                    this.autoClearTimer = null
+                }, timeUntilExpire)
+            }
+        }
     }
     /**
      * Synchronizes the plugin's active state with the DOM attribute.

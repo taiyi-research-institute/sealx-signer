@@ -20,7 +20,11 @@ export default [
             }
         ],
         plugins: [resolve(), commonjs(), typescript({ tsconfig: './tsconfig.json' })],
-        external: ['react', 'lodash'] // 根据需要排除依赖
+        external: ['react', 'lodash'],
+        onwarn(warning, warn) {
+            if (warning.code === 'THIS_IS_UNDEFINED') return;
+            warn(warning);
+        }
     },
 
     // 类型声明构建：输出 .d.ts

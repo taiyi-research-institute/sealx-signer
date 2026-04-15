@@ -11,7 +11,7 @@
         "react-dom": "^19.1.0",
         "react-scripts": "5.0.1",
         "web-vitals": "^2.1.4",
-        "sealx-sdk": "workspace:*"
+        "sealx-sdk": "^1.0.24"
     },
     "scripts": {
         "start": "react-scripts start",
@@ -36,8 +36,5 @@
             "last 1 firefox version",
             "last 1 safari version"
         ]
-    },
-    "workspaces": [
-        "../packages/sealx-sdk"
-    ]
+    }
 }
