@@ -92,3 +92,4 @@ export interface SealxSignTask {
     /**(Optional) Additional external data or context for the task, provided as a key-value map. */
     extenals?: Record<string, unknown>;
 }
+//# sourceMappingURL=sealx-interface.d.ts.map

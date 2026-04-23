@@ -1,0 +1,173 @@
+name: Release Packages
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: 'Packages to publish (comma separated, or "all")'
+        required: false
+        default: 'all'
+
+env:
+  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+jobs:
+  # 发布 sealx-core
+  publish-core:
+    name: Publish sealx-core
+    runs-on: ubuntu-latest
+    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-core') || github.event.inputs.packages == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter sealx-core build
+
+      - name: Check version and publish
+        run: |
+          LOCAL_VERSION=$(node -p "require('./packages/sealx-core/package.json').version")
+          REMOTE_VERSION=$(npm view sealx-core version 2>/dev/null || echo "0.0.0")
+          echo "Local: $LOCAL_VERSION, Remote: $REMOTE_VERSION"
+
+          # Compare versions
+          SHOULD_PUBLISH=$(node -e "
+            const local = '$LOCAL_VERSION'.split('.').map(Number);
+            const remote = '$REMOTE_VERSION'.split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (local[i] > remote[i]) { console.log('true'); process.exit(0); }
+              if (local[i] < remote[i]) { console.log('false'); process.exit(0); }
+            }
+            console.log('false');
+          ")
+
+          echo "Should publish: $SHOULD_PUBLISH"
+          if [ "$SHOULD_PUBLISH" = "true" ]; then
+            echo "Publishing sealx-core..."
+            pnpm --filter sealx-core publish --access public --no-git-checks
+          else
+            echo "Skipping sealx-core - no version bump"
+          fi
+
+  # 发布 sealx-message
+  publish-message:
+    name: Publish sealx-message
+    runs-on: ubuntu-latest
+    needs: publish-core
+    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-message') || github.event.inputs.packages == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter sealx-message build
+
+      - name: Check version and publish
+        run: |
+          LOCAL_VERSION=$(node -p "require('./packages/sealx-message/package.json').version")
+          REMOTE_VERSION=$(npm view sealx-message version 2>/dev/null || echo "0.0.0")
+          echo "Local: $LOCAL_VERSION, Remote: $REMOTE_VERSION"
+
+          SHOULD_PUBLISH=$(node -e "
+            const local = '$LOCAL_VERSION'.split('.').map(Number);
+            const remote = '$REMOTE_VERSION'.split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (local[i] > remote[i]) { console.log('true'); process.exit(0); }
+              if (local[i] < remote[i]) { console.log('false'); process.exit(0); }
+            }
+            console.log('false');
+          ")
+
+          echo "Should publish: $SHOULD_PUBLISH"
+          if [ "$SHOULD_PUBLISH" = "true" ]; then
+            echo "Publishing sealx-message..."
+            pnpm --filter sealx-message publish --access public --no-git-checks
+          else
+            echo "Skipping sealx-message - no version bump"
+          fi
+
+  # 发布 sealx-sdk
+  publish-sdk:
+    name: Publish sealx-sdk
+    runs-on: ubuntu-latest
+    needs: publish-message
+    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-sdk') || github.event.inputs.packages == ''
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm --filter sealx-sdk build
+
+      - name: Check version and publish
+        run: |
+          LOCAL_VERSION=$(node -p "require('./packages/sealx-sdk/package.json').version")
+          REMOTE_VERSION=$(npm view sealx-sdk version 2>/dev/null || echo "0.0.0")
+          echo "Local: $LOCAL_VERSION, Remote: $REMOTE_VERSION"
+
+          SHOULD_PUBLISH=$(node -e "
+            const local = '$LOCAL_VERSION'.split('.').map(Number);
+            const remote = '$REMOTE_VERSION'.split('.').map(Number);
+            for (let i = 0; i < 3; i++) {
+              if (local[i] > remote[i]) { console.log('true'); process.exit(0); }
+              if (local[i] < remote[i]) { console.log('false'); process.exit(0); }
+            }
+            console.log('false');
+          ")
+
+          echo "Should publish: $SHOULD_PUBLISH"
+          if [ "$SHOULD_PUBLISH" = "true" ]; then
+            echo "Publishing sealx-sdk..."
+            pnpm --filter sealx-sdk publish --access public --no-git-checks
+          else
+            echo "Skipping sealx-sdk - no version bump"
+          fi

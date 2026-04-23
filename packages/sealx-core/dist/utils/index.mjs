@@ -1,5 +1,6 @@
+import 'ethers';
 import 'lodash';
-import '../_virtual/index.mjs';
+import 'crypto-js';
 
 const wait = async (delay) => {
     return new Promise((resolve) => {

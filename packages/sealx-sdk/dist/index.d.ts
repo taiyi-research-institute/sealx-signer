@@ -1,6 +1,7 @@
 import { SealxSignTask } from 'sealx-core';
 export * from 'sealx-core';
 import { MessageHandle } from 'sealx-message';
+export * from 'sealx-message';
 
 /**
  * Checks if SealX browser extension is installed and active
@@ -351,5 +352,51 @@ declare const checkSealx: () => Promise<string | null>;
  * ```
  */
 declare const checkSealxActive: (callback: (address: string) => void) => void;
+/**
+ * Callback function to locate element by key and value
+ * @param key - The data-key attribute value to locate
+ * @param value - Optional value of the element
+ * @returns The element to highlight, or null if not found
+ */
+type LocateElementCallback = (key: string, value?: string) => HTMLElement | null;
+/**
+ * Register keys that can be located from the extension
+ *
+ * @param keys - Array of data-key values that can be located
+ *
+ * @example
+ * ```typescript
+ * import { registerLocatableKeys } from 'sealx-sdk';
+ *
+ * // Register keys that can be located
+ * registerLocatableKeys(['orderId', 'message.from', 'message.to']);
+ * ```
+ */
+declare const registerLocatableKeys: (keys: string[]) => void;
+/**
+ * Listen for LOCATE_ELEMENT messages from the extension and highlight corresponding elements
+ *
+ * @param locateCallback - Optional callback function to find the element to highlight
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { onLocateElement } from 'sealx-sdk';
+ *
+ * // Using default element location (by data-key attribute)
+ * const unsubscribe = onLocateElement();
+ *
+ * // Or with custom element location logic
+ * const unsubscribe = onLocateElement((key, value) => {
+ *   // Custom logic to find element based on key and value
+ *   return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+ * });
+ *
+ * // Later, stop listening
+ * unsubscribe();
+ * ```
+ */
+declare const onLocateElement: (locateCallback?: LocateElementCallback) => (() => void);
 
-export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx };
+export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, signBySealx };
+export type { LocateElementCallback };

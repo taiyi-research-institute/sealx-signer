@@ -1,6 +1,6 @@
+import { ethers } from 'ethers';
 import { template } from 'lodash';
-import CryptoJS from '../_virtual/index.mjs';
-import { id } from '../node_modules/ethers/lib.esm/hash/id.mjs';
+import CryptoJS from 'crypto-js';
 
 /**
  * Escapes special regex characters in a string
@@ -139,7 +139,7 @@ const parseSignContent = (signContent) => {
     const message = signContent.message;
     const keysHash = CryptoJS.MD5(contentLayout.keysMapStr).toString();
     // Validate template integrity using cryptographic salt check
-    const validTemplate = signContent.domain.salt === id(CryptoJS.MD5(template + keysHash + signContent.validUntilTime).toString());
+    const validTemplate = signContent.domain.salt === ethers.id(CryptoJS.MD5(template + keysHash + signContent.validUntilTime).toString());
     // Check template contains all required key references
     const templateCompleteness = checkTemplateArgValid(keyMap, template);
     // Build rendering context from message data
@@ -264,7 +264,8 @@ const buildSignRenderContext = (keyMap, message) => {
             }
             context[originKey] = {
                 label: key,
-                value: value
+                value: value,
+                originKey: originKey
             };
         });
         return context;

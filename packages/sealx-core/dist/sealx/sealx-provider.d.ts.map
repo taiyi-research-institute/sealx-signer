@@ -1,0 +1,1 @@
+{"version":3,"file":"sealx-provider.d.ts","sourceRoot":"","sources":["../../src/sealx/sealx-provider.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,WAAW,EAAE,MAAM,gBAAgB,CAAC;AAE7C,OAAO,CAAC,MAAM,CAAC;IACX,UAAU,MAAM;QACZ,WAAW,EAAE,WAAW,CAAC;KAC5B;CACJ;AACD,qBAAa,aAAa;IACtB,MAAM,CAAC,QAAQ;CAOlB"}

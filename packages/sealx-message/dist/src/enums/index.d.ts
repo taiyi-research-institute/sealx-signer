@@ -44,6 +44,8 @@ export declare enum SealxTopic {
     CLOSE = "close",
     /** Verify temporary code for import */
     VERIFY_TEMP_CODE = "verify-temp-code",
+    /** Locate element in the page by data-key attribute */
+    LOCATE_ELEMENT = "locate-element",
     /** All topics */
     ALL = "*"
 }

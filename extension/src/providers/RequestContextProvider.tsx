@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
+import { TabManager } from 'sealx-core';
 // import { MessageChannel } from 'sealx-message';
 // import { usePopupType } from '@src/hooks/usePopupType';
 
@@ -201,6 +202,20 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                 reply?.(true);
                 return;
             }
+
+            // Update TabManager's currentTab when receiving from content/inpage
+            // This ensures that when sending messages back to the business page
+            // (via createWindow popup), we use the correct tab ID
+            // if (req.header?.tabId) {
+            //     try {
+            //         const tab = await chrome.tabs.get(req.header.tabId);
+            //         if (tab) {
+            //             TabManager.getInstance().currentTab = tab;
+            //         }
+            //     } catch (e) {
+            //         // Tab may not be accessible, ignore error
+            //     }
+            // }
 
 
 

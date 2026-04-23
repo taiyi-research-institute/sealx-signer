@@ -163,7 +163,17 @@ export const sign = async (userId: string, host: string, signContent: Eip712Stru
 }
 
 export const closeWindow = async () => {
-    if (!await sendMessage(null, SealxTopic.CLOSE)) {
+    try {
+        const result = await sendMessage(null, SealxTopic.CLOSE)
+        console.log('[closeWindow] sendMessage result:', result)
+    } catch (error) {
+        console.error('[closeWindow] sendMessage error:', error)
+    }
+    // 无论 sendMessage 是否成功，都尝试调用 window.close()
+    // window.close() 在 popup 环境中可能不起作用，但作为 fallback
+    try {
         window.close()
+    } catch (e) {
+        console.warn('[closeWindow] window.close() failed:', e)
     }
 }

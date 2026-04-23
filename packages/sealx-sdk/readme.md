@@ -1,469 +1,77 @@
-# SealX SDK
+# sealx-sdk
 
-JavaScript/TypeScript SDK for interacting with the SealX browser extension, providing secure document signing capabilities.
+JavaScript/TypeScript SDK for interacting with the SealX browser extension.
 
 ## Installation
 
 ```bash
 npm install sealx-sdk
-# or
-yarn add sealx-sdk
 ```
 
-## Requirements
-
--   SealX browser extension installed
--   Modern browser with ES modules support
-
-## Workflow Overview
-
-The SealX SDK follows a strict initialization-first workflow. You must initialize the SDK successfully before performing any operations. The typical workflow is:
-
-1. **Check plugin status** - Verify SealX extension is available
-2. **Initialize session** - Set up user session with the extension
-3. **Perform operations** - Execute signing and other operations
-4. **Monitor status** - Periodically check plugin status for changes
-
-## Initialization
-
-The SDK automatically initializes when imported, but you must explicitly initialize the user session before performing operations:
+## Usage
 
 ```typescript
-import * as sealx from 'sealx-sdk';
+import { initSealx, bindSealx, signBySealx, isSealxActive } from 'sealx-sdk';
 
-// Check if SealX extension is available
-if (await sealx.isSealxActive()) {
-    // Initialize user session
-    await sealx.initSealx('user-123');
-    console.log('SDK initialized successfully');
-} else {
-    console.warn('SealX extension is not available');
-}
-```
-
-### Initialization Flow
-
-1. **SDK Registration** - Automatically registers global instances when imported
-2. **Plugin Detection** - Use `checkSealx()` to detect plugin status
-3. **Session Setup** - Call `initSealx(userId)` to establish user session
-4. **Connection** - Use `connectSealx()` to establish communication channel
-
-## Plugin Status Management
-
-### Checking Plugin Status
-
-You can periodically check the SealX plugin status using `checkSealx()`:
-
-```typescript
-import { checkSealx } from 'sealx-sdk';
-
-// Check plugin status
-const pluginStatus = await checkSealx();
-
-if (pluginStatus) {
-    console.log('Plugin initialized:', pluginStatus);
-} else if (pluginStatus === '') {
-    console.log('Plugin installed but not initialized');
-} else {
-    console.log('Plugin not installed or disabled');
-}
-```
-
-### `checkSealx()` Return Values
-
-| Return Value         | Meaning                | Description                                              |
-| -------------------- | ---------------------- | -------------------------------------------------------- |
-| `string` (non-empty) | Plugin initialized     | Extension is installed, active, and properly initialized |
-| `""` (empty string)  | Plugin not initialized | Extension is installed but session is not initialized    |
-| `null`               | Plugin unavailable     | Extension is not installed or has been disabled/closed   |
-
-### Global State Management
-
-The SDK uses global state management to track plugin status:
-
-```typescript
-import { isSealxActive, isSessionAvailable } from 'sealx-sdk';
-
-// Check if plugin is installed and active
-if (await isSealxActive()) {
-    console.log('SealX extension is ready');
+// Check if extension is active
+const isActive = await isSealxActive();
+if (!isActive) {
+  console.warn('SealX extension is not available');
+  return;
 }
 
-// Check if valid session exists
-if (isSessionAvailable()) {
-    console.log('Session is valid and not expired');
-}
-```
+// Initialize session
+await initSealx('user-123');
 
-### Periodic Status Monitoring
+// Bind public key
+const publicKey = await bindSealx();
 
-For applications that need to monitor plugin status changes, it's recommended to use the `checkSealxActive()` callback instead of periodic polling with `setInterval()`:
-
-**Recommended approach using `checkSealxActive()`:**
-
-```typescript
-import { checkSealxActive } from 'sealx-sdk';
-
-// Real-time monitoring with callback
-checkSealxActive((status) => {
-    if (status) {
-        console.log('SealX extension activated:', status);
-        // Extension is available and active
-    } else {
-        console.warn('SealX extension has been disabled or uninstalled');
-        // Handle plugin unavailability
-    }
+// Sign a document
+const signature = await signBySealx({
+  taskId: 'doc-123',
+  data: 'document content',
 });
 ```
 
-**Benefits over polling:**
+## Browser Extension Integration
 
--   **Real-time updates**: Immediate notification when extension status changes
--   **Better performance**: No unnecessary network requests every few seconds
--   **Resource efficient**: Reduces CPU and network usage
--   **Simpler code**: No need to manage intervals and cleanup
+The SealX browser extension must be installed for this SDK to work.
 
-**Legacy approach (not recommended):**
+### Message Channels
 
-```typescript
-import { checkSealx, isSealxActive } from 'sealx-sdk';
-
-// Monitor plugin status every 5 seconds (legacy approach)
-const intervalId = setInterval(async () => {
-    const pluginStatus = await checkSealx();
-
-    if (pluginStatus === null) {
-        console.warn('SealX extension has been disabled or uninstalled');
-        // Handle plugin unavailability
-        clearInterval(intervalId); // Clean up interval
-    } else if (!(await isSealxActive())) {
-        console.warn('SealX extension is no longer active');
-        // Handle plugin deactivation
-    }
-}, 5000);
-```
+- `MessageChannel.BACKGROUND` - Background script communication
+- `MessageChannel.POPUP` - Popup window communication
+- `MessageChannel.CONTENT` - Content script communication
 
 ## API Reference
 
-### `isSealxActive()`
+### Initialization Functions
 
-Check if SealX extension is installed and active.
+- `isSealxActive()` - Check if extension is installed and active
+- `initSealx(userId)` - Initialize session with user ID
+- `connectSealx(userId?)` - Connect/reconnect to extension
+- `checkSealx()` - Health check extension status
 
-**Optimized Features:**
+### Signing Functions
 
--   **Caching**: Results are cached for 5 seconds to reduce redundant network calls
--   **Efficient Retry Logic**: Uses optimized retry mechanism with 3 attempts and 100ms delays
--   **Performance**: Reduces extension check overhead for frequent calls
+- `bindSealx(userId?)` - Bind public key to account
+- `signBySealx(task, userId?)` - Sign single task
+- `signBySealx(tasks[], userId?)` - Batch sign (returns AsyncGenerator)
+- `sendSignResponse(taskId, error?)` - Send sign response
+- `onSign(callback, taskId?)` - Listen for sign responses
 
-```typescript
-import { isSealxActive } from 'sealx-sdk';
+### Utility Functions
 
-if (await isSealxActive()) {
-    console.log('SealX extension is ready');
-}
-```
+- `isSessionAvailable()` - Check if valid session exists
+- `closeSealx()` - Close extension connection
+- `checkSealxActive(callback)` - Monitor activation status
+- `registerLocatableKeys(keys)` - Register locatable keys
+- `onLocateElement(callback?)` - Listen for element location requests
 
-**Performance Benefits:**
+### Types
 
--   First call: Performs full extension check with retry logic
--   Subsequent calls within 5 seconds: Returns cached result
--   Reduces network overhead and improves response time
-
-### `initSealx(userId: string)`
-
-Initialize a SealX session for the specified user.
-
-```typescript
-try {
-    await initSealx('user123');
-} catch (error) {
-    console.error('Session initialization failed:', error);
-}
-```
-
-### `connectSealx(uId?: string)`
-
-Establish connection with SealX extension.
-
-```typescript
-await connectSealx(); // Uses existing account
-await connectSealx('new-user'); // Initializes new account
-```
-
-### `bindSealx()`
-
-Bind a public key to the current account.
-
-```typescript
-const publicKey = await bindSealx();
-console.log('Bound public key:', publicKey);
-```
-
-### `signBySealx(task)`
-
-Sign documents with SealX service.
-
-**Important: After signing operations, you must send a sign response to notify the plugin of success or failure.** This can be done automatically using the `onSign()` listener or manually with `sendSignResponse()`.
-
-#### Single document:
-
-```typescript
-const signature = await signBySealx({
-    documentId: 'doc123',
-    content: 'Document content to sign',
-});
-
-// Send success response to plugin
-await sendSignResponse('doc123');
-```
-
-#### Batch documents:
-
-```typescript
-const signStream = (await signBySealx([
-    { documentId: 'doc1', content: '...' },
-    { documentId: 'doc2', content: '...' },
-])) as AsyncGenerator<string>;
-
-for await (const signature of signStream) {
-    console.log('Received signature:', signature);
-    // Send response for each document
-    await sendSignResponse(signature.documentId);
-}
-```
-
-#### Using `onSign()` for automatic response handling (recommended):
-
-```typescript
-// Set up listener before signing
-const cleanup = onSign((request, reply) => {
-    console.log('Sign response received:', request.payload);
-    // Process the signature...
-    // sendSignResponse is automatically called by onSign()
-}, 'doc123');
-
-// Perform signing
-const signature = await signBySealx({
-    documentId: 'doc123',
-    content: 'Document content to sign',
-});
-
-// Clean up listener when done
-cleanup();
-```
-
-**Response Requirements:**
-
--   After each signing operation, the plugin expects a response via `sendSignResponse()`
--   Failure to send a response may cause the plugin to timeout or behave unexpectedly
--   Use `onSign()` for automatic response handling with error propagation
--   For batch operations, send individual responses for each document
-
-### `isSessionAvailable()`
-
-Check if valid session exists.
-
-```typescript
-if (isSessionAvailable()) {
-    // Safe to performing signing operations
-}
-```
-
-### `checkSealx()`
-
-Check SealX extension initialization status.
-
-```typescript
-const status = await checkSealx();
-if (status) {
-    console.log('Plugin initialized:', status);
-} else if (status === '') {
-    console.log('Plugin installed but not initialized');
-} else {
-    console.log('Plugin not installed or disabled');
-}
-```
-
-### `sendSignResponse(taskId: string, error?: string, userId?: string | number)`
-
-Send sign response message for completed signing operations. **This function is required after every signing operation to notify the plugin of success or failure.**
-
-**Important:** If you're using `onSign()` to listen for sign responses, `sendSignResponse()` is automatically called for you. Otherwise, you must call it manually after processing each signed document.
-
-```typescript
-try {
-    // After successful signing
-    const signature = await signBySealx({
-        documentId: 'task-123',
-        content: 'Document content',
-    });
-
-    // Send success response to plugin
-    const response = await sendSignResponse('task-123');
-    console.log('Sign response sent successfully:', response);
-} catch (error) {
-    // Send error response to plugin
-    await sendSignResponse('task-123', error.message);
-    console.error('Failed to send sign response:', error);
-}
-```
-
-**Parameters:**
-
--   `taskId`: The unique identifier of the task that was signed
--   `error`: Optional error message if the signing operation failed. If provided, indicates failure to the plugin
--   `userId`: Optional user ID to use for the response
-
-**Returns:** The response payload from the extension
-
-**Throws:**
-
--   `SealxUnavailableException`: If SealX extension is not installed or not active
--   `SealxUninitializedException`: If SealX plugin is not properly initialized
--   `SignException`: If the response contains an error or no payload is received
-
-### `onSign(callback: MessageHandle, taskId?: any)`
-
-Set up event listener for sign response messages.
-
-```typescript
-// Listen for specific task ID
-const cleanup = onSign((request, reply) => {
-    console.log('Sign response received:', request.payload);
-}, 'task-123');
-
-// Listen for all sign responses
-const cleanupAll = onSign((request, reply) => {
-    console.log('Sign response received:', request.payload);
-});
-
-// Clean up listener when done
-cleanup();
-```
-
-### `closeSealx()`
-
-Close the SealX extension connection.
-
-```typescript
-// Clean up before page unload
-window.addEventListener('beforeunload', () => {
-    closeSealx();
-});
-```
-
-### `checkSealxActive(callback: (address: string) => void)`
-
-Sets up a callback to monitor SealX extension activation status in real-time. The callback will be invoked whenever the extension activation status changes.
-
-```typescript
-checkSealxActive((status) => {
-    if (status) {
-        console.log('SealX extension activated:', status);
-    } else {
-        console.log('SealX extension deactivated');
-    }
-});
-```
-
-**Use Cases:**
-
--   Real-time monitoring of extension availability
--   Automatic UI updates when extension status changes
--   Graceful handling of extension installation/removal during runtime
-
-## Installation Interfaces
-
-### Browser Extension Installation
-
-The SealX SDK requires the SealX browser extension to be installed. Users can install the extension from:
-
--   **Chrome Web Store**: [SealX Extension](https://chrome.google.com/webstore/detail/sealx)
--   **Firefox Add-ons**: [SealX Extension](https://addons.mozilla.org/firefox/addon/sealx)
--   **Edge Add-ons**: [SealX Extension](https://microsoftedge.microsoft.com/addons/detail/sealx)
-
-### Installation Detection
-
-The SDK automatically detects if the extension is installed:
-
-```typescript
-import { isSealxActive } from 'sealx-sdk';
-
-if (await isSealxActive()) {
-    console.log('SealX extension is installed and active');
-} else {
-    console.log('SealX extension is not installed or inactive');
-    // Prompt user to install the extension
-    alert('Please install the SealX browser extension to continue');
-}
-```
-
-### Post-Installation Setup
-
-After installation, the extension needs to be initialized:
-
-```typescript
-import { checkSealx, initSealx } from 'sealx-sdk';
-
-// Check if extension is ready
-const status = await checkSealx();
-if (status === null) {
-    console.log('Extension not installed or disabled');
-} else if (status === '') {
-    console.log('Extension installed but not initialized');
-    // Initialize the extension
-    await initSealx('user-123');
-} else {
-    console.log('Extension ready:', status);
-}
-```
-
-## Error Handling
-
-The SDK throws specific exceptions:
-
--   `SealxUnavailableException`: Extension not installed or inactive
--   `SealxUninitializedException`: Plugin not properly initialized
--   `SessionException`: Session-related errors
--   `PkException`: Public key validation errors
--   `SignException`: Document signing errors
-
-```typescript
-try {
-    await signBySealx(...);
-} catch (error) {
-    if (error instanceof SealxUnavailableException) {
-        console.error('SealX extension is not available');
-        // Prompt user to install the extension
-    } else if (error instanceof SealxUninitializedException) {
-        console.error('SealX plugin not initialized');
-        // Call initSealx() first
-    } else if (error instanceof SessionException) {
-        console.error('Session error:', error.message);
-        // Reconnect or reinitialize session
-    } else if (error instanceof PkException) {
-        console.error('Public key error:', error.message);
-        // Handle public key issues
-    } else if (error instanceof SignException) {
-        console.error('Signing error:', error.message);
-        // Handle signing failures
-    }
-}
-```
-
-## Troubleshooting
-
-**Extension not detected:**
-
-1. Ensure SealX extension is installed
-2. Refresh the page after installation
-3. Check browser console for errors
-
-**Signing failures:**
-
-1. Verify session is active (`isSessionAvailable()`)
-2. Check network connectivity
-3. Ensure documents are properly formatted
+- `SealxSignTask` - Task data structure
+- `SealxProvider` - Window provider for extension communication
 
 ## License
 

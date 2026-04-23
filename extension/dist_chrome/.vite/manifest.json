@@ -1,26 +1,29 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-d3BjDdJD.js",
+    "file": "assets/crx-manifest.js-BJbJt4ea.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
   },
-  "_client-CRBwutFG.js": {
-    "file": "assets/client-CRBwutFG.js",
+  "_client-BFv89GyB.js": {
+    "file": "assets/client-BFv89GyB.js",
     "name": "client",
     "imports": [
-      "_index-Bj7Y5nDa.js"
+      "_index-DV-eyYeY.js"
     ]
   },
-  "_global-B51haWMX.js": {
-    "file": "assets/global-B51haWMX.js",
-    "name": "global",
+  "_eip712-helper-BYp6lt6-.js": {
+    "file": "assets/eip712-helper-BYp6lt6-.js",
+    "name": "eip712-helper",
     "imports": [
-      "_lodash-BUKDu3TW.js",
-      "_index-8FsSLa_l.js"
-    ],
+      "_index-BDvyUYL3.js"
+    ]
+  },
+  "_global-D2_rqIS6.js": {
+    "file": "assets/global-D2_rqIS6.js",
+    "name": "global",
     "css": [
-      "assets/global-D1hfDLdb.css"
+      "assets/global-wq8MxK-h.css"
     ],
     "assets": [
       "assets/Gellix-Regular-gOmSiHtW.woff2",
@@ -41,51 +44,50 @@
       "assets/NanumPen-Cx4X1OcW.woff"
     ]
   },
-  "_global-D1hfDLdb.css": {
-    "file": "assets/global-D1hfDLdb.css",
-    "src": "_global-D1hfDLdb.css"
+  "_global-wq8MxK-h.css": {
+    "file": "assets/global-wq8MxK-h.css",
+    "src": "_global-wq8MxK-h.css"
   },
-  "_index-8FsSLa_l.js": {
-    "file": "assets/index-8FsSLa_l.js",
-    "name": "index",
-    "imports": [
-      "_lodash-BUKDu3TW.js"
-    ]
+  "_index-BDvyUYL3.js": {
+    "file": "assets/index-BDvyUYL3.js",
+    "name": "index"
   },
-  "_index-BD0Dp05L.js": {
-    "file": "assets/index-BD0Dp05L.js",
+  "_index-CACslmFH.js": {
+    "file": "assets/index-CACslmFH.js",
     "name": "index",
     "imports": [
       "_index-ChUXR8u8.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-8FsSLa_l.js",
-      "_index-Bj7Y5nDa.js"
-    ]
-  },
-  "_index-Bj7Y5nDa.js": {
-    "file": "assets/index-Bj7Y5nDa.js",
-    "name": "index",
-    "imports": [
-      "_lodash-BUKDu3TW.js"
+      "_index-BDvyUYL3.js",
+      "_index-DV-eyYeY.js"
     ]
   },
   "_index-ChUXR8u8.js": {
     "file": "assets/index-ChUXR8u8.js",
     "name": "index"
   },
-  "_index.tsx-loader-BseVAJGo.js": {
-    "file": "assets/index.tsx-loader-BseVAJGo.js",
-    "src": "_index.tsx-loader-BseVAJGo.js"
+  "_index-DV-eyYeY.js": {
+    "file": "assets/index-DV-eyYeY.js",
+    "name": "index",
+    "imports": [
+      "_index-BDvyUYL3.js"
+    ]
   },
-  "_lodash-BUKDu3TW.js": {
-    "file": "assets/lodash-BUKDu3TW.js",
-    "name": "lodash"
+  "_index.tsx-loader-DZ1J_aW0.js": {
+    "file": "assets/index.tsx-loader-DZ1J_aW0.js",
+    "src": "_index.tsx-loader-DZ1J_aW0.js"
   },
-  "_messager-manager-DtyG9-yU.js": {
-    "file": "assets/messager-manager-DtyG9-yU.js",
+  "_messager-manager-D-PF5IjU.js": {
+    "file": "assets/messager-manager-D-PF5IjU.js",
     "name": "messager-manager",
     "imports": [
-      "_lodash-BUKDu3TW.js"
+      "_index-BDvyUYL3.js"
+    ]
+  },
+  "_sealx-provider-Dpxj5qkk.js": {
+    "file": "assets/sealx-provider-Dpxj5qkk.js",
+    "name": "sealx-provider",
+    "imports": [
+      "_index-ChUXR8u8.js"
     ]
   },
   "src/assets/fonts/gellix/Gellix-Bold.woff": {
@@ -153,32 +155,31 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-E2zpAAma.js",
+    "file": "assets/index.ts-OQiJezVb.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,
     "imports": [
-      "_messager-manager-DtyG9-yU.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-BD0Dp05L.js",
-      "_index-8FsSLa_l.js",
+      "_messager-manager-D-PF5IjU.js",
+      "_index-BDvyUYL3.js",
+      "_index-CACslmFH.js",
       "_index-ChUXR8u8.js",
-      "_index-Bj7Y5nDa.js"
+      "_index-DV-eyYeY.js"
     ]
   },
   "src/entries/content/index.tsx": {
-    "file": "assets/index.tsx-BY_szedG.js",
+    "file": "assets/index.tsx-0d5ZtU3V.js",
     "name": "index.tsx",
     "src": "src/entries/content/index.tsx",
     "isEntry": true,
     "imports": [
-      "_client-CRBwutFG.js",
-      "_index-Bj7Y5nDa.js",
-      "_messager-manager-DtyG9-yU.js",
-      "_lodash-BUKDu3TW.js"
+      "_client-BFv89GyB.js",
+      "_index-DV-eyYeY.js",
+      "_messager-manager-D-PF5IjU.js",
+      "_index-BDvyUYL3.js"
     ],
     "css": [
-      "assets/index-BpzCuD_4.css"
+      "assets/index-tn0RQdqM.css"
     ]
   },
   "src/entries/inpage/index.ts": {
@@ -187,9 +188,9 @@
     "src": "src/entries/inpage/index.ts",
     "isEntry": true,
     "imports": [
-      "_index-ChUXR8u8.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-8FsSLa_l.js"
+      "_sealx-provider-Dpxj5qkk.js",
+      "_index-BDvyUYL3.js",
+      "_index-ChUXR8u8.js"
     ]
   },
   "src/entries/popup/index.html": {
@@ -198,14 +199,14 @@
     "src": "src/entries/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_global-B51haWMX.js",
-      "_client-CRBwutFG.js",
-      "_index-Bj7Y5nDa.js",
-      "_messager-manager-DtyG9-yU.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-BD0Dp05L.js",
+      "_global-D2_rqIS6.js",
+      "_client-BFv89GyB.js",
+      "_index-DV-eyYeY.js",
+      "_messager-manager-D-PF5IjU.js",
+      "_index-BDvyUYL3.js",
+      "_index-CACslmFH.js",
       "_index-ChUXR8u8.js",
-      "_index-8FsSLa_l.js"
+      "_eip712-helper-BYp6lt6-.js"
     ],
     "css": [
       "assets/popup-BwOFEGeh.css"
@@ -217,14 +218,32 @@
     "src": "src/entries/sandbox/index.html",
     "isEntry": true,
     "imports": [
-      "_global-B51haWMX.js",
-      "_client-CRBwutFG.js",
-      "_index-Bj7Y5nDa.js",
-      "_lodash-BUKDu3TW.js",
-      "_index-8FsSLa_l.js"
+      "_global-D2_rqIS6.js",
+      "_client-BFv89GyB.js",
+      "_index-DV-eyYeY.js",
+      "_eip712-helper-BYp6lt6-.js",
+      "_index-BDvyUYL3.js"
     ],
     "css": [
-      "assets/sandbox-D8b4DHJx.css"
+      "assets/sandbox-COcDBgFa.css"
+    ]
+  },
+  "src/entries/web/index.html": {
+    "file": "web.js",
+    "name": "web",
+    "src": "src/entries/web/index.html",
+    "isEntry": true,
+    "imports": [
+      "_global-D2_rqIS6.js",
+      "_client-BFv89GyB.js",
+      "_index-DV-eyYeY.js",
+      "_sealx-provider-Dpxj5qkk.js",
+      "_index-BDvyUYL3.js",
+      "_messager-manager-D-PF5IjU.js",
+      "_index-ChUXR8u8.js"
+    ],
+    "css": [
+      "assets/web-BwhCs-D3.css"
     ]
   }
 }

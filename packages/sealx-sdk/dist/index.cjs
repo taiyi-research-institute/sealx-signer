@@ -2,56 +2,146 @@
 
 var lodash = require('lodash');
 
+// import browser from 'webextension-polyfill';
+const STORAGE_KEY$1 = 'sealx_tab_manager';
 let TabManager$1 = class TabManager {
     tabs = [];
     currentTab;
     static instance;
+    id = 0;
     constructor() {
-        if (chrome && chrome.tabs) {
-            chrome.tabs.query({}).then((tabs) => {
-                if (tabs.length > 0 && tabs[0].id !== undefined) {
-                    chrome.tabs.get(tabs[0].id).then((tab) => {
-                        this.tabs.push(tab);
-                        if (tab.active) {
-                            this.currentTab = tab;
-                        }
-                    });
+        this.id = Math.floor(Math.random() * 1000000);
+        this.initFromStorage();
+        this.setupListeners();
+    }
+    /**
+     * Initialize from chrome.storage to ensure consistency across contexts
+     */
+    async initFromStorage() {
+        if (!chrome?.storage?.local)
+            return;
+        try {
+            const result = await chrome.storage.local.get(STORAGE_KEY$1);
+            const stored = result[STORAGE_KEY$1];
+            if (stored && stored.timestamp) {
+                // Use stored data if it's recent (within 30 seconds)
+                const age = Date.now() - stored.timestamp;
+                if (age < 30000 && stored.currentTab) {
+                    this.currentTab = stored.currentTab;
+                    this.tabs = stored.tabs || [];
+                    console.log('TabManager: initialized from storage, tabId:', this.currentTab.id);
+                    return;
                 }
-            });
-            chrome.tabs.onActivated.addListener((tabInfo) => {
-                chrome.tabs.get(tabInfo.tabId).then((tab) => {
-                    if (this.tabs.findIndex(t => t.id === tab.id) === -1)
-                        this.tabs.push(tab);
-                    if (tab.active) {
-                        this.currentTab = tab;
-                        console.log('TabManager: current tab updated to', tab.id, tab.url);
-                    }
-                }).catch((error) => {
-                    console.error('TabManager: failed to get tab', tabInfo.tabId, error);
-                });
-            });
-            // 分离
-            chrome.tabs.onDetached.addListener(() => { });
-            chrome.tabs.onCreated.addListener(() => { });
-            chrome.tabs.onRemoved.addListener(() => { });
+            }
+        }
+        catch (e) {
+            console.warn('TabManager: failed to read from storage', e);
+        }
+        // Fallback to querying tabs directly
+        this.queryTabs();
+    }
+    /**
+     * Query tabs from Chrome API
+     */
+    async queryTabs() {
+        if (!chrome?.tabs)
+            return;
+        try {
+            const tabs = await chrome.tabs.query({});
+            if (tabs.length > 0 && tabs[0].id !== undefined) {
+                const tab = await chrome.tabs.get(tabs[0].id);
+                this.tabs.push(tab);
+                if (tab.active && tab.url?.startsWith('chrome-extension://')) {
+                    this.currentTab = tab;
+                }
+            }
+        }
+        catch (e) {
+            console.error('TabManager: failed to query tabs', e);
+        }
+    }
+    /**
+     * Setup Chrome tab event listeners
+     */
+    setupListeners() {
+        if (!chrome?.tabs)
+            return;
+        chrome.tabs.onActivated.addListener(async (tabInfo) => {
+            try {
+                const tab = await chrome.tabs.get(tabInfo.tabId);
+                if (this.tabs.findIndex(t => t.id === tab.id) === -1) {
+                    this.tabs.push(tab);
+                }
+                if (tab.active && tab.url?.startsWith('chrome-extension://')) {
+                    this.currentTab = tab;
+                    this.persistToStorage();
+                    console.log('TabManager: current tab updated to', tab.id, tab.url);
+                }
+            }
+            catch (error) {
+                console.error('TabManager: failed to get tab', tabInfo.tabId, error);
+            }
+        });
+        chrome.tabs.onDetached.addListener(() => { });
+        chrome.tabs.onCreated.addListener(() => { });
+        chrome.tabs.onRemoved.addListener(() => { });
+    }
+    /**
+     * Persist current state to chrome.storage for cross-context synchronization
+     */
+    async persistToStorage() {
+        if (!chrome?.storage?.local)
+            return;
+        try {
+            const state = {
+                currentTabId: this.currentTabId,
+                currentTab: this.currentTab,
+                tabs: this.tabs,
+                timestamp: Date.now()
+            };
+            await chrome.storage.local.set({ [STORAGE_KEY$1]: state });
+        }
+        catch (e) {
+            console.warn('TabManager: failed to persist to storage', e);
         }
     }
     static getInstance() {
         if (!TabManager.instance) {
             TabManager.instance = new TabManager();
         }
+        if (!TabManager.instance.currentTabId)
+            TabManager.instance.initFromStorage();
         return TabManager.instance;
     }
     get currentTabId() {
         return this.currentTab?.id;
     }
-    async updateActiveTab() {
-        const tabs = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        if (tabs[0]) {
-            this.currentTab = tabs[0];
+    async updateActiveTab(tabId) {
+        if (tabId) {
+            const tabs = await chrome.tabs.query({
+                active: true,
+            });
+            const tab = tabs.find(t => t.id === tabId);
+            if (tab) {
+                this.currentTab = tab;
+                this.persistToStorage();
+                return;
+            }
+        }
+        else {
+            const tabs = await chrome.tabs.query({
+                active: true,
+                currentWindow: true,
+            });
+            if (tabs[0]) {
+                const url = tabs[0].url || '';
+                // Skip update if the active tab is an extension popup/options page
+                if (url.startsWith('chrome-extension://')) {
+                    return;
+                }
+                this.currentTab = tabs[0];
+                this.persistToStorage();
+            }
         }
     }
 };
@@ -326,15 +416,20 @@ class SealxSigner {
             clearTimeout(this.autoClearTimer);
             this.autoClearTimer = null;
         }
-        if (this.session)
-            this.autoClearTimer = setTimeout(() => {
-                if (this.autoConnectCallback)
-                    this.autoConnectCallback();
-                this.session = null;
-                // this.storageWrapper.removeItem('account')
-                this.storageWrapper.removeItem('session');
-                this.autoClearTimer = null;
-            }, this.session.expire - Date.now());
+        if (this.session) {
+            const timeUntilExpire = this.session.expire - Date.now();
+            // Only set timer if session is not already expired
+            if (timeUntilExpire > 0) {
+                this.autoClearTimer = setTimeout(() => {
+                    if (this.autoConnectCallback)
+                        this.autoConnectCallback();
+                    this.session = null;
+                    // this.storageWrapper.removeItem('account')
+                    this.storageWrapper.removeItem('session');
+                    this.autoClearTimer = null;
+                }, timeUntilExpire);
+            }
+        }
     }
     /**
      * Synchronizes the plugin's active state with the DOM attribute.
@@ -449,6 +544,628 @@ class SealxProvider {
     }
 }
 
+/* Do NOT modify this file; see /src.ts/_admin/update-version.ts */
+/**
+ *  The current version of Ethers.
+ */
+const version = "6.16.0";
+
+/**
+ *  Property helper functions.
+ *
+ *  @_subsection api/utils:Properties  [about-properties]
+ */
+/**
+ *  Assigns the %%values%% to %%target%% as read-only values.
+ *
+ *  It %%types%% is specified, the values are checked.
+ */
+function defineProperties(target, values, types) {
+    for (let key in values) {
+        let value = values[key];
+        Object.defineProperty(target, key, { enumerable: true, value, writable: false });
+    }
+}
+
+/**
+ *  All errors in ethers include properties to ensure they are both
+ *  human-readable (i.e. ``.message``) and machine-readable (i.e. ``.code``).
+ *
+ *  The [[isError]] function can be used to check the error ``code`` and
+ *  provide a type guard for the properties present on that error interface.
+ *
+ *  @_section: api/utils/errors:Errors  [about-errors]
+ */
+function stringify(value, seen) {
+    if (value == null) {
+        return "null";
+    }
+    if (seen == null) {
+        seen = new Set();
+    }
+    if (typeof (value) === "object") {
+        if (seen.has(value)) {
+            return "[Circular]";
+        }
+        seen.add(value);
+    }
+    if (Array.isArray(value)) {
+        return "[ " + (value.map((v) => stringify(v, seen))).join(", ") + " ]";
+    }
+    if (value instanceof Uint8Array) {
+        const HEX = "0123456789abcdef";
+        let result = "0x";
+        for (let i = 0; i < value.length; i++) {
+            result += HEX[value[i] >> 4];
+            result += HEX[value[i] & 0xf];
+        }
+        return result;
+    }
+    if (typeof (value) === "object" && typeof (value.toJSON) === "function") {
+        return stringify(value.toJSON(), seen);
+    }
+    switch (typeof (value)) {
+        case "boolean":
+        case "number":
+        case "symbol":
+            return value.toString();
+        case "bigint":
+            return BigInt(value).toString();
+        case "string":
+            return JSON.stringify(value);
+        case "object": {
+            const keys = Object.keys(value);
+            keys.sort();
+            return "{ " + keys.map((k) => `${stringify(k, seen)}: ${stringify(value[k], seen)}`).join(", ") + " }";
+        }
+    }
+    return `[ COULD NOT SERIALIZE ]`;
+}
+/**
+ *  Returns a new Error configured to the format ethers emits errors, with
+ *  the %%message%%, [[api:ErrorCode]] %%code%% and additional properties
+ *  for the corresponding EthersError.
+ *
+ *  Each error in ethers includes the version of ethers, a
+ *  machine-readable [[ErrorCode]], and depending on %%code%%, additional
+ *  required properties. The error message will also include the %%message%%,
+ *  ethers version, %%code%% and all additional properties, serialized.
+ */
+function makeError(message, code, info) {
+    let shortMessage = message;
+    {
+        const details = [];
+        if (info) {
+            if ("message" in info || "code" in info || "name" in info) {
+                throw new Error(`value will overwrite populated values: ${stringify(info)}`);
+            }
+            for (const key in info) {
+                if (key === "shortMessage") {
+                    continue;
+                }
+                const value = (info[key]);
+                //                try {
+                details.push(key + "=" + stringify(value));
+                //                } catch (error: any) {
+                //                console.log("MMM", error.message);
+                //                    details.push(key + "=[could not serialize object]");
+                //                }
+            }
+        }
+        details.push(`code=${code}`);
+        details.push(`version=${version}`);
+        if (details.length) {
+            message += " (" + details.join(", ") + ")";
+        }
+    }
+    let error;
+    switch (code) {
+        case "INVALID_ARGUMENT":
+            error = new TypeError(message);
+            break;
+        case "NUMERIC_FAULT":
+        case "BUFFER_OVERRUN":
+            error = new RangeError(message);
+            break;
+        default:
+            error = new Error(message);
+    }
+    defineProperties(error, { code });
+    if (info) {
+        Object.assign(error, info);
+    }
+    if (error.shortMessage == null) {
+        defineProperties(error, { shortMessage });
+    }
+    return error;
+}
+/**
+ *  Throws an EthersError with %%message%%, %%code%% and additional error
+ *  %%info%% when %%check%% is falsish..
+ *
+ *  @see [[api:makeError]]
+ */
+function assert(check, message, code, info) {
+    if (!check) {
+        throw makeError(message, code, info);
+    }
+}
+/**
+ *  A simple helper to simply ensuring provided arguments match expected
+ *  constraints, throwing if not.
+ *
+ *  In TypeScript environments, the %%check%% has been asserted true, so
+ *  any further code does not need additional compile-time checks.
+ */
+function assertArgument(check, message, name, value) {
+    assert(check, message, "INVALID_ARGUMENT", { argument: name, value: value });
+}
+["NFD", "NFC", "NFKD", "NFKC"].reduce((accum, form) => {
+    try {
+        // General test for normalize
+        /* c8 ignore start */
+        if ("test".normalize(form) !== "test") {
+            throw new Error("bad");
+        }
+        ;
+        /* c8 ignore stop */
+        if (form === "NFD") {
+            const check = String.fromCharCode(0xe9).normalize("NFD");
+            const expected = String.fromCharCode(0x65, 0x0301);
+            /* c8 ignore start */
+            if (check !== expected) {
+                throw new Error("broken");
+            }
+            /* c8 ignore stop */
+        }
+        accum.push(form);
+    }
+    catch (error) { }
+    return accum;
+}, []);
+
+/**
+ *  Some data helpers.
+ *
+ *
+ *  @_subsection api/utils:Data Helpers  [about-data]
+ */
+function _getBytes(value, name, copy) {
+    if (value instanceof Uint8Array) {
+        return value;
+    }
+    if (typeof (value) === "string" && (value.length % 2) === 0 &&
+        value.match(/^0x[0-9a-f]*$/i)) {
+        const result = new Uint8Array((value.length - 2) / 2);
+        let offset = 2;
+        for (let i = 0; i < result.length; i++) {
+            result[i] = parseInt(value.substring(offset, offset + 2), 16);
+            offset += 2;
+        }
+        return result;
+    }
+    assertArgument(false, "invalid BytesLike value", name || "value", value);
+}
+/**
+ *  Get a typed Uint8Array for %%value%%. If already a Uint8Array
+ *  the original %%value%% is returned; if a copy is required use
+ *  [[getBytesCopy]].
+ *
+ *  @see: getBytesCopy
+ */
+function getBytes(value, name) {
+    return _getBytes(value, name);
+}
+const HexCharacters = "0123456789abcdef";
+/**
+ *  Returns a [[DataHexString]] representation of %%data%%.
+ */
+function hexlify(data) {
+    const bytes = getBytes(data);
+    let result = "0x";
+    for (let i = 0; i < bytes.length; i++) {
+        const v = bytes[i];
+        result += HexCharacters[(v & 0xf0) >> 4] + HexCharacters[v & 0x0f];
+    }
+    return result;
+}
+
+/**
+ *  Using strings in Ethereum (or any security-basd system) requires
+ *  additional care. These utilities attempt to mitigate some of the
+ *  safety issues as well as provide the ability to recover and analyse
+ *  strings.
+ *
+ *  @_subsection api/utils:Strings and UTF-8  [about-strings]
+ */
+// http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
+/**
+ *  Returns the UTF-8 byte representation of %%str%%.
+ *
+ *  If %%form%% is specified, the string is normalized.
+ */
+function toUtf8Bytes(str, form) {
+    assertArgument(typeof (str) === "string", "invalid string value", "str", str);
+    let result = [];
+    for (let i = 0; i < str.length; i++) {
+        const c = str.charCodeAt(i);
+        if (c < 0x80) {
+            result.push(c);
+        }
+        else if (c < 0x800) {
+            result.push((c >> 6) | 0xc0);
+            result.push((c & 0x3f) | 0x80);
+        }
+        else if ((c & 0xfc00) == 0xd800) {
+            i++;
+            const c2 = str.charCodeAt(i);
+            assertArgument(i < str.length && ((c2 & 0xfc00) === 0xdc00), "invalid surrogate pair", "str", str);
+            // Surrogate Pair
+            const pair = 0x10000 + ((c & 0x03ff) << 10) + (c2 & 0x03ff);
+            result.push((pair >> 18) | 0xf0);
+            result.push(((pair >> 12) & 0x3f) | 0x80);
+            result.push(((pair >> 6) & 0x3f) | 0x80);
+            result.push((pair & 0x3f) | 0x80);
+        }
+        else {
+            result.push((c >> 12) | 0xe0);
+            result.push(((c >> 6) & 0x3f) | 0x80);
+            result.push((c & 0x3f) | 0x80);
+        }
+    }
+    return new Uint8Array(result);
+}
+
+function number(n) {
+    if (!Number.isSafeInteger(n) || n < 0)
+        throw new Error(`Wrong positive integer: ${n}`);
+}
+function bytes(b, ...lengths) {
+    if (!(b instanceof Uint8Array))
+        throw new Error('Expected Uint8Array');
+    if (lengths.length > 0 && !lengths.includes(b.length))
+        throw new Error(`Expected Uint8Array of length ${lengths}, not of length=${b.length}`);
+}
+function exists(instance, checkFinished = true) {
+    if (instance.destroyed)
+        throw new Error('Hash instance has been destroyed');
+    if (checkFinished && instance.finished)
+        throw new Error('Hash#digest() has already been called');
+}
+function output(out, instance) {
+    bytes(out);
+    const min = instance.outputLen;
+    if (out.length < min) {
+        throw new Error(`digestInto() expects output buffer of length at least ${min}`);
+    }
+}
+
+const U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
+const _32n = /* @__PURE__ */ BigInt(32);
+// We are not using BigUint64Array, because they are extremely slow as per 2022
+function fromBig(n, le = false) {
+    if (le)
+        return { h: Number(n & U32_MASK64), l: Number((n >> _32n) & U32_MASK64) };
+    return { h: Number((n >> _32n) & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
+}
+function split(lst, le = false) {
+    let Ah = new Uint32Array(lst.length);
+    let Al = new Uint32Array(lst.length);
+    for (let i = 0; i < lst.length; i++) {
+        const { h, l } = fromBig(lst[i], le);
+        [Ah[i], Al[i]] = [h, l];
+    }
+    return [Ah, Al];
+}
+// Left rotate for Shift in [1, 32)
+const rotlSH = (h, l, s) => (h << s) | (l >>> (32 - s));
+const rotlSL = (h, l, s) => (l << s) | (h >>> (32 - s));
+// Left rotate for Shift in (32, 64), NOTE: 32 is special case.
+const rotlBH = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
+const rotlBL = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
+
+/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
+// We use WebCrypto aka globalThis.crypto, which exists in browsers and node.js 16+.
+// node.js versions earlier than v19 don't declare it in global scope.
+// For node.js, package.json#exports field mapping rewrites import
+// from `crypto` to `cryptoNode`, which imports native module.
+// Makes the utils un-importable in browsers without a bundler.
+// Once node.js 18 is deprecated, we can just drop the import.
+const u8a = (a) => a instanceof Uint8Array;
+const u32 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
+// big-endian hardware is rare. Just in case someone still decides to run hashes:
+// early-throw an error because we don't support BE yet.
+const isLE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
+if (!isLE)
+    throw new Error('Non little-endian hardware is not supported');
+/**
+ * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
+ */
+function utf8ToBytes(str) {
+    if (typeof str !== 'string')
+        throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
+    return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
+}
+/**
+ * Normalizes (non-hex) string or Uint8Array to Uint8Array.
+ * Warning: when Uint8Array is passed, it would NOT get copied.
+ * Keep in mind for future mutable operations.
+ */
+function toBytes(data) {
+    if (typeof data === 'string')
+        data = utf8ToBytes(data);
+    if (!u8a(data))
+        throw new Error(`expected Uint8Array, got ${typeof data}`);
+    return data;
+}
+// For runtime check if class implements interface
+class Hash {
+    // Safe version that clones internal state
+    clone() {
+        return this._cloneInto();
+    }
+}
+function wrapConstructor(hashCons) {
+    const hashC = (msg) => hashCons().update(toBytes(msg)).digest();
+    const tmp = hashCons();
+    hashC.outputLen = tmp.outputLen;
+    hashC.blockLen = tmp.blockLen;
+    hashC.create = () => hashCons();
+    return hashC;
+}
+
+// SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
+// It's called a sponge function.
+// Various per round constants calculations
+const [SHA3_PI, SHA3_ROTL, _SHA3_IOTA] = [[], [], []];
+const _0n = /* @__PURE__ */ BigInt(0);
+const _1n = /* @__PURE__ */ BigInt(1);
+const _2n = /* @__PURE__ */ BigInt(2);
+const _7n = /* @__PURE__ */ BigInt(7);
+const _256n = /* @__PURE__ */ BigInt(256);
+const _0x71n = /* @__PURE__ */ BigInt(0x71);
+for (let round = 0, R = _1n, x = 1, y = 0; round < 24; round++) {
+    // Pi
+    [x, y] = [y, (2 * x + 3 * y) % 5];
+    SHA3_PI.push(2 * (5 * y + x));
+    // Rotational
+    SHA3_ROTL.push((((round + 1) * (round + 2)) / 2) % 64);
+    // Iota
+    let t = _0n;
+    for (let j = 0; j < 7; j++) {
+        R = ((R << _1n) ^ ((R >> _7n) * _0x71n)) % _256n;
+        if (R & _2n)
+            t ^= _1n << ((_1n << /* @__PURE__ */ BigInt(j)) - _1n);
+    }
+    _SHA3_IOTA.push(t);
+}
+const [SHA3_IOTA_H, SHA3_IOTA_L] = /* @__PURE__ */ split(_SHA3_IOTA, true);
+// Left rotation (without 0, 32, 64)
+const rotlH = (h, l, s) => (s > 32 ? rotlBH(h, l, s) : rotlSH(h, l, s));
+const rotlL = (h, l, s) => (s > 32 ? rotlBL(h, l, s) : rotlSL(h, l, s));
+// Same as keccakf1600, but allows to skip some rounds
+function keccakP(s, rounds = 24) {
+    const B = new Uint32Array(5 * 2);
+    // NOTE: all indices are x2 since we store state as u32 instead of u64 (bigints to slow in js)
+    for (let round = 24 - rounds; round < 24; round++) {
+        // Theta θ
+        for (let x = 0; x < 10; x++)
+            B[x] = s[x] ^ s[x + 10] ^ s[x + 20] ^ s[x + 30] ^ s[x + 40];
+        for (let x = 0; x < 10; x += 2) {
+            const idx1 = (x + 8) % 10;
+            const idx0 = (x + 2) % 10;
+            const B0 = B[idx0];
+            const B1 = B[idx0 + 1];
+            const Th = rotlH(B0, B1, 1) ^ B[idx1];
+            const Tl = rotlL(B0, B1, 1) ^ B[idx1 + 1];
+            for (let y = 0; y < 50; y += 10) {
+                s[x + y] ^= Th;
+                s[x + y + 1] ^= Tl;
+            }
+        }
+        // Rho (ρ) and Pi (π)
+        let curH = s[2];
+        let curL = s[3];
+        for (let t = 0; t < 24; t++) {
+            const shift = SHA3_ROTL[t];
+            const Th = rotlH(curH, curL, shift);
+            const Tl = rotlL(curH, curL, shift);
+            const PI = SHA3_PI[t];
+            curH = s[PI];
+            curL = s[PI + 1];
+            s[PI] = Th;
+            s[PI + 1] = Tl;
+        }
+        // Chi (χ)
+        for (let y = 0; y < 50; y += 10) {
+            for (let x = 0; x < 10; x++)
+                B[x] = s[y + x];
+            for (let x = 0; x < 10; x++)
+                s[y + x] ^= ~B[(x + 2) % 10] & B[(x + 4) % 10];
+        }
+        // Iota (ι)
+        s[0] ^= SHA3_IOTA_H[round];
+        s[1] ^= SHA3_IOTA_L[round];
+    }
+    B.fill(0);
+}
+class Keccak extends Hash {
+    // NOTE: we accept arguments in bytes instead of bits here.
+    constructor(blockLen, suffix, outputLen, enableXOF = false, rounds = 24) {
+        super();
+        this.blockLen = blockLen;
+        this.suffix = suffix;
+        this.outputLen = outputLen;
+        this.enableXOF = enableXOF;
+        this.rounds = rounds;
+        this.pos = 0;
+        this.posOut = 0;
+        this.finished = false;
+        this.destroyed = false;
+        // Can be passed from user as dkLen
+        number(outputLen);
+        // 1600 = 5x5 matrix of 64bit.  1600 bits === 200 bytes
+        if (0 >= this.blockLen || this.blockLen >= 200)
+            throw new Error('Sha3 supports only keccak-f1600 function');
+        this.state = new Uint8Array(200);
+        this.state32 = u32(this.state);
+    }
+    keccak() {
+        keccakP(this.state32, this.rounds);
+        this.posOut = 0;
+        this.pos = 0;
+    }
+    update(data) {
+        exists(this);
+        const { blockLen, state } = this;
+        data = toBytes(data);
+        const len = data.length;
+        for (let pos = 0; pos < len;) {
+            const take = Math.min(blockLen - this.pos, len - pos);
+            for (let i = 0; i < take; i++)
+                state[this.pos++] ^= data[pos++];
+            if (this.pos === blockLen)
+                this.keccak();
+        }
+        return this;
+    }
+    finish() {
+        if (this.finished)
+            return;
+        this.finished = true;
+        const { state, suffix, pos, blockLen } = this;
+        // Do the padding
+        state[pos] ^= suffix;
+        if ((suffix & 0x80) !== 0 && pos === blockLen - 1)
+            this.keccak();
+        state[blockLen - 1] ^= 0x80;
+        this.keccak();
+    }
+    writeInto(out) {
+        exists(this, false);
+        bytes(out);
+        this.finish();
+        const bufferOut = this.state;
+        const { blockLen } = this;
+        for (let pos = 0, len = out.length; pos < len;) {
+            if (this.posOut >= blockLen)
+                this.keccak();
+            const take = Math.min(blockLen - this.posOut, len - pos);
+            out.set(bufferOut.subarray(this.posOut, this.posOut + take), pos);
+            this.posOut += take;
+            pos += take;
+        }
+        return out;
+    }
+    xofInto(out) {
+        // Sha3/Keccak usage with XOF is probably mistake, only SHAKE instances can do XOF
+        if (!this.enableXOF)
+            throw new Error('XOF is not possible for this instance');
+        return this.writeInto(out);
+    }
+    xof(bytes) {
+        number(bytes);
+        return this.xofInto(new Uint8Array(bytes));
+    }
+    digestInto(out) {
+        output(out, this);
+        if (this.finished)
+            throw new Error('digest() was already called');
+        this.writeInto(out);
+        this.destroy();
+        return out;
+    }
+    digest() {
+        return this.digestInto(new Uint8Array(this.outputLen));
+    }
+    destroy() {
+        this.destroyed = true;
+        this.state.fill(0);
+    }
+    _cloneInto(to) {
+        const { blockLen, suffix, outputLen, rounds, enableXOF } = this;
+        to || (to = new Keccak(blockLen, suffix, outputLen, enableXOF, rounds));
+        to.state32.set(this.state32);
+        to.pos = this.pos;
+        to.posOut = this.posOut;
+        to.finished = this.finished;
+        to.rounds = rounds;
+        // Suffix can change in cSHAKE
+        to.suffix = suffix;
+        to.outputLen = outputLen;
+        to.enableXOF = enableXOF;
+        to.destroyed = this.destroyed;
+        return to;
+    }
+}
+const gen = (suffix, blockLen, outputLen) => wrapConstructor(() => new Keccak(blockLen, suffix, outputLen));
+/**
+ * keccak-256 hash function. Different from SHA3-256.
+ * @param message - that would be hashed
+ */
+const keccak_256 = /* @__PURE__ */ gen(0x01, 136, 256 / 8);
+
+/**
+ *  Cryptographic hashing functions
+ *
+ *  @_subsection: api/crypto:Hash Functions [about-crypto-hashing]
+ */
+let locked = false;
+const _keccak256 = function (data) {
+    return keccak_256(data);
+};
+let __keccak256 = _keccak256;
+/**
+ *  Compute the cryptographic KECCAK256 hash of %%data%%.
+ *
+ *  The %%data%% **must** be a data representation, to compute the
+ *  hash of UTF-8 data use the [[id]] function.
+ *
+ *  @returns DataHexstring
+ *  @example:
+ *    keccak256("0x")
+ *    //_result:
+ *
+ *    keccak256("0x1337")
+ *    //_result:
+ *
+ *    keccak256(new Uint8Array([ 0x13, 0x37 ]))
+ *    //_result:
+ *
+ *    // Strings are assumed to be DataHexString, otherwise it will
+ *    // throw. To hash UTF-8 data, see the note above.
+ *    keccak256("Hello World")
+ *    //_error:
+ */
+function keccak256(_data) {
+    const data = getBytes(_data, "data");
+    return hexlify(__keccak256(data));
+}
+keccak256._ = _keccak256;
+keccak256.lock = function () { locked = true; };
+keccak256.register = function (func) {
+    if (locked) {
+        throw new TypeError("keccak256 is locked");
+    }
+    __keccak256 = func;
+};
+Object.freeze(keccak256);
+
+/**
+ *  A simple hashing function which operates on UTF-8 strings to
+ *  compute an 32-byte identifier.
+ *
+ *  This simply computes the [UTF-8 bytes](toUtf8Bytes) and computes
+ *  the [[keccak256]].
+ *
+ *  @example:
+ *    id("hello world")
+ *    //_result:
+ */
+function id(value) {
+    return keccak256(toUtf8Bytes(value));
+}
+
 var commonjsGlobal$1 = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
 function getDefaultExportFromCjs (x) {
@@ -470,7 +1187,7 @@ var hasRequiredCore$1;
 function requireCore$1 () {
 	if (hasRequiredCore$1) return core$3.exports;
 	hasRequiredCore$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1283,7 +2000,7 @@ var hasRequiredX64Core$1;
 function requireX64Core$1 () {
 	if (hasRequiredX64Core$1) return x64Core$3.exports;
 	hasRequiredX64Core$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1593,7 +2310,7 @@ var hasRequiredLibTypedarrays$1;
 function requireLibTypedarrays$1 () {
 	if (hasRequiredLibTypedarrays$1) return libTypedarrays$3.exports;
 	hasRequiredLibTypedarrays$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1675,7 +2392,7 @@ var hasRequiredEncUtf16$1;
 function requireEncUtf16$1 () {
 	if (hasRequiredEncUtf16$1) return encUtf16$3.exports;
 	hasRequiredEncUtf16$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1830,7 +2547,7 @@ var hasRequiredEncBase64$1;
 function requireEncBase64$1 () {
 	if (hasRequiredEncBase64$1) return encBase64$3.exports;
 	hasRequiredEncBase64$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1972,7 +2689,7 @@ var hasRequiredEncBase64url$1;
 function requireEncBase64url$1 () {
 	if (hasRequiredEncBase64url$1) return encBase64url$3.exports;
 	hasRequiredEncBase64url$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2126,7 +2843,7 @@ var hasRequiredMd5$1;
 function requireMd5$1 () {
 	if (hasRequiredMd5$1) return md5$3.exports;
 	hasRequiredMd5$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2400,7 +3117,7 @@ var hasRequiredSha1$1;
 function requireSha1$1 () {
 	if (hasRequiredSha1$1) return sha1$3.exports;
 	hasRequiredSha1$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2556,7 +3273,7 @@ var hasRequiredSha256$1;
 function requireSha256$1 () {
 	if (hasRequiredSha256$1) return sha256$3.exports;
 	hasRequiredSha256$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2761,7 +3478,7 @@ var hasRequiredSha224$1;
 function requireSha224$1 () {
 	if (hasRequiredSha224$1) return sha224$3.exports;
 	hasRequiredSha224$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -2847,7 +3564,7 @@ var hasRequiredSha512$1;
 function requireSha512$1 () {
 	if (hasRequiredSha512$1) return sha512$3.exports;
 	hasRequiredSha512$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3179,7 +3896,7 @@ var hasRequiredSha384$1;
 function requireSha384$1 () {
 	if (hasRequiredSha384$1) return sha384$3.exports;
 	hasRequiredSha384$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3268,7 +3985,7 @@ var hasRequiredSha3$1;
 function requireSha3$1 () {
 	if (hasRequiredSha3$1) return sha3$3.exports;
 	hasRequiredSha3$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3600,7 +4317,7 @@ var hasRequiredRipemd160$1;
 function requireRipemd160$1 () {
 	if (hasRequiredRipemd160$1) return ripemd160$3.exports;
 	hasRequiredRipemd160$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -3873,7 +4590,7 @@ var hasRequiredHmac$1;
 function requireHmac$1 () {
 	if (hasRequiredHmac$1) return hmac$3.exports;
 	hasRequiredHmac$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -4022,7 +4739,7 @@ var hasRequiredPbkdf2$1;
 function requirePbkdf2$1 () {
 	if (hasRequiredPbkdf2$1) return pbkdf2$3.exports;
 	hasRequiredPbkdf2$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -4173,7 +4890,7 @@ var hasRequiredEvpkdf$1;
 function requireEvpkdf$1 () {
 	if (hasRequiredEvpkdf$1) return evpkdf$3.exports;
 	hasRequiredEvpkdf$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -4313,7 +5030,7 @@ var hasRequiredCipherCore$1;
 function requireCipherCore$1 () {
 	if (hasRequiredCipherCore$1) return cipherCore$3.exports;
 	hasRequiredCipherCore$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5214,7 +5931,7 @@ var hasRequiredModeCfb$1;
 function requireModeCfb$1 () {
 	if (hasRequiredModeCfb$1) return modeCfb$3.exports;
 	hasRequiredModeCfb$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5300,7 +6017,7 @@ var hasRequiredModeCtr$1;
 function requireModeCtr$1 () {
 	if (hasRequiredModeCtr$1) return modeCtr$3.exports;
 	hasRequiredModeCtr$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5364,7 +6081,7 @@ var hasRequiredModeCtrGladman$1;
 function requireModeCtrGladman$1 () {
 	if (hasRequiredModeCtrGladman$1) return modeCtrGladman$3.exports;
 	hasRequiredModeCtrGladman$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5486,7 +6203,7 @@ var hasRequiredModeOfb$1;
 function requireModeOfb$1 () {
 	if (hasRequiredModeOfb$1) return modeOfb$3.exports;
 	hasRequiredModeOfb$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5546,7 +6263,7 @@ var hasRequiredModeEcb$1;
 function requireModeEcb$1 () {
 	if (hasRequiredModeEcb$1) return modeEcb$3.exports;
 	hasRequiredModeEcb$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5592,7 +6309,7 @@ var hasRequiredPadAnsix923$1;
 function requirePadAnsix923$1 () {
 	if (hasRequiredPadAnsix923$1) return padAnsix923$3.exports;
 	hasRequiredPadAnsix923$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5647,7 +6364,7 @@ var hasRequiredPadIso10126$1;
 function requirePadIso10126$1 () {
 	if (hasRequiredPadIso10126$1) return padIso10126$3.exports;
 	hasRequiredPadIso10126$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5697,7 +6414,7 @@ var hasRequiredPadIso97971$1;
 function requirePadIso97971$1 () {
 	if (hasRequiredPadIso97971$1) return padIso97971$3.exports;
 	hasRequiredPadIso97971$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5743,7 +6460,7 @@ var hasRequiredPadZeropadding$1;
 function requirePadZeropadding$1 () {
 	if (hasRequiredPadZeropadding$1) return padZeropadding$3.exports;
 	hasRequiredPadZeropadding$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5796,7 +6513,7 @@ var hasRequiredPadNopadding$1;
 function requirePadNopadding$1 () {
 	if (hasRequiredPadNopadding$1) return padNopadding$3.exports;
 	hasRequiredPadNopadding$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5832,7 +6549,7 @@ var hasRequiredFormatHex$1;
 function requireFormatHex$1 () {
 	if (hasRequiredFormatHex$1) return formatHex$3.exports;
 	hasRequiredFormatHex$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5904,7 +6621,7 @@ var hasRequiredAes$1;
 function requireAes$1 () {
 	if (hasRequiredAes$1) return aes$3.exports;
 	hasRequiredAes$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6144,7 +6861,7 @@ var hasRequiredTripledes$1;
 function requireTripledes$1 () {
 	if (hasRequiredTripledes$1) return tripledes$3.exports;
 	hasRequiredTripledes$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6929,7 +7646,7 @@ var hasRequiredRc4$1;
 function requireRc4$1 () {
 	if (hasRequiredRc4$1) return rc4$3.exports;
 	hasRequiredRc4$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7074,7 +7791,7 @@ var hasRequiredRabbit$1;
 function requireRabbit$1 () {
 	if (hasRequiredRabbit$1) return rabbit$3.exports;
 	hasRequiredRabbit$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7272,7 +7989,7 @@ var hasRequiredRabbitLegacy$1;
 function requireRabbitLegacy$1 () {
 	if (hasRequiredRabbitLegacy$1) return rabbitLegacy$3.exports;
 	hasRequiredRabbitLegacy$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7468,7 +8185,7 @@ var hasRequiredBlowfish$1;
 function requireBlowfish$1 () {
 	if (hasRequiredBlowfish$1) return blowfish$3.exports;
 	hasRequiredBlowfish$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7943,7 +8660,7 @@ var hasRequiredCryptoJs$1;
 function requireCryptoJs$1 () {
 	if (hasRequiredCryptoJs$1) return cryptoJs$3.exports;
 	hasRequiredCryptoJs$1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7978,625 +8695,7 @@ function isNativeFullscreen$1() {
         doc.msFullscreenElement);
 }
 
-function number$1(n) {
-    if (!Number.isSafeInteger(n) || n < 0)
-        throw new Error(`Wrong positive integer: ${n}`);
-}
-function bytes$1(b, ...lengths) {
-    if (!(b instanceof Uint8Array))
-        throw new Error('Expected Uint8Array');
-    if (lengths.length > 0 && !lengths.includes(b.length))
-        throw new Error(`Expected Uint8Array of length ${lengths}, not of length=${b.length}`);
-}
-function exists$1(instance, checkFinished = true) {
-    if (instance.destroyed)
-        throw new Error('Hash instance has been destroyed');
-    if (checkFinished && instance.finished)
-        throw new Error('Hash#digest() has already been called');
-}
-function output$1(out, instance) {
-    bytes$1(out);
-    const min = instance.outputLen;
-    if (out.length < min) {
-        throw new Error(`digestInto() expects output buffer of length at least ${min}`);
-    }
-}
-
-const U32_MASK64$1 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
-const _32n$1 = /* @__PURE__ */ BigInt(32);
-// We are not using BigUint64Array, because they are extremely slow as per 2022
-function fromBig$1(n, le = false) {
-    if (le)
-        return { h: Number(n & U32_MASK64$1), l: Number((n >> _32n$1) & U32_MASK64$1) };
-    return { h: Number((n >> _32n$1) & U32_MASK64$1) | 0, l: Number(n & U32_MASK64$1) | 0 };
-}
-function split$1(lst, le = false) {
-    let Ah = new Uint32Array(lst.length);
-    let Al = new Uint32Array(lst.length);
-    for (let i = 0; i < lst.length; i++) {
-        const { h, l } = fromBig$1(lst[i], le);
-        [Ah[i], Al[i]] = [h, l];
-    }
-    return [Ah, Al];
-}
-// Left rotate for Shift in [1, 32)
-const rotlSH$1 = (h, l, s) => (h << s) | (l >>> (32 - s));
-const rotlSL$1 = (h, l, s) => (l << s) | (h >>> (32 - s));
-// Left rotate for Shift in (32, 64), NOTE: 32 is special case.
-const rotlBH$1 = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
-const rotlBL$1 = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
-
-/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-// We use WebCrypto aka globalThis.crypto, which exists in browsers and node.js 16+.
-// node.js versions earlier than v19 don't declare it in global scope.
-// For node.js, package.json#exports field mapping rewrites import
-// from `crypto` to `cryptoNode`, which imports native module.
-// Makes the utils un-importable in browsers without a bundler.
-// Once node.js 18 is deprecated, we can just drop the import.
-const u8a$1 = (a) => a instanceof Uint8Array;
-const u32$1 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
-// big-endian hardware is rare. Just in case someone still decides to run hashes:
-// early-throw an error because we don't support BE yet.
-const isLE$1 = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
-if (!isLE$1)
-    throw new Error('Non little-endian hardware is not supported');
-/**
- * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
- */
-function utf8ToBytes$1(str) {
-    if (typeof str !== 'string')
-        throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
-    return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
-}
-/**
- * Normalizes (non-hex) string or Uint8Array to Uint8Array.
- * Warning: when Uint8Array is passed, it would NOT get copied.
- * Keep in mind for future mutable operations.
- */
-function toBytes$1(data) {
-    if (typeof data === 'string')
-        data = utf8ToBytes$1(data);
-    if (!u8a$1(data))
-        throw new Error(`expected Uint8Array, got ${typeof data}`);
-    return data;
-}
-// For runtime check if class implements interface
-let Hash$1 = class Hash {
-    // Safe version that clones internal state
-    clone() {
-        return this._cloneInto();
-    }
-};
-function wrapConstructor$1(hashCons) {
-    const hashC = (msg) => hashCons().update(toBytes$1(msg)).digest();
-    const tmp = hashCons();
-    hashC.outputLen = tmp.outputLen;
-    hashC.blockLen = tmp.blockLen;
-    hashC.create = () => hashCons();
-    return hashC;
-}
-
-// SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
-// It's called a sponge function.
-// Various per round constants calculations
-const [SHA3_PI$1, SHA3_ROTL$1, _SHA3_IOTA$1] = [[], [], []];
-const _0n$1 = /* @__PURE__ */ BigInt(0);
-const _1n$1 = /* @__PURE__ */ BigInt(1);
-const _2n$1 = /* @__PURE__ */ BigInt(2);
-const _7n$1 = /* @__PURE__ */ BigInt(7);
-const _256n$1 = /* @__PURE__ */ BigInt(256);
-const _0x71n$1 = /* @__PURE__ */ BigInt(0x71);
-for (let round = 0, R = _1n$1, x = 1, y = 0; round < 24; round++) {
-    // Pi
-    [x, y] = [y, (2 * x + 3 * y) % 5];
-    SHA3_PI$1.push(2 * (5 * y + x));
-    // Rotational
-    SHA3_ROTL$1.push((((round + 1) * (round + 2)) / 2) % 64);
-    // Iota
-    let t = _0n$1;
-    for (let j = 0; j < 7; j++) {
-        R = ((R << _1n$1) ^ ((R >> _7n$1) * _0x71n$1)) % _256n$1;
-        if (R & _2n$1)
-            t ^= _1n$1 << ((_1n$1 << /* @__PURE__ */ BigInt(j)) - _1n$1);
-    }
-    _SHA3_IOTA$1.push(t);
-}
-const [SHA3_IOTA_H$1, SHA3_IOTA_L$1] = /* @__PURE__ */ split$1(_SHA3_IOTA$1, true);
-// Left rotation (without 0, 32, 64)
-const rotlH$1 = (h, l, s) => (s > 32 ? rotlBH$1(h, l, s) : rotlSH$1(h, l, s));
-const rotlL$1 = (h, l, s) => (s > 32 ? rotlBL$1(h, l, s) : rotlSL$1(h, l, s));
-// Same as keccakf1600, but allows to skip some rounds
-function keccakP$1(s, rounds = 24) {
-    const B = new Uint32Array(5 * 2);
-    // NOTE: all indices are x2 since we store state as u32 instead of u64 (bigints to slow in js)
-    for (let round = 24 - rounds; round < 24; round++) {
-        // Theta θ
-        for (let x = 0; x < 10; x++)
-            B[x] = s[x] ^ s[x + 10] ^ s[x + 20] ^ s[x + 30] ^ s[x + 40];
-        for (let x = 0; x < 10; x += 2) {
-            const idx1 = (x + 8) % 10;
-            const idx0 = (x + 2) % 10;
-            const B0 = B[idx0];
-            const B1 = B[idx0 + 1];
-            const Th = rotlH$1(B0, B1, 1) ^ B[idx1];
-            const Tl = rotlL$1(B0, B1, 1) ^ B[idx1 + 1];
-            for (let y = 0; y < 50; y += 10) {
-                s[x + y] ^= Th;
-                s[x + y + 1] ^= Tl;
-            }
-        }
-        // Rho (ρ) and Pi (π)
-        let curH = s[2];
-        let curL = s[3];
-        for (let t = 0; t < 24; t++) {
-            const shift = SHA3_ROTL$1[t];
-            const Th = rotlH$1(curH, curL, shift);
-            const Tl = rotlL$1(curH, curL, shift);
-            const PI = SHA3_PI$1[t];
-            curH = s[PI];
-            curL = s[PI + 1];
-            s[PI] = Th;
-            s[PI + 1] = Tl;
-        }
-        // Chi (χ)
-        for (let y = 0; y < 50; y += 10) {
-            for (let x = 0; x < 10; x++)
-                B[x] = s[y + x];
-            for (let x = 0; x < 10; x++)
-                s[y + x] ^= ~B[(x + 2) % 10] & B[(x + 4) % 10];
-        }
-        // Iota (ι)
-        s[0] ^= SHA3_IOTA_H$1[round];
-        s[1] ^= SHA3_IOTA_L$1[round];
-    }
-    B.fill(0);
-}
-let Keccak$1 = class Keccak extends Hash$1 {
-    // NOTE: we accept arguments in bytes instead of bits here.
-    constructor(blockLen, suffix, outputLen, enableXOF = false, rounds = 24) {
-        super();
-        this.blockLen = blockLen;
-        this.suffix = suffix;
-        this.outputLen = outputLen;
-        this.enableXOF = enableXOF;
-        this.rounds = rounds;
-        this.pos = 0;
-        this.posOut = 0;
-        this.finished = false;
-        this.destroyed = false;
-        // Can be passed from user as dkLen
-        number$1(outputLen);
-        // 1600 = 5x5 matrix of 64bit.  1600 bits === 200 bytes
-        if (0 >= this.blockLen || this.blockLen >= 200)
-            throw new Error('Sha3 supports only keccak-f1600 function');
-        this.state = new Uint8Array(200);
-        this.state32 = u32$1(this.state);
-    }
-    keccak() {
-        keccakP$1(this.state32, this.rounds);
-        this.posOut = 0;
-        this.pos = 0;
-    }
-    update(data) {
-        exists$1(this);
-        const { blockLen, state } = this;
-        data = toBytes$1(data);
-        const len = data.length;
-        for (let pos = 0; pos < len;) {
-            const take = Math.min(blockLen - this.pos, len - pos);
-            for (let i = 0; i < take; i++)
-                state[this.pos++] ^= data[pos++];
-            if (this.pos === blockLen)
-                this.keccak();
-        }
-        return this;
-    }
-    finish() {
-        if (this.finished)
-            return;
-        this.finished = true;
-        const { state, suffix, pos, blockLen } = this;
-        // Do the padding
-        state[pos] ^= suffix;
-        if ((suffix & 0x80) !== 0 && pos === blockLen - 1)
-            this.keccak();
-        state[blockLen - 1] ^= 0x80;
-        this.keccak();
-    }
-    writeInto(out) {
-        exists$1(this, false);
-        bytes$1(out);
-        this.finish();
-        const bufferOut = this.state;
-        const { blockLen } = this;
-        for (let pos = 0, len = out.length; pos < len;) {
-            if (this.posOut >= blockLen)
-                this.keccak();
-            const take = Math.min(blockLen - this.posOut, len - pos);
-            out.set(bufferOut.subarray(this.posOut, this.posOut + take), pos);
-            this.posOut += take;
-            pos += take;
-        }
-        return out;
-    }
-    xofInto(out) {
-        // Sha3/Keccak usage with XOF is probably mistake, only SHAKE instances can do XOF
-        if (!this.enableXOF)
-            throw new Error('XOF is not possible for this instance');
-        return this.writeInto(out);
-    }
-    xof(bytes) {
-        number$1(bytes);
-        return this.xofInto(new Uint8Array(bytes));
-    }
-    digestInto(out) {
-        output$1(out, this);
-        if (this.finished)
-            throw new Error('digest() was already called');
-        this.writeInto(out);
-        this.destroy();
-        return out;
-    }
-    digest() {
-        return this.digestInto(new Uint8Array(this.outputLen));
-    }
-    destroy() {
-        this.destroyed = true;
-        this.state.fill(0);
-    }
-    _cloneInto(to) {
-        const { blockLen, suffix, outputLen, rounds, enableXOF } = this;
-        to || (to = new Keccak(blockLen, suffix, outputLen, enableXOF, rounds));
-        to.state32.set(this.state32);
-        to.pos = this.pos;
-        to.posOut = this.posOut;
-        to.finished = this.finished;
-        to.rounds = rounds;
-        // Suffix can change in cSHAKE
-        to.suffix = suffix;
-        to.outputLen = outputLen;
-        to.enableXOF = enableXOF;
-        to.destroyed = this.destroyed;
-        return to;
-    }
-};
-const gen$1 = (suffix, blockLen, outputLen) => wrapConstructor$1(() => new Keccak$1(blockLen, suffix, outputLen));
-/**
- * keccak-256 hash function. Different from SHA3-256.
- * @param message - that would be hashed
- */
-const keccak_256$1 = /* @__PURE__ */ gen$1(0x01, 136, 256 / 8);
-
-/* Do NOT modify this file; see /src.ts/_admin/update-version.ts */
-/**
- *  The current version of Ethers.
- */
-const version$1 = "6.14.4";
-
-/**
- *  Property helper functions.
- *
- *  @_subsection api/utils:Properties  [about-properties]
- */
-/**
- *  Assigns the %%values%% to %%target%% as read-only values.
- *
- *  It %%types%% is specified, the values are checked.
- */
-function defineProperties$1(target, values, types) {
-    for (let key in values) {
-        let value = values[key];
-        Object.defineProperty(target, key, { enumerable: true, value, writable: false });
-    }
-}
-
-/**
- *  All errors in ethers include properties to ensure they are both
- *  human-readable (i.e. ``.message``) and machine-readable (i.e. ``.code``).
- *
- *  The [[isError]] function can be used to check the error ``code`` and
- *  provide a type guard for the properties present on that error interface.
- *
- *  @_section: api/utils/errors:Errors  [about-errors]
- */
-function stringify$1(value, seen) {
-    if (value == null) {
-        return "null";
-    }
-    if (seen == null) {
-        seen = new Set();
-    }
-    if (typeof (value) === "object") {
-        if (seen.has(value)) {
-            return "[Circular]";
-        }
-        seen.add(value);
-    }
-    if (Array.isArray(value)) {
-        return "[ " + (value.map((v) => stringify$1(v, seen))).join(", ") + " ]";
-    }
-    if (value instanceof Uint8Array) {
-        const HEX = "0123456789abcdef";
-        let result = "0x";
-        for (let i = 0; i < value.length; i++) {
-            result += HEX[value[i] >> 4];
-            result += HEX[value[i] & 0xf];
-        }
-        return result;
-    }
-    if (typeof (value) === "object" && typeof (value.toJSON) === "function") {
-        return stringify$1(value.toJSON(), seen);
-    }
-    switch (typeof (value)) {
-        case "boolean":
-        case "number":
-        case "symbol":
-            return value.toString();
-        case "bigint":
-            return BigInt(value).toString();
-        case "string":
-            return JSON.stringify(value);
-        case "object": {
-            const keys = Object.keys(value);
-            keys.sort();
-            return "{ " + keys.map((k) => `${stringify$1(k, seen)}: ${stringify$1(value[k], seen)}`).join(", ") + " }";
-        }
-    }
-    return `[ COULD NOT SERIALIZE ]`;
-}
-/**
- *  Returns a new Error configured to the format ethers emits errors, with
- *  the %%message%%, [[api:ErrorCode]] %%code%% and additional properties
- *  for the corresponding EthersError.
- *
- *  Each error in ethers includes the version of ethers, a
- *  machine-readable [[ErrorCode]], and depending on %%code%%, additional
- *  required properties. The error message will also include the %%message%%,
- *  ethers version, %%code%% and all additional properties, serialized.
- */
-function makeError$1(message, code, info) {
-    let shortMessage = message;
-    {
-        const details = [];
-        if (info) {
-            if ("message" in info || "code" in info || "name" in info) {
-                throw new Error(`value will overwrite populated values: ${stringify$1(info)}`);
-            }
-            for (const key in info) {
-                if (key === "shortMessage") {
-                    continue;
-                }
-                const value = (info[key]);
-                //                try {
-                details.push(key + "=" + stringify$1(value));
-                //                } catch (error: any) {
-                //                console.log("MMM", error.message);
-                //                    details.push(key + "=[could not serialize object]");
-                //                }
-            }
-        }
-        details.push(`code=${code}`);
-        details.push(`version=${version$1}`);
-        if (details.length) {
-            message += " (" + details.join(", ") + ")";
-        }
-    }
-    let error;
-    switch (code) {
-        case "INVALID_ARGUMENT":
-            error = new TypeError(message);
-            break;
-        case "NUMERIC_FAULT":
-        case "BUFFER_OVERRUN":
-            error = new RangeError(message);
-            break;
-        default:
-            error = new Error(message);
-    }
-    defineProperties$1(error, { code });
-    if (info) {
-        Object.assign(error, info);
-    }
-    if (error.shortMessage == null) {
-        defineProperties$1(error, { shortMessage });
-    }
-    return error;
-}
-/**
- *  Throws an EthersError with %%message%%, %%code%% and additional error
- *  %%info%% when %%check%% is falsish..
- *
- *  @see [[api:makeError]]
- */
-function assert$1(check, message, code, info) {
-    if (!check) {
-        throw makeError$1(message, code, info);
-    }
-}
-/**
- *  A simple helper to simply ensuring provided arguments match expected
- *  constraints, throwing if not.
- *
- *  In TypeScript environments, the %%check%% has been asserted true, so
- *  any further code does not need additional compile-time checks.
- */
-function assertArgument$1(check, message, name, value) {
-    assert$1(check, message, "INVALID_ARGUMENT", { argument: name, value: value });
-}
-["NFD", "NFC", "NFKD", "NFKC"].reduce((accum, form) => {
-    try {
-        // General test for normalize
-        /* c8 ignore start */
-        if ("test".normalize(form) !== "test") {
-            throw new Error("bad");
-        }
-        ;
-        /* c8 ignore stop */
-        if (form === "NFD") {
-            const check = String.fromCharCode(0xe9).normalize("NFD");
-            const expected = String.fromCharCode(0x65, 0x0301);
-            /* c8 ignore start */
-            if (check !== expected) {
-                throw new Error("broken");
-            }
-            /* c8 ignore stop */
-        }
-        accum.push(form);
-    }
-    catch (error) { }
-    return accum;
-}, []);
-
-/**
- *  Some data helpers.
- *
- *
- *  @_subsection api/utils:Data Helpers  [about-data]
- */
-function _getBytes$1(value, name, copy) {
-    if (value instanceof Uint8Array) {
-        return value;
-    }
-    if (typeof (value) === "string" && value.match(/^0x(?:[0-9a-f][0-9a-f])*$/i)) {
-        const result = new Uint8Array((value.length - 2) / 2);
-        let offset = 2;
-        for (let i = 0; i < result.length; i++) {
-            result[i] = parseInt(value.substring(offset, offset + 2), 16);
-            offset += 2;
-        }
-        return result;
-    }
-    assertArgument$1(false, "invalid BytesLike value", name || "value", value);
-}
-/**
- *  Get a typed Uint8Array for %%value%%. If already a Uint8Array
- *  the original %%value%% is returned; if a copy is required use
- *  [[getBytesCopy]].
- *
- *  @see: getBytesCopy
- */
-function getBytes$1(value, name) {
-    return _getBytes$1(value, name);
-}
-const HexCharacters$1 = "0123456789abcdef";
-/**
- *  Returns a [[DataHexString]] representation of %%data%%.
- */
-function hexlify$1(data) {
-    const bytes = getBytes$1(data);
-    let result = "0x";
-    for (let i = 0; i < bytes.length; i++) {
-        const v = bytes[i];
-        result += HexCharacters$1[(v & 0xf0) >> 4] + HexCharacters$1[v & 0x0f];
-    }
-    return result;
-}
-
-/**
- *  Cryptographic hashing functions
- *
- *  @_subsection: api/crypto:Hash Functions [about-crypto-hashing]
- */
-let locked$1 = false;
-const _keccak256$1 = function (data) {
-    return keccak_256$1(data);
-};
-let __keccak256$1 = _keccak256$1;
-/**
- *  Compute the cryptographic KECCAK256 hash of %%data%%.
- *
- *  The %%data%% **must** be a data representation, to compute the
- *  hash of UTF-8 data use the [[id]] function.
- *
- *  @returns DataHexstring
- *  @example:
- *    keccak256("0x")
- *    //_result:
- *
- *    keccak256("0x1337")
- *    //_result:
- *
- *    keccak256(new Uint8Array([ 0x13, 0x37 ]))
- *    //_result:
- *
- *    // Strings are assumed to be DataHexString, otherwise it will
- *    // throw. To hash UTF-8 data, see the note above.
- *    keccak256("Hello World")
- *    //_error:
- */
-function keccak256$1(_data) {
-    const data = getBytes$1(_data, "data");
-    return hexlify$1(__keccak256$1(data));
-}
-keccak256$1._ = _keccak256$1;
-keccak256$1.lock = function () { locked$1 = true; };
-keccak256$1.register = function (func) {
-    if (locked$1) {
-        throw new TypeError("keccak256 is locked");
-    }
-    __keccak256$1 = func;
-};
-Object.freeze(keccak256$1);
-
-/**
- *  Using strings in Ethereum (or any security-basd system) requires
- *  additional care. These utilities attempt to mitigate some of the
- *  safety issues as well as provide the ability to recover and analyse
- *  strings.
- *
- *  @_subsection api/utils:Strings and UTF-8  [about-strings]
- */
-// http://stackoverflow.com/questions/18729405/how-to-convert-utf8-string-to-byte-array
-/**
- *  Returns the UTF-8 byte representation of %%str%%.
- *
- *  If %%form%% is specified, the string is normalized.
- */
-function toUtf8Bytes(str, form) {
-    assertArgument$1(typeof (str) === "string", "invalid string value", "str", str);
-    let result = [];
-    for (let i = 0; i < str.length; i++) {
-        const c = str.charCodeAt(i);
-        if (c < 0x80) {
-            result.push(c);
-        }
-        else if (c < 0x800) {
-            result.push((c >> 6) | 0xc0);
-            result.push((c & 0x3f) | 0x80);
-        }
-        else if ((c & 0xfc00) == 0xd800) {
-            i++;
-            const c2 = str.charCodeAt(i);
-            assertArgument$1(i < str.length && ((c2 & 0xfc00) === 0xdc00), "invalid surrogate pair", "str", str);
-            // Surrogate Pair
-            const pair = 0x10000 + ((c & 0x03ff) << 10) + (c2 & 0x03ff);
-            result.push((pair >> 18) | 0xf0);
-            result.push(((pair >> 12) & 0x3f) | 0x80);
-            result.push(((pair >> 6) & 0x3f) | 0x80);
-            result.push((pair & 0x3f) | 0x80);
-        }
-        else {
-            result.push((c >> 12) | 0xe0);
-            result.push(((c >> 6) & 0x3f) | 0x80);
-            result.push((c & 0x3f) | 0x80);
-        }
-    }
-    return new Uint8Array(result);
-}
-
-/**
- *  A simple hashing function which operates on UTF-8 strings to
- *  compute an 32-byte identifier.
- *
- *  This simply computes the [UTF-8 bytes](toUtf8Bytes) and computes
- *  the [[keccak256]].
- *
- *  @example:
- *    id("hello world")
- *    //_result:
- */
-function id(value) {
-    return keccak256$1(toUtf8Bytes(value));
+class PinError extends Error {
 }
 
 /**
@@ -8861,7 +8960,8 @@ const buildSignRenderContext = (keyMap, message) => {
             }
             context[originKey] = {
                 label: key,
-                value: value
+                value: value,
+                originKey: originKey
             };
         });
         return context;
@@ -8887,9 +8987,6 @@ const layoutRender = (template$1, context) => {
     const render = lodash.template(template$1);
     return render(context);
 };
-
-class PinError extends Error {
-}
 
 const pinGenerator = () => {
     const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -8954,7 +9051,7 @@ const TOPIC_PREFIX = 'sealx-signer';
 /**
  * Actions that can be requested from the SealX service
  */
-var SealxTopic;
+exports.SealxTopic = void 0;
 (function (SealxTopic) {
     /** Request to connect to a wallet/account */
     SealxTopic["CONNECT"] = "connect";
@@ -8998,13 +9095,15 @@ var SealxTopic;
     SealxTopic["CLOSE"] = "close";
     /** Verify temporary code for import */
     SealxTopic["VERIFY_TEMP_CODE"] = "verify-temp-code";
+    /** Locate element in the page by data-key attribute */
+    SealxTopic["LOCATE_ELEMENT"] = "locate-element";
     /** All topics */
     SealxTopic["ALL"] = "*";
-})(SealxTopic || (SealxTopic = {}));
+})(exports.SealxTopic || (exports.SealxTopic = {}));
 /**
  * Communication channels used in the SealX extension
  */
-var MessageChannel;
+exports.MessageChannel = void 0;
 (function (MessageChannel) {
     /** Background script communication */
     MessageChannel["BACKGROUND"] = "background";
@@ -9024,58 +9123,706 @@ var MessageChannel;
     MessageChannel["IFRAME"] = "iframe";
     /** All channels */
     MessageChannel["ALL"] = "*";
-})(MessageChannel || (MessageChannel = {}));
+})(exports.MessageChannel || (exports.MessageChannel = {}));
 
+/**
+ * Abstract base class for message communication between channels.
+ *
+ * `MessagerBase` provides a framework for sending, receiving, and handling messages
+ * across different contexts (content scripts, background, etc.) with these features:
+ *
+ * - Topic-based message handling with wildcard support
+ * - Request/response and streaming message patterns
+ * - Cross-channel communication with security considerations
+ * - Automatic message correlation and response routing
+ *
+ * @typeParam T - Type of message payload (defaults to any)
+ *
+ * @property {Record<string, MessageHandle[]>} handlers - Topic to handlers mapping
+ * @property {MessageChannel} channel - Communication channel for this instance
+ * @property {string} id - Unique messager identifier
+ * @property {SealxSession} [session] - Optional session context
+ *
+ * @constructor
+ * @param channel - The message channel this instance will use for communication
+ * @param session - Optional session information containing host and sessionId
+ *
+ * @example Basic implementation:
+ * ```typescript
+ * class MyMessager extends MessagerBase {
+ *   onMessage() {
+ *     // Implement message handling
+ *   }
+ *   postMessage(message) {
+ *     // Implement message sending
+ *   }
+ *   // ... other abstract methods
+ * }
+ * ```
+ *
+ * @see {@link MessageChannel} for available communication channels
+ * @see {@link SealxRequest} for message request structure
+ * @see {@link SealxResponse} for response structure
+ * @see {@link SealxSession} for session context details
+ */
+class MessagerBase {
+    /**
+     * Creates a new MessagerBase instance
+     * @param channel - The message channel this instance will use for communication
+     * @param session - Optional session information containing host and sessionId
+     */
+    constructor(channel, session) {
+        /** Unique identifier for this messager instance */
+        this.id = 'messager-base';
+        /**
+         * Sends a reply message in response to a received message
+         * @param message - The payload to send
+         * @param topic - The topic to reply on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @param messageId - Optional message ID to reply to (if replying to specific message)
+         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
+         * @returns Promise that resolves when message is sent
+         *
+         * @note Subclasses must implement the actual message posting logic in postMessage()
+         */
+        this.reply = async (message, request, end = true) => {
+            const id = this.messageId();
+            const header = {
+                ...request.header,
+                messagerId: this.id
+            };
+            const response = {
+                ...request,
+                header,
+                payload: message,
+                receiver: request.sender,
+                sender: request.receiver,
+                responseId: id,
+                end: end ? end : (request.once ?? false)
+            };
+            if (this.session) {
+                response.session = this.session;
+            }
+            this.postMessage(response);
+            return Promise.resolve(response);
+        };
+        /**
+         * Sends a reply message in response to a received message
+         * @param message - The payload to send
+         * @param topic - The topic to reply on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @param messageId - Optional message ID to reply to (if replying to specific message)
+         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
+         * @returns Promise that resolves when message is sent
+         *
+         * @note Subclasses must implement the actual message posting logic in postMessage()
+         */
+        this.replyError = async (error, request, end = true) => {
+            const id = this.messageId();
+            const header = {
+                ...request.header,
+                messagerId: this.id
+            };
+            const response = {
+                ...request,
+                header,
+                error: error,
+                receiver: request.sender,
+                sender: request.receiver,
+                responseId: id,
+                end: end ? end : (request.once ?? false)
+            };
+            if (this.session) {
+                response.session = this.session;
+            }
+            this.postMessage(response);
+            return Promise.resolve(response);
+        };
+        /**
+         * Sends a message and waits for a single response
+         *
+         * @remarks
+         * This method:
+         * - Automatically adds and removes a temporary listener for the response
+         * - Uses the message's requestId to correlate requests and responses
+         * - Handles both success and error responses
+         * - Cleans up listeners when complete
+         *
+         * @throws Will reject the promise if:
+         * - The message cannot be sent
+         * - The receiver returns an error response
+         * - The request times out (implementation dependent)
+         *
+         * @typeParam T - The type of the message payload
+         * @param message - The payload to send
+         * @param topic - The topic to send on
+         * @param receiver - Optional specific receiver channel (defaults to ALL)
+         * @returns Promise that resolves with the response payload or rejects on error
+         */
+        this.send = async (message, topic, receiver) => {
+            // const id = this.messageId()
+            const sendMsg = {
+                header: this.header,
+                payload: message,
+                receiver: receiver ?? exports.MessageChannel.ALL,
+                sender: this.channel,
+                topic: topic,
+                once: true,
+            };
+            // if (chrome.tabs) {
+            //     await (TabManager.getInstance().updateActiveTab())
+            // }
+            // this.postMessage(sendMsg)
+            return new Promise((resolve, rejected) => {
+                try {
+                    this.postMessage(sendMsg);
+                }
+                catch (e) {
+                    rejected(e);
+                }
+                const handle = (event) => {
+                    const message = event instanceof MessageEvent ? event.data : event;
+                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
+                        this.removeListener(handle);
+                        if (message.error) {
+                            rejected(message.error);
+                        }
+                        else {
+                            resolve(message);
+                        }
+                    }
+                };
+                this.addListener(handle);
+            });
+        };
+        /**
+         * Registers a handler for messages on a specific topic
+         * @param topic - The topic to listen on (supports wildcards via SealxTopic.ALL)
+         * @param handler - Function to handle incoming messages
+         * @param channel - Optional specific channel to filter messages by (defaults to ALL)
+         * @returns Function to unsubscribe the handler
+         *
+         * @remarks
+         * The handler receives two arguments:
+         * 1. The incoming message
+         * 2. A reply function that can be used to send a response
+         *
+         * @example Basic usage
+         * ```typescript
+         * // Register handler
+         * const unsubscribe = messager.on('data-update', (message, reply) => {
+         *   console.log('Received update:', message);
+         *   reply({ status: 'acknowledged' });
+         * });
+         *
+         * // Later, to unsubscribe:
+         * unsubscribe();
+         * ```
+         *
+         * @example Wildcard handler
+         * ```typescript
+         * // Handle all messages regardless of topic
+         * messager.on(SealxTopic.ALL, (message) => {
+         *   console.log('Received message:', message);
+         * });
+         * ```
+         */
+        this.on = (topic, handler, channel) => {
+            channel = channel ?? exports.MessageChannel.ALL;
+            const topicKey = this.topic(channel ?? exports.MessageChannel.ALL, topic);
+            if (!this.handlers[topicKey]) {
+                this.handlers[topicKey] = [];
+            }
+            console.log(topic, topicKey);
+            // TODO: Implement full handler logic including:
+            // - Better error handling
+            // - Message validation
+            // - Reply timeout handling
+            const handler1 = async (message) => {
+                // console.log(message, '----------- message sealx request -----', this.id)
+                if ((message.topic === topic || topic === exports.SealxTopic.ALL) && (channel === exports.MessageChannel.ALL || channel === message.sender)) {
+                    try {
+                        return await handler(message, (res, end = false) => {
+                            this.reply(res, message, end);
+                        });
+                    }
+                    catch (e) {
+                        this.replyError(e, message);
+                    }
+                }
+            };
+            this.handlers[topicKey].push(handler1);
+            // 返回取消订阅函数
+            return () => {
+                this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== handler1);
+            };
+        };
+        /**
+         * Unregisters a message handler for a specific topic
+         * @param topic - The topic to stop listening on
+         * @param callback - Handler function to remove
+         * @param channel - Optional channel filter for messages
+         * @returns Function that can be used to re-register the handler
+         *
+         *
+         * @example
+         * ```typescript
+         * // Remove a specific handler
+         * messager.off('data-update', handler);
+         * ```
+         */
+        this.off = (topic, callback, channel) => {
+            channel = channel ?? exports.MessageChannel.ALL;
+            const topicKey = this.topic(channel, topic);
+            if (!this.handlers[topicKey]) {
+                return;
+            }
+            // Remove the handler
+            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
+        };
+        this.channel = channel;
+        this.forwardHandlers = {};
+        this.handlers = {};
+        this.onMessage();
+        this.session = session;
+        this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
+    }
+    /**
+     * Formats a topic with the standard prefix
+     * @param topic - The base topic name
+     * @returns Formatted topic string with prefix
+     * @example
+     * ```typescript
+     * const fullTopic = messager.topic('data-update');
+     * // Returns: 'sealx:data-update'
+     * ```
+     */
+    topic(channel, topic) {
+        return `${TOPIC_PREFIX}-${channel}-${topic}`;
+    }
+    /**
+     * Handles incoming messages by routing them to registered handlers
+     * @param message - The received message to process
+     * @remarks
+     * Only processes messages that:
+     * - Are addressed to this channel or ALL channels
+     * - Have registered handlers for their topic
+     */
+    async receiveMessage(message) {
+        const channelTopicKey = this.topic(message.sender, message.topic);
+        const channelAllTopicKey = this.topic(message.sender, exports.SealxTopic.ALL);
+        const allChannelAllTopicKey = this.topic(exports.MessageChannel.ALL, exports.SealxTopic.ALL);
+        const allChannelTopicKey = this.topic(exports.MessageChannel.ALL, message.topic);
+        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
+            channelTopicKey, allChannelAllTopicKey];
+        const response = [];
+        for (const topicKey of topicKeys) {
+            const handles = this.handlers[topicKey] ?? [];
+            for (const handle of handles) {
+                if (!('responseId' in message))
+                    response.push(await handle(message));
+            }
+        }
+        return response;
+    }
+    /**
+     * Generates a response topic name from a base topic
+     * @param topic - The base topic name
+     * @returns Response topic string with ':response' suffix
+     * @example
+     * ```typescript
+     * const responseTopic = messager.responseTopic('data-update');
+     * // Returns: 'data-update:response'
+     * ```
+     */
+    responseTopic(topic) {
+        return `${topic}:response`;
+    }
+    /**
+     * Generates a unique message ID with QN prefix
+     * @returns Unique message ID string combining:
+     * - QN prefix
+     * - Current timestamp
+     * - Random number suffix
+     *
+     * @example
+     * ```typescript
+     * const id = messager.messageId();
+     * // Returns: "QN-1624798800000-123"
+     * ```
+     */
+    messageId() {
+        return `QN-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
+    }
+    get host() {
+        return window.location.host;
+    }
+    get header() {
+        const id = this.messageId();
+        return {
+            host: this.host,
+            requestId: id,
+            sessionId: this.session?.sessionId ?? '',
+            messagerId: this.id,
+            userId: this.session?.userId
+        };
+    }
+    /**
+     * Sends a message and returns an async generator that yields multiple responses
+     * Useful for streaming or long-running operations that return multiple chunks
+     *
+     * @typeParam T - The type of the message payload
+     * @param message - The initial payload to send
+     * @param topic - The topic to send on
+     * @param receiver - Optional specific receiver channel (defaults to ALL)
+     * @returns AsyncGenerator that yields response payloads
+     *
+     * @example
+     * ```typescript
+     * // Using the stream
+     * const stream = messager.sendStream(data, 'stream-topic');
+     * for await (const chunk of stream) {
+     *   console.log('Received chunk:', chunk);
+     * }
+     * ```
+     */
+    async *sendStream(message, topic, receiver) {
+        // const id = this.messageId()
+        const sendMsg = {
+            header: this.header,
+            payload: message,
+            receiver: receiver ?? exports.MessageChannel.ALL,
+            sender: this.channel,
+            topic: topic,
+            once: false
+        };
+        this.postMessage(sendMsg);
+        // Internal queue for buffering incoming messages
+        const queue = [];
+        // Callbacks for resolving/rejecting the next promise
+        let resolveNext = null;
+        let rejectNext = null;
+        // Flag indicating if the stream has completed
+        let done = false;
+        /**
+         * Handles incoming stream messages
+         * @param event - Message event containing the response
+         */
+        const handle = (event) => {
+            const data = event.data;
+            if (!data.header) {
+                return;
+            }
+            if (data.header.requestId !== sendMsg.header.requestId)
+                return;
+            if (data.header.messagerId === sendMsg.header.messagerId) {
+                return;
+            }
+            if (data.error) {
+                done = true;
+                this.removeListener(handle);
+                rejectNext?.(data.error);
+            }
+            else {
+                queue.push(data);
+                resolveNext?.(queue.shift());
+                resolveNext = null;
+                rejectNext = null;
+            }
+            if (data.end) {
+                done = true;
+                this.removeListener(handle);
+            }
+        };
+        this.addListener(handle);
+        try {
+            while (!done || queue.length) {
+                if (queue.length) {
+                    yield queue.shift();
+                }
+                else {
+                    // Yield control and wait for next message
+                    yield await new Promise((resolve, reject) => {
+                        resolveNext = resolve;
+                        rejectNext = reject;
+                    });
+                }
+            }
+        }
+        finally {
+            this.removeListener(handle);
+        }
+        return;
+    }
+    onForward(receiver, handle) {
+        this.forwardHandlers[receiver] = handle;
+    }
+}
+
+// import { TabManager } from "sealx-core";
+/**
+ * Handles message communication for content scripts in browser extensions.
+ * Manages message passing between:
+ * - Content scripts and background pages
+ * - Content scripts and iframes
+ * - Content scripts and inpage scripts
+ */
+class ContentMessager extends MessagerBase {
+    constructor() {
+        super(exports.MessageChannel.CONTENT);
+        /**
+         * Flag indicating whether messages should be forwarded to other channels
+         */
+        this.forwardMessage = null;
+    }
+    /**
+     * Enables message forwarding capability
+     */
+    setMessageBridgeAvailable(forward = exports.MessageChannel.ALL) {
+        this.forwardMessage = forward;
+    }
+    /**
+     * Sets up message listeners for:
+     * - Window messages (from iframes/pages)
+     * - Runtime messages (from background/other content scripts)
+     * Handles message filtering and forwarding logic
+     */
+    onMessage() {
+        this.addListener(async (event, sender) => {
+            let message = null;
+            if (event instanceof MessageEvent) {
+                message = event.data;
+            }
+            else {
+                message = event;
+                if (message && message.header && sender?.tab)
+                    message.header.tabId = sender.tab.id;
+            }
+            if (message && message.header) {
+                // Skip messages sent by this messager to prevent loops
+                if (message.header.messagerId === this.id) {
+                    return;
+                }
+                if (this.channel !== message.receiver && message.sender !== this.channel) {
+                    // Forward messages to other channels when bridge is available
+                    message.header.messagerId = this.id;
+                    await this.forwardHandlers[message.receiver]?.(message);
+                    this.postMessage(message);
+                }
+                else {
+                    const response = await this.receiveMessage(message);
+                    const f = response.filter(r => r !== undefined);
+                    const t = f.length > 0 ? f.pop() : undefined;
+                    if (t && !(('responseId' in message) && !message.reply))
+                        this.reply(t, message);
+                }
+            }
+        });
+    }
+    /**
+     * Gets all iframe windows in the current document
+     * @returns NodeList of all iframe elements
+     */
+    get iframeWindows() {
+        const iframes = document.querySelectorAll('iframe');
+        return iframes;
+    }
+    /**
+     * Posts a message to the appropriate receiver:
+     * - inpage: Uses postMessage API with targetOrigin '*'
+     * - Background: Uses browser.runtime.sendMessage
+     * @param message The message to send
+     */
+    postMessage(message) {
+        message.header.messagerId = this.id;
+        if (message.receiver === exports.MessageChannel.INPAGE || message.receiver === exports.MessageChannel.IFRAME) {
+            window.postMessage(message, '*');
+            if (this.iframeWindows) {
+                this.iframeWindows.forEach((iframe) => {
+                    // Note: Using '*' targetOrigin allows any iframe to receive the message
+                    // Optional chaining (?.) safely handles cases where contentWindow is null
+                    iframe.contentWindow?.postMessage(message, '*');
+                });
+            }
+        }
+        else {
+            try {
+                const runtime = chrome.runtime;
+                if (runtime)
+                    runtime.sendMessage(message);
+            }
+            catch (e) {
+                console.error('postMessage error:', e);
+                this.replyError(e, message);
+            }
+        }
+    }
+    /**
+     * Adds message listeners for:
+     * - Window messages (from iframes/pages)
+     * - Runtime messages (from background/other content scripts)
+     * @param callback Function to handle incoming messages
+     */
+    addListener(callback) {
+        const runtime = chrome.runtime;
+        // Listen for messages from window (iframes/pages)
+        window.addEventListener('message', callback);
+        // Listen for messages from extension runtime (background/other content scripts)
+        if (runtime)
+            runtime.onMessage.addListener(callback);
+    }
+    /**
+     * Removes previously added message listeners
+     * @param callback The callback function to remove
+     */
+    removeListener(callback) {
+        const runtime = chrome.runtime;
+        window.removeEventListener('message', callback);
+        if (runtime)
+            runtime.onMessage.removeListener(callback);
+    }
+}
+
+// import browser from 'webextension-polyfill';
+const STORAGE_KEY = 'sealx_tab_manager';
 class TabManager {
     tabs = [];
     currentTab;
     static instance;
+    id = 0;
     constructor() {
-        if (chrome && chrome.tabs) {
-            chrome.tabs.query({}).then((tabs) => {
-                if (tabs.length > 0 && tabs[0].id !== undefined) {
-                    chrome.tabs.get(tabs[0].id).then((tab) => {
-                        this.tabs.push(tab);
-                        if (tab.active) {
-                            this.currentTab = tab;
-                        }
-                    });
+        this.id = Math.floor(Math.random() * 1000000);
+        this.initFromStorage();
+        this.setupListeners();
+    }
+    /**
+     * Initialize from chrome.storage to ensure consistency across contexts
+     */
+    async initFromStorage() {
+        if (!chrome?.storage?.local)
+            return;
+        try {
+            const result = await chrome.storage.local.get(STORAGE_KEY);
+            const stored = result[STORAGE_KEY];
+            if (stored && stored.timestamp) {
+                // Use stored data if it's recent (within 30 seconds)
+                const age = Date.now() - stored.timestamp;
+                if (age < 30000 && stored.currentTab) {
+                    this.currentTab = stored.currentTab;
+                    this.tabs = stored.tabs || [];
+                    console.log('TabManager: initialized from storage, tabId:', this.currentTab.id);
+                    return;
                 }
-            });
-            chrome.tabs.onActivated.addListener((tabInfo) => {
-                chrome.tabs.get(tabInfo.tabId).then((tab) => {
-                    if (this.tabs.findIndex(t => t.id === tab.id) === -1)
-                        this.tabs.push(tab);
-                    if (tab.active) {
-                        this.currentTab = tab;
-                        console.log('TabManager: current tab updated to', tab.id, tab.url);
-                    }
-                }).catch((error) => {
-                    console.error('TabManager: failed to get tab', tabInfo.tabId, error);
-                });
-            });
-            // 分离
-            chrome.tabs.onDetached.addListener(() => { });
-            chrome.tabs.onCreated.addListener(() => { });
-            chrome.tabs.onRemoved.addListener(() => { });
+            }
+        }
+        catch (e) {
+            console.warn('TabManager: failed to read from storage', e);
+        }
+        // Fallback to querying tabs directly
+        this.queryTabs();
+    }
+    /**
+     * Query tabs from Chrome API
+     */
+    async queryTabs() {
+        if (!chrome?.tabs)
+            return;
+        try {
+            const tabs = await chrome.tabs.query({});
+            if (tabs.length > 0 && tabs[0].id !== undefined) {
+                const tab = await chrome.tabs.get(tabs[0].id);
+                this.tabs.push(tab);
+                if (tab.active && tab.url?.startsWith('chrome-extension://')) {
+                    this.currentTab = tab;
+                }
+            }
+        }
+        catch (e) {
+            console.error('TabManager: failed to query tabs', e);
+        }
+    }
+    /**
+     * Setup Chrome tab event listeners
+     */
+    setupListeners() {
+        if (!chrome?.tabs)
+            return;
+        chrome.tabs.onActivated.addListener(async (tabInfo) => {
+            try {
+                const tab = await chrome.tabs.get(tabInfo.tabId);
+                if (this.tabs.findIndex(t => t.id === tab.id) === -1) {
+                    this.tabs.push(tab);
+                }
+                if (tab.active && tab.url?.startsWith('chrome-extension://')) {
+                    this.currentTab = tab;
+                    this.persistToStorage();
+                    console.log('TabManager: current tab updated to', tab.id, tab.url);
+                }
+            }
+            catch (error) {
+                console.error('TabManager: failed to get tab', tabInfo.tabId, error);
+            }
+        });
+        chrome.tabs.onDetached.addListener(() => { });
+        chrome.tabs.onCreated.addListener(() => { });
+        chrome.tabs.onRemoved.addListener(() => { });
+    }
+    /**
+     * Persist current state to chrome.storage for cross-context synchronization
+     */
+    async persistToStorage() {
+        if (!chrome?.storage?.local)
+            return;
+        try {
+            const state = {
+                currentTabId: this.currentTabId,
+                currentTab: this.currentTab,
+                tabs: this.tabs,
+                timestamp: Date.now()
+            };
+            await chrome.storage.local.set({ [STORAGE_KEY]: state });
+        }
+        catch (e) {
+            console.warn('TabManager: failed to persist to storage', e);
         }
     }
     static getInstance() {
         if (!TabManager.instance) {
             TabManager.instance = new TabManager();
         }
+        if (!TabManager.instance.currentTabId)
+            TabManager.instance.initFromStorage();
         return TabManager.instance;
     }
     get currentTabId() {
         return this.currentTab?.id;
     }
-    async updateActiveTab() {
-        const tabs = await chrome.tabs.query({
-            active: true,
-            currentWindow: true
-        });
-        if (tabs[0]) {
-            this.currentTab = tabs[0];
+    async updateActiveTab(tabId) {
+        if (tabId) {
+            const tabs = await chrome.tabs.query({
+                active: true,
+            });
+            const tab = tabs.find(t => t.id === tabId);
+            if (tab) {
+                this.currentTab = tab;
+                this.persistToStorage();
+                return;
+            }
+        }
+        else {
+            const tabs = await chrome.tabs.query({
+                active: true,
+                currentWindow: true,
+            });
+            if (tabs[0]) {
+                const url = tabs[0].url || '';
+                // Skip update if the active tab is an extension popup/options page
+                if (url.startsWith('chrome-extension://')) {
+                    return;
+                }
+                this.currentTab = tabs[0];
+                this.persistToStorage();
+            }
         }
     }
 }
@@ -9097,7 +9844,7 @@ var hasRequiredCore;
 function requireCore () {
 	if (hasRequiredCore) return core$1.exports;
 	hasRequiredCore = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -9910,7 +10657,7 @@ var hasRequiredX64Core;
 function requireX64Core () {
 	if (hasRequiredX64Core) return x64Core$1.exports;
 	hasRequiredX64Core = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -10220,7 +10967,7 @@ var hasRequiredLibTypedarrays;
 function requireLibTypedarrays () {
 	if (hasRequiredLibTypedarrays) return libTypedarrays$1.exports;
 	hasRequiredLibTypedarrays = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -10302,7 +11049,7 @@ var hasRequiredEncUtf16;
 function requireEncUtf16 () {
 	if (hasRequiredEncUtf16) return encUtf16$1.exports;
 	hasRequiredEncUtf16 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -10457,7 +11204,7 @@ var hasRequiredEncBase64;
 function requireEncBase64 () {
 	if (hasRequiredEncBase64) return encBase64$1.exports;
 	hasRequiredEncBase64 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -10599,7 +11346,7 @@ var hasRequiredEncBase64url;
 function requireEncBase64url () {
 	if (hasRequiredEncBase64url) return encBase64url$1.exports;
 	hasRequiredEncBase64url = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -10753,7 +11500,7 @@ var hasRequiredMd5;
 function requireMd5 () {
 	if (hasRequiredMd5) return md5$1.exports;
 	hasRequiredMd5 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -11027,7 +11774,7 @@ var hasRequiredSha1;
 function requireSha1 () {
 	if (hasRequiredSha1) return sha1$1.exports;
 	hasRequiredSha1 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -11183,7 +11930,7 @@ var hasRequiredSha256;
 function requireSha256 () {
 	if (hasRequiredSha256) return sha256$1.exports;
 	hasRequiredSha256 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -11388,7 +12135,7 @@ var hasRequiredSha224;
 function requireSha224 () {
 	if (hasRequiredSha224) return sha224$1.exports;
 	hasRequiredSha224 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -11474,7 +12221,7 @@ var hasRequiredSha512;
 function requireSha512 () {
 	if (hasRequiredSha512) return sha512$1.exports;
 	hasRequiredSha512 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -11806,7 +12553,7 @@ var hasRequiredSha384;
 function requireSha384 () {
 	if (hasRequiredSha384) return sha384$1.exports;
 	hasRequiredSha384 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -11895,7 +12642,7 @@ var hasRequiredSha3;
 function requireSha3 () {
 	if (hasRequiredSha3) return sha3$1.exports;
 	hasRequiredSha3 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -12227,7 +12974,7 @@ var hasRequiredRipemd160;
 function requireRipemd160 () {
 	if (hasRequiredRipemd160) return ripemd160$1.exports;
 	hasRequiredRipemd160 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -12500,7 +13247,7 @@ var hasRequiredHmac;
 function requireHmac () {
 	if (hasRequiredHmac) return hmac$1.exports;
 	hasRequiredHmac = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -12649,7 +13396,7 @@ var hasRequiredPbkdf2;
 function requirePbkdf2 () {
 	if (hasRequiredPbkdf2) return pbkdf2$1.exports;
 	hasRequiredPbkdf2 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -12800,7 +13547,7 @@ var hasRequiredEvpkdf;
 function requireEvpkdf () {
 	if (hasRequiredEvpkdf) return evpkdf$1.exports;
 	hasRequiredEvpkdf = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -12940,7 +13687,7 @@ var hasRequiredCipherCore;
 function requireCipherCore () {
 	if (hasRequiredCipherCore) return cipherCore$1.exports;
 	hasRequiredCipherCore = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -13841,7 +14588,7 @@ var hasRequiredModeCfb;
 function requireModeCfb () {
 	if (hasRequiredModeCfb) return modeCfb$1.exports;
 	hasRequiredModeCfb = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -13927,7 +14674,7 @@ var hasRequiredModeCtr;
 function requireModeCtr () {
 	if (hasRequiredModeCtr) return modeCtr$1.exports;
 	hasRequiredModeCtr = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -13991,7 +14738,7 @@ var hasRequiredModeCtrGladman;
 function requireModeCtrGladman () {
 	if (hasRequiredModeCtrGladman) return modeCtrGladman$1.exports;
 	hasRequiredModeCtrGladman = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14113,7 +14860,7 @@ var hasRequiredModeOfb;
 function requireModeOfb () {
 	if (hasRequiredModeOfb) return modeOfb$1.exports;
 	hasRequiredModeOfb = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14173,7 +14920,7 @@ var hasRequiredModeEcb;
 function requireModeEcb () {
 	if (hasRequiredModeEcb) return modeEcb$1.exports;
 	hasRequiredModeEcb = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14219,7 +14966,7 @@ var hasRequiredPadAnsix923;
 function requirePadAnsix923 () {
 	if (hasRequiredPadAnsix923) return padAnsix923$1.exports;
 	hasRequiredPadAnsix923 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14274,7 +15021,7 @@ var hasRequiredPadIso10126;
 function requirePadIso10126 () {
 	if (hasRequiredPadIso10126) return padIso10126$1.exports;
 	hasRequiredPadIso10126 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14324,7 +15071,7 @@ var hasRequiredPadIso97971;
 function requirePadIso97971 () {
 	if (hasRequiredPadIso97971) return padIso97971$1.exports;
 	hasRequiredPadIso97971 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14370,7 +15117,7 @@ var hasRequiredPadZeropadding;
 function requirePadZeropadding () {
 	if (hasRequiredPadZeropadding) return padZeropadding$1.exports;
 	hasRequiredPadZeropadding = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14423,7 +15170,7 @@ var hasRequiredPadNopadding;
 function requirePadNopadding () {
 	if (hasRequiredPadNopadding) return padNopadding$1.exports;
 	hasRequiredPadNopadding = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14459,7 +15206,7 @@ var hasRequiredFormatHex;
 function requireFormatHex () {
 	if (hasRequiredFormatHex) return formatHex$1.exports;
 	hasRequiredFormatHex = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14531,7 +15278,7 @@ var hasRequiredAes;
 function requireAes () {
 	if (hasRequiredAes) return aes$1.exports;
 	hasRequiredAes = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -14771,7 +15518,7 @@ var hasRequiredTripledes;
 function requireTripledes () {
 	if (hasRequiredTripledes) return tripledes$1.exports;
 	hasRequiredTripledes = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -15556,7 +16303,7 @@ var hasRequiredRc4;
 function requireRc4 () {
 	if (hasRequiredRc4) return rc4$1.exports;
 	hasRequiredRc4 = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -15701,7 +16448,7 @@ var hasRequiredRabbit;
 function requireRabbit () {
 	if (hasRequiredRabbit) return rabbit$1.exports;
 	hasRequiredRabbit = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -15899,7 +16646,7 @@ var hasRequiredRabbitLegacy;
 function requireRabbitLegacy () {
 	if (hasRequiredRabbitLegacy) return rabbitLegacy$1.exports;
 	hasRequiredRabbitLegacy = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -16095,7 +16842,7 @@ var hasRequiredBlowfish;
 function requireBlowfish () {
 	if (hasRequiredBlowfish) return blowfish$1.exports;
 	hasRequiredBlowfish = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -16570,7 +17317,7 @@ var hasRequiredCryptoJs;
 function requireCryptoJs () {
 	if (hasRequiredCryptoJs) return cryptoJs$1.exports;
 	hasRequiredCryptoJs = 1;
-	(function (module, exports) {
+	(function (module, exports$1) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -16597,1124 +17344,6 @@ function isNativeFullscreen() {
         doc.webkitFullscreenElement ||
         doc.mozFullScreenElement ||
         doc.msFullscreenElement);
-}
-
-function number(n) {
-    if (!Number.isSafeInteger(n) || n < 0)
-        throw new Error(`Wrong positive integer: ${n}`);
-}
-function bytes(b, ...lengths) {
-    if (!(b instanceof Uint8Array))
-        throw new Error('Expected Uint8Array');
-    if (lengths.length > 0 && !lengths.includes(b.length))
-        throw new Error(`Expected Uint8Array of length ${lengths}, not of length=${b.length}`);
-}
-function exists(instance, checkFinished = true) {
-    if (instance.destroyed)
-        throw new Error('Hash instance has been destroyed');
-    if (checkFinished && instance.finished)
-        throw new Error('Hash#digest() has already been called');
-}
-function output(out, instance) {
-    bytes(out);
-    const min = instance.outputLen;
-    if (out.length < min) {
-        throw new Error(`digestInto() expects output buffer of length at least ${min}`);
-    }
-}
-
-const U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
-const _32n = /* @__PURE__ */ BigInt(32);
-// We are not using BigUint64Array, because they are extremely slow as per 2022
-function fromBig(n, le = false) {
-    if (le)
-        return { h: Number(n & U32_MASK64), l: Number((n >> _32n) & U32_MASK64) };
-    return { h: Number((n >> _32n) & U32_MASK64) | 0, l: Number(n & U32_MASK64) | 0 };
-}
-function split(lst, le = false) {
-    let Ah = new Uint32Array(lst.length);
-    let Al = new Uint32Array(lst.length);
-    for (let i = 0; i < lst.length; i++) {
-        const { h, l } = fromBig(lst[i], le);
-        [Ah[i], Al[i]] = [h, l];
-    }
-    return [Ah, Al];
-}
-// Left rotate for Shift in [1, 32)
-const rotlSH = (h, l, s) => (h << s) | (l >>> (32 - s));
-const rotlSL = (h, l, s) => (l << s) | (h >>> (32 - s));
-// Left rotate for Shift in (32, 64), NOTE: 32 is special case.
-const rotlBH = (h, l, s) => (l << (s - 32)) | (h >>> (64 - s));
-const rotlBL = (h, l, s) => (h << (s - 32)) | (l >>> (64 - s));
-
-/*! noble-hashes - MIT License (c) 2022 Paul Miller (paulmillr.com) */
-// We use WebCrypto aka globalThis.crypto, which exists in browsers and node.js 16+.
-// node.js versions earlier than v19 don't declare it in global scope.
-// For node.js, package.json#exports field mapping rewrites import
-// from `crypto` to `cryptoNode`, which imports native module.
-// Makes the utils un-importable in browsers without a bundler.
-// Once node.js 18 is deprecated, we can just drop the import.
-const u8a = (a) => a instanceof Uint8Array;
-const u32 = (arr) => new Uint32Array(arr.buffer, arr.byteOffset, Math.floor(arr.byteLength / 4));
-// big-endian hardware is rare. Just in case someone still decides to run hashes:
-// early-throw an error because we don't support BE yet.
-const isLE = new Uint8Array(new Uint32Array([0x11223344]).buffer)[0] === 0x44;
-if (!isLE)
-    throw new Error('Non little-endian hardware is not supported');
-/**
- * @example utf8ToBytes('abc') // new Uint8Array([97, 98, 99])
- */
-function utf8ToBytes(str) {
-    if (typeof str !== 'string')
-        throw new Error(`utf8ToBytes expected string, got ${typeof str}`);
-    return new Uint8Array(new TextEncoder().encode(str)); // https://bugzil.la/1681809
-}
-/**
- * Normalizes (non-hex) string or Uint8Array to Uint8Array.
- * Warning: when Uint8Array is passed, it would NOT get copied.
- * Keep in mind for future mutable operations.
- */
-function toBytes(data) {
-    if (typeof data === 'string')
-        data = utf8ToBytes(data);
-    if (!u8a(data))
-        throw new Error(`expected Uint8Array, got ${typeof data}`);
-    return data;
-}
-// For runtime check if class implements interface
-class Hash {
-    // Safe version that clones internal state
-    clone() {
-        return this._cloneInto();
-    }
-}
-function wrapConstructor(hashCons) {
-    const hashC = (msg) => hashCons().update(toBytes(msg)).digest();
-    const tmp = hashCons();
-    hashC.outputLen = tmp.outputLen;
-    hashC.blockLen = tmp.blockLen;
-    hashC.create = () => hashCons();
-    return hashC;
-}
-
-// SHA3 (keccak) is based on a new design: basically, the internal state is bigger than output size.
-// It's called a sponge function.
-// Various per round constants calculations
-const [SHA3_PI, SHA3_ROTL, _SHA3_IOTA] = [[], [], []];
-const _0n = /* @__PURE__ */ BigInt(0);
-const _1n = /* @__PURE__ */ BigInt(1);
-const _2n = /* @__PURE__ */ BigInt(2);
-const _7n = /* @__PURE__ */ BigInt(7);
-const _256n = /* @__PURE__ */ BigInt(256);
-const _0x71n = /* @__PURE__ */ BigInt(0x71);
-for (let round = 0, R = _1n, x = 1, y = 0; round < 24; round++) {
-    // Pi
-    [x, y] = [y, (2 * x + 3 * y) % 5];
-    SHA3_PI.push(2 * (5 * y + x));
-    // Rotational
-    SHA3_ROTL.push((((round + 1) * (round + 2)) / 2) % 64);
-    // Iota
-    let t = _0n;
-    for (let j = 0; j < 7; j++) {
-        R = ((R << _1n) ^ ((R >> _7n) * _0x71n)) % _256n;
-        if (R & _2n)
-            t ^= _1n << ((_1n << /* @__PURE__ */ BigInt(j)) - _1n);
-    }
-    _SHA3_IOTA.push(t);
-}
-const [SHA3_IOTA_H, SHA3_IOTA_L] = /* @__PURE__ */ split(_SHA3_IOTA, true);
-// Left rotation (without 0, 32, 64)
-const rotlH = (h, l, s) => (s > 32 ? rotlBH(h, l, s) : rotlSH(h, l, s));
-const rotlL = (h, l, s) => (s > 32 ? rotlBL(h, l, s) : rotlSL(h, l, s));
-// Same as keccakf1600, but allows to skip some rounds
-function keccakP(s, rounds = 24) {
-    const B = new Uint32Array(5 * 2);
-    // NOTE: all indices are x2 since we store state as u32 instead of u64 (bigints to slow in js)
-    for (let round = 24 - rounds; round < 24; round++) {
-        // Theta θ
-        for (let x = 0; x < 10; x++)
-            B[x] = s[x] ^ s[x + 10] ^ s[x + 20] ^ s[x + 30] ^ s[x + 40];
-        for (let x = 0; x < 10; x += 2) {
-            const idx1 = (x + 8) % 10;
-            const idx0 = (x + 2) % 10;
-            const B0 = B[idx0];
-            const B1 = B[idx0 + 1];
-            const Th = rotlH(B0, B1, 1) ^ B[idx1];
-            const Tl = rotlL(B0, B1, 1) ^ B[idx1 + 1];
-            for (let y = 0; y < 50; y += 10) {
-                s[x + y] ^= Th;
-                s[x + y + 1] ^= Tl;
-            }
-        }
-        // Rho (ρ) and Pi (π)
-        let curH = s[2];
-        let curL = s[3];
-        for (let t = 0; t < 24; t++) {
-            const shift = SHA3_ROTL[t];
-            const Th = rotlH(curH, curL, shift);
-            const Tl = rotlL(curH, curL, shift);
-            const PI = SHA3_PI[t];
-            curH = s[PI];
-            curL = s[PI + 1];
-            s[PI] = Th;
-            s[PI + 1] = Tl;
-        }
-        // Chi (χ)
-        for (let y = 0; y < 50; y += 10) {
-            for (let x = 0; x < 10; x++)
-                B[x] = s[y + x];
-            for (let x = 0; x < 10; x++)
-                s[y + x] ^= ~B[(x + 2) % 10] & B[(x + 4) % 10];
-        }
-        // Iota (ι)
-        s[0] ^= SHA3_IOTA_H[round];
-        s[1] ^= SHA3_IOTA_L[round];
-    }
-    B.fill(0);
-}
-class Keccak extends Hash {
-    // NOTE: we accept arguments in bytes instead of bits here.
-    constructor(blockLen, suffix, outputLen, enableXOF = false, rounds = 24) {
-        super();
-        this.blockLen = blockLen;
-        this.suffix = suffix;
-        this.outputLen = outputLen;
-        this.enableXOF = enableXOF;
-        this.rounds = rounds;
-        this.pos = 0;
-        this.posOut = 0;
-        this.finished = false;
-        this.destroyed = false;
-        // Can be passed from user as dkLen
-        number(outputLen);
-        // 1600 = 5x5 matrix of 64bit.  1600 bits === 200 bytes
-        if (0 >= this.blockLen || this.blockLen >= 200)
-            throw new Error('Sha3 supports only keccak-f1600 function');
-        this.state = new Uint8Array(200);
-        this.state32 = u32(this.state);
-    }
-    keccak() {
-        keccakP(this.state32, this.rounds);
-        this.posOut = 0;
-        this.pos = 0;
-    }
-    update(data) {
-        exists(this);
-        const { blockLen, state } = this;
-        data = toBytes(data);
-        const len = data.length;
-        for (let pos = 0; pos < len;) {
-            const take = Math.min(blockLen - this.pos, len - pos);
-            for (let i = 0; i < take; i++)
-                state[this.pos++] ^= data[pos++];
-            if (this.pos === blockLen)
-                this.keccak();
-        }
-        return this;
-    }
-    finish() {
-        if (this.finished)
-            return;
-        this.finished = true;
-        const { state, suffix, pos, blockLen } = this;
-        // Do the padding
-        state[pos] ^= suffix;
-        if ((suffix & 0x80) !== 0 && pos === blockLen - 1)
-            this.keccak();
-        state[blockLen - 1] ^= 0x80;
-        this.keccak();
-    }
-    writeInto(out) {
-        exists(this, false);
-        bytes(out);
-        this.finish();
-        const bufferOut = this.state;
-        const { blockLen } = this;
-        for (let pos = 0, len = out.length; pos < len;) {
-            if (this.posOut >= blockLen)
-                this.keccak();
-            const take = Math.min(blockLen - this.posOut, len - pos);
-            out.set(bufferOut.subarray(this.posOut, this.posOut + take), pos);
-            this.posOut += take;
-            pos += take;
-        }
-        return out;
-    }
-    xofInto(out) {
-        // Sha3/Keccak usage with XOF is probably mistake, only SHAKE instances can do XOF
-        if (!this.enableXOF)
-            throw new Error('XOF is not possible for this instance');
-        return this.writeInto(out);
-    }
-    xof(bytes) {
-        number(bytes);
-        return this.xofInto(new Uint8Array(bytes));
-    }
-    digestInto(out) {
-        output(out, this);
-        if (this.finished)
-            throw new Error('digest() was already called');
-        this.writeInto(out);
-        this.destroy();
-        return out;
-    }
-    digest() {
-        return this.digestInto(new Uint8Array(this.outputLen));
-    }
-    destroy() {
-        this.destroyed = true;
-        this.state.fill(0);
-    }
-    _cloneInto(to) {
-        const { blockLen, suffix, outputLen, rounds, enableXOF } = this;
-        to || (to = new Keccak(blockLen, suffix, outputLen, enableXOF, rounds));
-        to.state32.set(this.state32);
-        to.pos = this.pos;
-        to.posOut = this.posOut;
-        to.finished = this.finished;
-        to.rounds = rounds;
-        // Suffix can change in cSHAKE
-        to.suffix = suffix;
-        to.outputLen = outputLen;
-        to.enableXOF = enableXOF;
-        to.destroyed = this.destroyed;
-        return to;
-    }
-}
-const gen = (suffix, blockLen, outputLen) => wrapConstructor(() => new Keccak(blockLen, suffix, outputLen));
-/**
- * keccak-256 hash function. Different from SHA3-256.
- * @param message - that would be hashed
- */
-const keccak_256 = /* @__PURE__ */ gen(0x01, 136, 256 / 8);
-
-/* Do NOT modify this file; see /src.ts/_admin/update-version.ts */
-/**
- *  The current version of Ethers.
- */
-const version = "6.14.4";
-
-/**
- *  Property helper functions.
- *
- *  @_subsection api/utils:Properties  [about-properties]
- */
-/**
- *  Assigns the %%values%% to %%target%% as read-only values.
- *
- *  It %%types%% is specified, the values are checked.
- */
-function defineProperties(target, values, types) {
-    for (let key in values) {
-        let value = values[key];
-        Object.defineProperty(target, key, { enumerable: true, value, writable: false });
-    }
-}
-
-/**
- *  All errors in ethers include properties to ensure they are both
- *  human-readable (i.e. ``.message``) and machine-readable (i.e. ``.code``).
- *
- *  The [[isError]] function can be used to check the error ``code`` and
- *  provide a type guard for the properties present on that error interface.
- *
- *  @_section: api/utils/errors:Errors  [about-errors]
- */
-function stringify(value, seen) {
-    if (value == null) {
-        return "null";
-    }
-    if (seen == null) {
-        seen = new Set();
-    }
-    if (typeof (value) === "object") {
-        if (seen.has(value)) {
-            return "[Circular]";
-        }
-        seen.add(value);
-    }
-    if (Array.isArray(value)) {
-        return "[ " + (value.map((v) => stringify(v, seen))).join(", ") + " ]";
-    }
-    if (value instanceof Uint8Array) {
-        const HEX = "0123456789abcdef";
-        let result = "0x";
-        for (let i = 0; i < value.length; i++) {
-            result += HEX[value[i] >> 4];
-            result += HEX[value[i] & 0xf];
-        }
-        return result;
-    }
-    if (typeof (value) === "object" && typeof (value.toJSON) === "function") {
-        return stringify(value.toJSON(), seen);
-    }
-    switch (typeof (value)) {
-        case "boolean":
-        case "number":
-        case "symbol":
-            return value.toString();
-        case "bigint":
-            return BigInt(value).toString();
-        case "string":
-            return JSON.stringify(value);
-        case "object": {
-            const keys = Object.keys(value);
-            keys.sort();
-            return "{ " + keys.map((k) => `${stringify(k, seen)}: ${stringify(value[k], seen)}`).join(", ") + " }";
-        }
-    }
-    return `[ COULD NOT SERIALIZE ]`;
-}
-/**
- *  Returns a new Error configured to the format ethers emits errors, with
- *  the %%message%%, [[api:ErrorCode]] %%code%% and additional properties
- *  for the corresponding EthersError.
- *
- *  Each error in ethers includes the version of ethers, a
- *  machine-readable [[ErrorCode]], and depending on %%code%%, additional
- *  required properties. The error message will also include the %%message%%,
- *  ethers version, %%code%% and all additional properties, serialized.
- */
-function makeError(message, code, info) {
-    let shortMessage = message;
-    {
-        const details = [];
-        if (info) {
-            if ("message" in info || "code" in info || "name" in info) {
-                throw new Error(`value will overwrite populated values: ${stringify(info)}`);
-            }
-            for (const key in info) {
-                if (key === "shortMessage") {
-                    continue;
-                }
-                const value = (info[key]);
-                //                try {
-                details.push(key + "=" + stringify(value));
-                //                } catch (error: any) {
-                //                console.log("MMM", error.message);
-                //                    details.push(key + "=[could not serialize object]");
-                //                }
-            }
-        }
-        details.push(`code=${code}`);
-        details.push(`version=${version}`);
-        if (details.length) {
-            message += " (" + details.join(", ") + ")";
-        }
-    }
-    let error;
-    switch (code) {
-        case "INVALID_ARGUMENT":
-            error = new TypeError(message);
-            break;
-        case "NUMERIC_FAULT":
-        case "BUFFER_OVERRUN":
-            error = new RangeError(message);
-            break;
-        default:
-            error = new Error(message);
-    }
-    defineProperties(error, { code });
-    if (info) {
-        Object.assign(error, info);
-    }
-    if (error.shortMessage == null) {
-        defineProperties(error, { shortMessage });
-    }
-    return error;
-}
-/**
- *  Throws an EthersError with %%message%%, %%code%% and additional error
- *  %%info%% when %%check%% is falsish..
- *
- *  @see [[api:makeError]]
- */
-function assert(check, message, code, info) {
-    {
-        throw makeError(message, code, info);
-    }
-}
-/**
- *  A simple helper to simply ensuring provided arguments match expected
- *  constraints, throwing if not.
- *
- *  In TypeScript environments, the %%check%% has been asserted true, so
- *  any further code does not need additional compile-time checks.
- */
-function assertArgument(check, message, name, value) {
-    assert(check, message, "INVALID_ARGUMENT", { argument: name, value: value });
-}
-["NFD", "NFC", "NFKD", "NFKC"].reduce((accum, form) => {
-    try {
-        // General test for normalize
-        /* c8 ignore start */
-        if ("test".normalize(form) !== "test") {
-            throw new Error("bad");
-        }
-        ;
-        /* c8 ignore stop */
-        if (form === "NFD") {
-            const check = String.fromCharCode(0xe9).normalize("NFD");
-            const expected = String.fromCharCode(0x65, 0x0301);
-            /* c8 ignore start */
-            if (check !== expected) {
-                throw new Error("broken");
-            }
-            /* c8 ignore stop */
-        }
-        accum.push(form);
-    }
-    catch (error) { }
-    return accum;
-}, []);
-
-/**
- *  Some data helpers.
- *
- *
- *  @_subsection api/utils:Data Helpers  [about-data]
- */
-function _getBytes(value, name, copy) {
-    if (value instanceof Uint8Array) {
-        return value;
-    }
-    if (typeof (value) === "string" && value.match(/^0x(?:[0-9a-f][0-9a-f])*$/i)) {
-        const result = new Uint8Array((value.length - 2) / 2);
-        let offset = 2;
-        for (let i = 0; i < result.length; i++) {
-            result[i] = parseInt(value.substring(offset, offset + 2), 16);
-            offset += 2;
-        }
-        return result;
-    }
-    assertArgument(false, "invalid BytesLike value", name || "value", value);
-}
-/**
- *  Get a typed Uint8Array for %%value%%. If already a Uint8Array
- *  the original %%value%% is returned; if a copy is required use
- *  [[getBytesCopy]].
- *
- *  @see: getBytesCopy
- */
-function getBytes(value, name) {
-    return _getBytes(value, name);
-}
-const HexCharacters = "0123456789abcdef";
-/**
- *  Returns a [[DataHexString]] representation of %%data%%.
- */
-function hexlify(data) {
-    const bytes = getBytes(data);
-    let result = "0x";
-    for (let i = 0; i < bytes.length; i++) {
-        const v = bytes[i];
-        result += HexCharacters[(v & 0xf0) >> 4] + HexCharacters[v & 0x0f];
-    }
-    return result;
-}
-
-/**
- *  Cryptographic hashing functions
- *
- *  @_subsection: api/crypto:Hash Functions [about-crypto-hashing]
- */
-let locked = false;
-const _keccak256 = function (data) {
-    return keccak_256(data);
-};
-let __keccak256 = _keccak256;
-/**
- *  Compute the cryptographic KECCAK256 hash of %%data%%.
- *
- *  The %%data%% **must** be a data representation, to compute the
- *  hash of UTF-8 data use the [[id]] function.
- *
- *  @returns DataHexstring
- *  @example:
- *    keccak256("0x")
- *    //_result:
- *
- *    keccak256("0x1337")
- *    //_result:
- *
- *    keccak256(new Uint8Array([ 0x13, 0x37 ]))
- *    //_result:
- *
- *    // Strings are assumed to be DataHexString, otherwise it will
- *    // throw. To hash UTF-8 data, see the note above.
- *    keccak256("Hello World")
- *    //_error:
- */
-function keccak256(_data) {
-    const data = getBytes(_data, "data");
-    return hexlify(__keccak256(data));
-}
-keccak256._ = _keccak256;
-keccak256.lock = function () { locked = true; };
-keccak256.register = function (func) {
-    if (locked) {
-        throw new TypeError("keccak256 is locked");
-    }
-    __keccak256 = func;
-};
-Object.freeze(keccak256);
-
-/**
- * Abstract base class for message communication between channels.
- *
- * `MessagerBase` provides a framework for sending, receiving, and handling messages
- * across different contexts (content scripts, background, etc.) with these features:
- *
- * - Topic-based message handling with wildcard support
- * - Request/response and streaming message patterns
- * - Cross-channel communication with security considerations
- * - Automatic message correlation and response routing
- *
- * @typeParam T - Type of message payload (defaults to any)
- *
- * @property {Record<string, MessageHandle[]>} handlers - Topic to handlers mapping
- * @property {MessageChannel} channel - Communication channel for this instance
- * @property {string} id - Unique messager identifier
- * @property {SealxSession} [session] - Optional session context
- *
- * @constructor
- * @param channel - The message channel this instance will use for communication
- * @param session - Optional session information containing host and sessionId
- *
- * @example Basic implementation:
- * ```typescript
- * class MyMessager extends MessagerBase {
- *   onMessage() {
- *     // Implement message handling
- *   }
- *   postMessage(message) {
- *     // Implement message sending
- *   }
- *   // ... other abstract methods
- * }
- * ```
- *
- * @see {@link MessageChannel} for available communication channels
- * @see {@link SealxRequest} for message request structure
- * @see {@link SealxResponse} for response structure
- * @see {@link SealxSession} for session context details
- */
-class MessagerBase {
-    /**
-     * Creates a new MessagerBase instance
-     * @param channel - The message channel this instance will use for communication
-     * @param session - Optional session information containing host and sessionId
-     */
-    constructor(channel, session) {
-        /** Unique identifier for this messager instance */
-        this.id = 'messager-base';
-        /**
-         * Sends a reply message in response to a received message
-         * @param message - The payload to send
-         * @param topic - The topic to reply on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @param messageId - Optional message ID to reply to (if replying to specific message)
-         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
-         * @returns Promise that resolves when message is sent
-         *
-         * @note Subclasses must implement the actual message posting logic in postMessage()
-         */
-        this.reply = async (message, request, end = true) => {
-            const id = this.messageId();
-            const header = {
-                ...request.header,
-                messagerId: this.id
-            };
-            const response = {
-                ...request,
-                header,
-                payload: message,
-                receiver: request.sender,
-                sender: request.receiver,
-                responseId: id,
-                end: end ? end : (request.once ?? false)
-            };
-            if (this.session) {
-                response.session = this.session;
-            }
-            this.postMessage(response);
-            return Promise.resolve(response);
-        };
-        /**
-         * Sends a reply message in response to a received message
-         * @param message - The payload to send
-         * @param topic - The topic to reply on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @param messageId - Optional message ID to reply to (if replying to specific message)
-         * @param end - Indicates whether this is the final response in a message chain. If `true`, marks the end of the response sequence. Defaults to `true`.
-         * @returns Promise that resolves when message is sent
-         *
-         * @note Subclasses must implement the actual message posting logic in postMessage()
-         */
-        this.replyError = async (error, request, end = true) => {
-            const id = this.messageId();
-            const header = {
-                ...request.header,
-                messagerId: this.id
-            };
-            const response = {
-                ...request,
-                header,
-                error: error,
-                receiver: request.sender,
-                sender: request.receiver,
-                responseId: id,
-                end: end ? end : (request.once ?? false)
-            };
-            if (this.session) {
-                response.session = this.session;
-            }
-            this.postMessage(response);
-            return Promise.resolve(response);
-        };
-        /**
-         * Sends a message and waits for a single response
-         *
-         * @remarks
-         * This method:
-         * - Automatically adds and removes a temporary listener for the response
-         * - Uses the message's requestId to correlate requests and responses
-         * - Handles both success and error responses
-         * - Cleans up listeners when complete
-         *
-         * @throws Will reject the promise if:
-         * - The message cannot be sent
-         * - The receiver returns an error response
-         * - The request times out (implementation dependent)
-         *
-         * @typeParam T - The type of the message payload
-         * @param message - The payload to send
-         * @param topic - The topic to send on
-         * @param receiver - Optional specific receiver channel (defaults to ALL)
-         * @returns Promise that resolves with the response payload or rejects on error
-         */
-        this.send = async (message, topic, receiver) => {
-            // const id = this.messageId()
-            const sendMsg = {
-                header: this.header,
-                payload: message,
-                receiver: receiver ?? MessageChannel.ALL,
-                sender: this.channel,
-                topic: topic,
-                once: true,
-            };
-            if (chrome.tabs) {
-                await (TabManager.getInstance().updateActiveTab());
-            }
-            // this.postMessage(sendMsg)
-            return new Promise((resolve, rejected) => {
-                try {
-                    this.postMessage(sendMsg);
-                }
-                catch (e) {
-                    rejected(e);
-                }
-                const handle = (event) => {
-                    const message = event instanceof MessageEvent ? event.data : event;
-                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
-                        this.removeListener(handle);
-                        if (message.error) {
-                            rejected(message.error);
-                        }
-                        else {
-                            resolve(message);
-                        }
-                    }
-                };
-                this.addListener(handle);
-            });
-        };
-        /**
-         * Registers a handler for messages on a specific topic
-         * @param topic - The topic to listen on (supports wildcards via SealxTopic.ALL)
-         * @param handler - Function to handle incoming messages
-         * @param channel - Optional specific channel to filter messages by (defaults to ALL)
-         * @returns Function to unsubscribe the handler
-         *
-         * @remarks
-         * The handler receives two arguments:
-         * 1. The incoming message
-         * 2. A reply function that can be used to send a response
-         *
-         * @example Basic usage
-         * ```typescript
-         * // Register handler
-         * const unsubscribe = messager.on('data-update', (message, reply) => {
-         *   console.log('Received update:', message);
-         *   reply({ status: 'acknowledged' });
-         * });
-         *
-         * // Later, to unsubscribe:
-         * unsubscribe();
-         * ```
-         *
-         * @example Wildcard handler
-         * ```typescript
-         * // Handle all messages regardless of topic
-         * messager.on(SealxTopic.ALL, (message) => {
-         *   console.log('Received message:', message);
-         * });
-         * ```
-         */
-        this.on = (topic, handler, channel) => {
-            channel = channel ?? MessageChannel.ALL;
-            const topicKey = this.topic(channel ?? MessageChannel.ALL, topic);
-            if (!this.handlers[topicKey]) {
-                this.handlers[topicKey] = [];
-            }
-            console.log(topic, topicKey);
-            // TODO: Implement full handler logic including:
-            // - Better error handling
-            // - Message validation
-            // - Reply timeout handling
-            const handler1 = async (message) => {
-                // console.log(message, '----------- message sealx request -----', this.id)
-                if ((message.topic === topic || topic === SealxTopic.ALL) && (channel === MessageChannel.ALL || channel === message.sender)) {
-                    try {
-                        return await handler(message, (res, end = false) => {
-                            this.reply(res, message, end);
-                        });
-                    }
-                    catch (e) {
-                        this.replyError(e, message);
-                    }
-                }
-            };
-            this.handlers[topicKey].push(handler1);
-            // 返回取消订阅函数
-            return () => {
-                this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== handler1);
-            };
-        };
-        /**
-         * Unregisters a message handler for a specific topic
-         * @param topic - The topic to stop listening on
-         * @param callback - Handler function to remove
-         * @param channel - Optional channel filter for messages
-         * @returns Function that can be used to re-register the handler
-         *
-         *
-         * @example
-         * ```typescript
-         * // Remove a specific handler
-         * messager.off('data-update', handler);
-         * ```
-         */
-        this.off = (topic, callback, channel) => {
-            channel = channel ?? MessageChannel.ALL;
-            const topicKey = this.topic(channel, topic);
-            if (!this.handlers[topicKey]) {
-                return;
-            }
-            // Remove the handler
-            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
-        };
-        this.channel = channel;
-        this.forwardHandlers = {};
-        this.handlers = {};
-        this.onMessage();
-        this.session = session;
-        this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
-    }
-    /**
-     * Formats a topic with the standard prefix
-     * @param topic - The base topic name
-     * @returns Formatted topic string with prefix
-     * @example
-     * ```typescript
-     * const fullTopic = messager.topic('data-update');
-     * // Returns: 'sealx:data-update'
-     * ```
-     */
-    topic(channel, topic) {
-        return `${TOPIC_PREFIX}-${channel}-${topic}`;
-    }
-    /**
-     * Handles incoming messages by routing them to registered handlers
-     * @param message - The received message to process
-     * @remarks
-     * Only processes messages that:
-     * - Are addressed to this channel or ALL channels
-     * - Have registered handlers for their topic
-     */
-    async receiveMessage(message) {
-        const channelTopicKey = this.topic(message.sender, message.topic);
-        const channelAllTopicKey = this.topic(message.sender, SealxTopic.ALL);
-        const allChannelAllTopicKey = this.topic(MessageChannel.ALL, SealxTopic.ALL);
-        const allChannelTopicKey = this.topic(MessageChannel.ALL, message.topic);
-        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
-            channelTopicKey, allChannelAllTopicKey];
-        const response = [];
-        for (const topicKey of topicKeys) {
-            const handles = this.handlers[topicKey] ?? [];
-            for (const handle of handles) {
-                if (!('responseId' in message))
-                    response.push(await handle(message));
-            }
-        }
-        return response;
-    }
-    /**
-     * Generates a response topic name from a base topic
-     * @param topic - The base topic name
-     * @returns Response topic string with ':response' suffix
-     * @example
-     * ```typescript
-     * const responseTopic = messager.responseTopic('data-update');
-     * // Returns: 'data-update:response'
-     * ```
-     */
-    responseTopic(topic) {
-        return `${topic}:response`;
-    }
-    /**
-     * Generates a unique message ID with QN prefix
-     * @returns Unique message ID string combining:
-     * - QN prefix
-     * - Current timestamp
-     * - Random number suffix
-     *
-     * @example
-     * ```typescript
-     * const id = messager.messageId();
-     * // Returns: "QN-1624798800000-123"
-     * ```
-     */
-    messageId() {
-        return `QN-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
-    }
-    get host() {
-        return window.location.host;
-    }
-    get header() {
-        const id = this.messageId();
-        return {
-            host: this.host,
-            requestId: id,
-            sessionId: this.session?.sessionId ?? '',
-            messagerId: this.id,
-            userId: this.session?.userId
-        };
-    }
-    /**
-     * Sends a message and returns an async generator that yields multiple responses
-     * Useful for streaming or long-running operations that return multiple chunks
-     *
-     * @typeParam T - The type of the message payload
-     * @param message - The initial payload to send
-     * @param topic - The topic to send on
-     * @param receiver - Optional specific receiver channel (defaults to ALL)
-     * @returns AsyncGenerator that yields response payloads
-     *
-     * @example
-     * ```typescript
-     * // Using the stream
-     * const stream = messager.sendStream(data, 'stream-topic');
-     * for await (const chunk of stream) {
-     *   console.log('Received chunk:', chunk);
-     * }
-     * ```
-     */
-    async *sendStream(message, topic, receiver) {
-        // const id = this.messageId()
-        const sendMsg = {
-            header: this.header,
-            payload: message,
-            receiver: receiver ?? MessageChannel.ALL,
-            sender: this.channel,
-            topic: topic,
-            once: false
-        };
-        this.postMessage(sendMsg);
-        // Internal queue for buffering incoming messages
-        const queue = [];
-        // Callbacks for resolving/rejecting the next promise
-        let resolveNext = null;
-        let rejectNext = null;
-        // Flag indicating if the stream has completed
-        let done = false;
-        /**
-         * Handles incoming stream messages
-         * @param event - Message event containing the response
-         */
-        const handle = (event) => {
-            const data = event.data;
-            if (!data.header) {
-                return;
-            }
-            if (data.header.requestId !== sendMsg.header.requestId)
-                return;
-            if (data.header.messagerId === sendMsg.header.messagerId) {
-                return;
-            }
-            if (data.error) {
-                done = true;
-                this.removeListener(handle);
-                rejectNext?.(data.error);
-            }
-            else {
-                queue.push(data);
-                resolveNext?.(queue.shift());
-                resolveNext = null;
-                rejectNext = null;
-            }
-            if (data.end) {
-                done = true;
-                this.removeListener(handle);
-            }
-        };
-        this.addListener(handle);
-        try {
-            while (!done || queue.length) {
-                if (queue.length) {
-                    yield queue.shift();
-                }
-                else {
-                    // Yield control and wait for next message
-                    yield await new Promise((resolve, reject) => {
-                        resolveNext = resolve;
-                        rejectNext = reject;
-                    });
-                }
-            }
-        }
-        finally {
-            this.removeListener(handle);
-        }
-        return;
-    }
-    onForward(receiver, handle) {
-        this.forwardHandlers[receiver] = handle;
-    }
-}
-
-// import { TabManager } from "sealx-core";
-/**
- * Handles message communication for content scripts in browser extensions.
- * Manages message passing between:
- * - Content scripts and background pages
- * - Content scripts and iframes
- * - Content scripts and inpage scripts
- */
-class ContentMessager extends MessagerBase {
-    constructor() {
-        super(MessageChannel.CONTENT);
-        /**
-         * Flag indicating whether messages should be forwarded to other channels
-         */
-        this.forwardMessage = null;
-    }
-    /**
-     * Enables message forwarding capability
-     */
-    setMessageBridgeAvailable(forward = MessageChannel.ALL) {
-        this.forwardMessage = forward;
-    }
-    /**
-     * Sets up message listeners for:
-     * - Window messages (from iframes/pages)
-     * - Runtime messages (from background/other content scripts)
-     * Handles message filtering and forwarding logic
-     */
-    onMessage() {
-        this.addListener(async (event, sender) => {
-            let message = null;
-            if (event instanceof MessageEvent) {
-                message = event.data;
-            }
-            else {
-                message = event;
-                if (message && message.header && sender?.tab)
-                    message.header.tabId = sender.tab.id;
-            }
-            if (message && message.header) {
-                // Skip messages sent by this messager to prevent loops
-                if (message.header.messagerId === this.id) {
-                    return;
-                }
-                if (this.channel !== message.receiver && message.sender !== this.channel) {
-                    // Forward messages to other channels when bridge is available
-                    message.header.messagerId = this.id;
-                    await this.forwardHandlers[message.receiver]?.(message);
-                    this.postMessage(message);
-                }
-                else {
-                    const response = await this.receiveMessage(message);
-                    const f = response.filter(r => r !== undefined);
-                    const t = f.length > 0 ? f.pop() : undefined;
-                    if (!('responseId' in message) && !message.reply)
-                        this.reply(t, message);
-                }
-            }
-        });
-    }
-    /**
-     * Gets all iframe windows in the current document
-     * @returns NodeList of all iframe elements
-     */
-    get iframeWindows() {
-        const iframes = document.querySelectorAll('iframe');
-        return iframes;
-    }
-    /**
-     * Posts a message to the appropriate receiver:
-     * - inpage: Uses postMessage API with targetOrigin '*'
-     * - Background: Uses browser.runtime.sendMessage
-     * @param message The message to send
-     */
-    postMessage(message) {
-        message.header.messagerId = this.id;
-        if (message.receiver === MessageChannel.INPAGE || message.receiver === MessageChannel.IFRAME) {
-            window.postMessage(message, '*');
-            if (this.iframeWindows) {
-                this.iframeWindows.forEach((iframe) => {
-                    // Note: Using '*' targetOrigin allows any iframe to receive the message
-                    // Optional chaining (?.) safely handles cases where contentWindow is null
-                    iframe.contentWindow?.postMessage(message, '*');
-                });
-            }
-        }
-        else {
-            try {
-                const runtime = chrome.runtime;
-                if (runtime)
-                    runtime.sendMessage(message);
-            }
-            catch (e) {
-                console.error('postMessage error:', e);
-                this.replyError(e, message);
-            }
-        }
-    }
-    /**
-     * Adds message listeners for:
-     * - Window messages (from iframes/pages)
-     * - Runtime messages (from background/other content scripts)
-     * @param callback Function to handle incoming messages
-     */
-    addListener(callback) {
-        const runtime = chrome.runtime;
-        // Listen for messages from window (iframes/pages)
-        window.addEventListener('message', callback);
-        // Listen for messages from extension runtime (background/other content scripts)
-        if (runtime)
-            runtime.onMessage.addListener(callback);
-    }
-    /**
-     * Removes previously added message listeners
-     * @param callback The callback function to remove
-     */
-    removeListener(callback) {
-        const runtime = chrome.runtime;
-        window.removeEventListener('message', callback);
-        if (runtime)
-            runtime.onMessage.removeListener(callback);
-    }
 }
 
 /**
@@ -17757,11 +17386,11 @@ class ExtensionMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return;
                 }
-                if (message.receiver === this.channel && message.header.messagerId.includes(MessageChannel.BACKGROUND)) {
+                if (message.receiver === this.channel && message.header.messagerId.includes(exports.MessageChannel.BACKGROUND)) {
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined);
                     const t = f.length > 0 ? f.pop() : undefined;
-                    if (!('responseId' in message) && !message.reply)
+                    if (t && !(('responseId' in message) && !message.reply))
                         this.reply(t, message);
                 }
             }
@@ -17780,9 +17409,9 @@ class ExtensionMessager extends MessagerBase {
     postMessage(message) {
         // Add tab ID for content script messages if not provided
         const contentScriptChannels = [
-            MessageChannel.CONTENT,
-            MessageChannel.INPAGE,
-            MessageChannel.IFRAME
+            exports.MessageChannel.CONTENT,
+            exports.MessageChannel.INPAGE,
+            exports.MessageChannel.IFRAME
         ];
         message.header.messagerId = this.id;
         if (contentScriptChannels.includes(message.receiver)) {
@@ -17838,7 +17467,7 @@ class BackgroundMessager extends MessagerBase {
      * Initializes with BACKGROUND channel and gets TabManager instance
      */
     constructor() {
-        super(MessageChannel.BACKGROUND);
+        super(exports.MessageChannel.BACKGROUND);
         this.tabManager = TabManager.getInstance();
     }
     /**
@@ -17849,7 +17478,7 @@ class BackgroundMessager extends MessagerBase {
         return this.tabManager.currentTabId;
     }
     get host() {
-        return MessageChannel.BACKGROUND;
+        return exports.MessageChannel.BACKGROUND;
     }
     /**
      * Sets up message listener for incoming messages
@@ -17870,7 +17499,7 @@ class BackgroundMessager extends MessagerBase {
                 if (message.header.messagerId === this.id) {
                     return;
                 }
-                if (this.channel !== message.receiver && message.sender !== this.channel && message.receiver !== MessageChannel.ALL) {
+                if (this.channel !== message.receiver && message.sender !== this.channel && message.receiver !== exports.MessageChannel.ALL) {
                     // Forward messages to other channels when bridge is available
                     message.header.messagerId = this.id;
                     await this.forwardHandlers[message.receiver]?.(message);
@@ -17880,7 +17509,7 @@ class BackgroundMessager extends MessagerBase {
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined);
                     const t = f.length > 0 ? f.pop() : undefined;
-                    if (!('responseId' in message) && !message.reply)
+                    if (t && !(('responseId' in message) && !message.reply))
                         this.reply(t, message);
                 }
             }
@@ -17899,17 +17528,17 @@ class BackgroundMessager extends MessagerBase {
     postMessage(message) {
         message.header.messagerId = this.id;
         // Add tab ID for content script messages if not provided
-        if ([MessageChannel.CONTENT, MessageChannel.INPAGE, MessageChannel.IFRAME].includes(message.receiver)) {
+        if ([exports.MessageChannel.CONTENT, exports.MessageChannel.INPAGE, exports.MessageChannel.IFRAME].includes(message.receiver)) {
             if (!message.header.tabId && this.tabId) {
                 message.header.tabId = this.tabId;
             }
         }
         message.header.messagerId = this.id;
         // Send message to appropriate destination
-        if (message.receiver === MessageChannel.EXTENSION
-            || message.receiver === MessageChannel.POPUP
-            || message.receiver === MessageChannel.OPTIONS
-            || message.receiver === MessageChannel.SIDEBAR
+        if (message.receiver === exports.MessageChannel.EXTENSION
+            || message.receiver === exports.MessageChannel.POPUP
+            || message.receiver === exports.MessageChannel.OPTIONS
+            || message.receiver === exports.MessageChannel.SIDEBAR
             || !message.header.tabId) {
             // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
             chrome.runtime?.sendMessage(message);
@@ -17960,9 +17589,9 @@ class WindowMessager extends MessagerBase {
      * Creates a new WindowMessager instance
      */
     constructor() {
-        super(MessageChannel.INPAGE);
+        super(exports.MessageChannel.INPAGE);
         if (this.isInIframeSafe) {
-            this.channel = MessageChannel.IFRAME;
+            this.channel = exports.MessageChannel.IFRAME;
             this.id = `messager-${this.channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
         }
     }
@@ -17990,7 +17619,7 @@ class WindowMessager extends MessagerBase {
                     const response = await this.receiveMessage(message);
                     const f = response.filter(r => r !== undefined);
                     const t = f.length > 0 ? f.pop() : undefined;
-                    if (!('responseId' in message) && !message.reply)
+                    if (t && !(('responseId' in message) && !message.reply))
                         this.reply(t, message);
                 }
             }
@@ -18094,15 +17723,15 @@ class MessagerManager {
                 const meta = document.querySelector('meta[name="extension-context"]');
                 const context = meta?.content;
                 const validChannels = [
-                    MessageChannel.POPUP,
-                    MessageChannel.OPTIONS,
-                    MessageChannel.SIDEBAR,
-                    MessageChannel.EXTENSION
+                    exports.MessageChannel.POPUP,
+                    exports.MessageChannel.OPTIONS,
+                    exports.MessageChannel.SIDEBAR,
+                    exports.MessageChannel.EXTENSION
                 ];
                 // Validate the channel from meta tag or fallback to EXTENSION
                 const channel = validChannels.includes(context)
                     ? context
-                    : MessageChannel.EXTENSION;
+                    : exports.MessageChannel.EXTENSION;
                 return new ExtensionMessager(channel);
             case 'content':
                 // Content script running in a web page
@@ -18118,6 +17747,38 @@ class MessagerManager {
         }
     }
 }
+
+/**
+ * Periodically checks if the SealxSigner extension is still active
+ * @param messager - The messaging interface used to communicate with the extension
+ */
+const checkSealxSignerActive = (messager) => {
+    const sealxSigner = window.sealxSigner;
+    if (sealxSigner.active) {
+        // Check every 10 seconds if the extension is still active
+        setTimeout(async () => {
+            try {
+                // Send a ping message to check if extension is responsive
+                const res = await messager.send({ time: Date.now() }, exports.SealxTopic.CHECK_ACTIVED);
+                if (res.payload) {
+                    console.log("SealxSigner is active");
+                    // If active, schedule next check
+                    checkSealxSignerActive(messager);
+                }
+                else {
+                    console.warn("SealxSigner is not active, deactivating...");
+                    // If not active, deactivate the signer
+                    sealxSigner.deactivate();
+                }
+            }
+            catch (error) {
+                console.error("Error checking SealxSigner active state:", error);
+                // On any error, deactivate the signer as a safety measure
+                sealxSigner.deactivate();
+            }
+        }, 10000);
+    }
+};
 
 class PkException extends Error {
     constructor(message) {
@@ -18185,7 +17846,7 @@ class SealxUninitializedException extends Error {
 SealxProvider.register();
 const sealxSigner = window.sealxSigner;
 const messager = MessagerManager.getMessager();
-messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+messager.on(exports.SealxTopic.CHECK_INITIALIZED, async (request) => {
     // callback(request.payload)
     if (request.payload) {
         sealxSigner.activate();
@@ -18193,13 +17854,13 @@ messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
     else {
         sealxSigner.deactivate();
     }
-}, MessageChannel.BACKGROUND);
+}, exports.MessageChannel.BACKGROUND);
 /**
  * Message channel constants for communication with SealX extension
  * @private
  */
-const CHANNEL_POPUP = MessageChannel.POPUP;
-const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
+const CHANNEL_POPUP = exports.MessageChannel.POPUP;
+const CHANNEL_BACKGROUND = exports.MessageChannel.BACKGROUND;
 /**
  * Cache for SealX extension status to reduce redundant checks
  * @private
@@ -18367,7 +18028,7 @@ const connectSealx = async (uId = '') => {
         !sealxSigner.account || !sealxSigner.session.sessionId
         || sealxSigner.session.userId !== sealxSigner.account.userId) {
         try {
-            const res = await messager.send({ userId, title }, SealxTopic.CONNECT, CHANNEL_BACKGROUND);
+            const res = await messager.send({ userId, title }, exports.SealxTopic.CONNECT, CHANNEL_BACKGROUND);
             if (!res?.payload?.session || !res?.payload?.account) {
                 throw new SessionException('Invalid connection response');
             }
@@ -18445,7 +18106,7 @@ const bindSealx = async (userId) => {
         messager.session = sealxSigner.session;
     if (sealxSigner.account) {
         try {
-            const res = await messager.send(sealxSigner.account.userId, SealxTopic.BIND_PK, CHANNEL_POPUP);
+            const res = await messager.send(sealxSigner.account.userId, exports.SealxTopic.BIND_PK, CHANNEL_POPUP);
             if (!res?.payload) {
                 throw new Error('Failed to bind public key: No response payload received');
             }
@@ -18555,7 +18216,7 @@ const signBySealx = async (task, userId) => {
     try {
         if (Array.isArray(task)) {
             // For batch tasks, create an async generator that processes the stream
-            const responseStream = messager.sendStream(task, SealxTopic.BATCH_SIGN, CHANNEL_POPUP);
+            const responseStream = messager.sendStream(task, exports.SealxTopic.BATCH_SIGN, CHANNEL_POPUP);
             return (async function* () {
                 for await (const response of responseStream) {
                     if (!response?.payload) {
@@ -18567,7 +18228,7 @@ const signBySealx = async (task, userId) => {
         }
         else {
             // For single task, await the direct response
-            const res = await messager.send(task, SealxTopic.SIGN, CHANNEL_POPUP);
+            const res = await messager.send(task, exports.SealxTopic.SIGN, CHANNEL_POPUP);
             if (!res?.payload) {
                 throw new SignException(res?.error ?? '');
             }
@@ -18657,7 +18318,7 @@ const sendSignResponse = async (taskId, error = '', userId) => {
     const res = await messager.send({
         taskId,
         error,
-    }, SealxTopic.SIGN_RESPONSE, CHANNEL_POPUP);
+    }, exports.SealxTopic.SIGN_RESPONSE, CHANNEL_POPUP);
     if (!res?.payload) {
         throw new SignException(res?.error ?? '');
     }
@@ -18711,7 +18372,7 @@ const onSign = (callback, taskId) => {
             }
         }
     };
-    const off = messager.on(SealxTopic.SIGN_RESPONSE, handle, CHANNEL_POPUP);
+    const off = messager.on(exports.SealxTopic.SIGN_RESPONSE, handle, CHANNEL_POPUP);
     return () => off();
 };
 /**
@@ -18730,7 +18391,7 @@ const onSign = (callback, taskId) => {
  * ```
  */
 const closeSealx = () => {
-    messager.send('', SealxTopic.CLOSE, MessageChannel.BACKGROUND);
+    messager.send('', exports.SealxTopic.CLOSE, exports.MessageChannel.BACKGROUND);
 };
 /**
  * Checks if the SealX extension is initialized and ready
@@ -18761,7 +18422,7 @@ const checkSealx = async () => {
     const retryDelay = 100;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
-            const res = await messager.send('', SealxTopic.CHECK_INITIALIZED, MessageChannel.BACKGROUND);
+            const res = await messager.send('', exports.SealxTopic.CHECK_INITIALIZED, exports.MessageChannel.BACKGROUND);
             if (res?.payload) {
                 return res.payload;
             }
@@ -18802,14 +18463,14 @@ let checkTimer = null;
  * ```
  */
 const checkSealxActive = (callback) => {
-    messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
+    messager.on(exports.SealxTopic.CHECK_INITIALIZED, async (request) => {
         callback(request.payload);
-    }, MessageChannel.BACKGROUND);
+    }, exports.MessageChannel.BACKGROUND);
     if (checkTimer) {
         clearInterval(checkTimer);
     }
     checkTimer = setInterval(async () => {
-        const res = await messager.send('', SealxTopic.CHECK_INITIALIZED, MessageChannel.BACKGROUND);
+        const res = await messager.send('', exports.SealxTopic.CHECK_INITIALIZED, exports.MessageChannel.BACKGROUND);
         if (res.payload) {
             sealxSigner.activate();
         }
@@ -18819,14 +18480,151 @@ const checkSealxActive = (callback) => {
         callback(res.payload);
     }, 2000);
 };
+/**
+ * Highlight style for located elements
+ */
+const HIGHLIGHT_STYLE = {
+    border: '2px solid #007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    transition: 'all 0.3s ease'
+};
+/**
+ * Remove highlight style from element
+ */
+const removeHighlight = (element) => {
+    element.style.border = '';
+    element.style.backgroundColor = '';
+    element.style.transition = '';
+    element.classList.remove('sealx-located-element');
+};
+/**
+ * Add highlight style to element
+ */
+const addHighlight = (element) => {
+    Object.assign(element.style, HIGHLIGHT_STYLE);
+    element.classList.add('sealx-located-element');
+};
+/**
+ * Set of registered locatable keys
+ * If empty, all keys are allowed (backward compatibility)
+ */
+let registeredKeys = new Set();
+/**
+ * Register keys that can be located from the extension
+ *
+ * @param keys - Array of data-key values that can be located
+ *
+ * @example
+ * ```typescript
+ * import { registerLocatableKeys } from 'sealx-sdk';
+ *
+ * // Register keys that can be located
+ * registerLocatableKeys(['orderId', 'message.from', 'message.to']);
+ * ```
+ */
+const registerLocatableKeys = (keys) => {
+    if (!keys || keys.length === 0) {
+        console.log('[SealX] No keys to register, clearing registered keys');
+        registeredKeys.clear();
+        return;
+    }
+    keys.forEach(key => {
+        // Filter out empty strings
+        if (key && key.trim()) {
+            registeredKeys.add(key);
+        }
+    });
+    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
+};
+/**
+ * Check if a key is registered for location
+ * @param key - The key to check
+ * @returns true if key is registered or no keys are registered (backward compatibility)
+ */
+const isKeyRegistered = (key) => {
+    // If no keys are registered, allow all keys (backward compatibility)
+    if (registeredKeys.size === 0) {
+        return true;
+    }
+    return registeredKeys.has(key);
+};
+/**
+ * Default locate function - finds element by data-key attribute
+ */
+const defaultLocateCallback = (key, value) => {
+    return document.querySelector(`[data-key="${key}"]`);
+};
+/**
+ * Listen for LOCATE_ELEMENT messages from the extension and highlight corresponding elements
+ *
+ * @param locateCallback - Optional callback function to find the element to highlight
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { onLocateElement } from 'sealx-sdk';
+ *
+ * // Using default element location (by data-key attribute)
+ * const unsubscribe = onLocateElement();
+ *
+ * // Or with custom element location logic
+ * const unsubscribe = onLocateElement((key, value) => {
+ *   // Custom logic to find element based on key and value
+ *   return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+ * });
+ *
+ * // Later, stop listening
+ * unsubscribe();
+ * ```
+ */
+const onLocateElement = (locateCallback) => {
+    const locator = locateCallback || defaultLocateCallback;
+    const handleLocate = async (request) => {
+        const { key, value } = request.payload;
+        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
+        // Check if key is registered (if any keys are registered)
+        if (!isKeyRegistered(key)) {
+            console.log('[SealX] Key not registered, ignoring:', key);
+            return;
+        }
+        // Call the callback to get the element to highlight
+        const element = locator(key, value);
+        if (!element) {
+            console.log('[SealX] Element not found for key:', key);
+            return;
+        }
+        // Remove any existing highlights first
+        const existingHighlighted = document.querySelectorAll('.sealx-located-element');
+        existingHighlighted.forEach(el => removeHighlight(el));
+        // Add highlight to the element
+        addHighlight(element);
+        // Scroll element into view
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            removeHighlight(element);
+        }, 3000);
+        console.log('[SealX] Element highlighted:', key);
+    };
+    const off = messager.on(exports.SealxTopic.LOCATE_ELEMENT, handleLocate, exports.MessageChannel.POPUP);
+    return off;
+};
 
+exports.BackgroundMessager = BackgroundMessager;
+exports.ContentMessager = ContentMessager;
+exports.ExtensionMessager = ExtensionMessager;
+exports.MessagerManager = MessagerManager;
+exports.PinError = PinError;
 exports.SealxProvider = SealxProvider;
 exports.SealxSigner = SealxSigner;
+exports.TOPIC_PREFIX = TOPIC_PREFIX;
 exports.TabManager = TabManager$1;
+exports.WindowMessager = WindowMessager;
 exports.bindSealx = bindSealx;
 exports.buildSignRenderContext = buildSignRenderContext;
 exports.checkSealx = checkSealx;
 exports.checkSealxActive = checkSealxActive;
+exports.checkSealxSignerActive = checkSealxSignerActive;
 exports.checkTemplateArgValid = checkTemplateArgValid;
 exports.closeSealx = closeSealx;
 exports.connectSealx = connectSealx;
@@ -18842,9 +18640,11 @@ exports.isSessionAvailable = isSessionAvailable;
 exports.isViewportFullscreenBySize = isViewportFullscreenBySize$1;
 exports.layoutRender = layoutRender;
 exports.localStorageWrapper = localStorageWrapper;
+exports.onLocateElement = onLocateElement;
 exports.onSign = onSign;
 exports.parseSignContent = parseSignContent;
 exports.pinGenerator = pinGenerator;
+exports.registerLocatableKeys = registerLocatableKeys;
 exports.sealxActive = sealxActive;
 exports.sendSignResponse = sendSignResponse;
 exports.signBySealx = signBySealx;

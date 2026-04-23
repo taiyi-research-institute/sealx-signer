@@ -35,11 +35,31 @@ function waitForBody(callback: () => void) {
 }
 
 function initializeSealX() {
-    const div = document.createElement('div');
-    div.id = 'sealXContainer';
-    document.body.appendChild(div);
+    // 创建 Shadow DOM host 元素
+    const shadowHost = document.createElement('div');
+    shadowHost.id = 'sealXContainer';
+    shadowHost.style.cssText = 'all: initial;'; // 隔离全局样式
 
-    const rootContainer = document.querySelector('#sealXContainer');
+    // 附加 Shadow DOM
+    const shadowRoot = shadowHost.attachShadow({ mode: 'open' });
+
+    // 将样式复制到 shadow DOM 中
+    const styleElement = document.createElement('style');
+    // 获取全局样式
+    const globalStyles = document.querySelector('style[data-vite-dev-id*="global"]')?.textContent || '';
+    const tailwindStyles = document.querySelector('style[data-vite-dev-id*="tailwind"]')?.textContent || '';
+    styleElement.textContent = globalStyles + tailwindStyles;
+    shadowRoot.appendChild(styleElement);
+
+    // 在 shadow DOM 中创建 React 根容器
+    const reactRoot = document.createElement('div');
+    reactRoot.id = 'sealXReactRoot';
+    shadowRoot.appendChild(reactRoot);
+
+    // 将 shadow host 添加到 body
+    document.body.appendChild(shadowHost);
+
+    const rootContainer = shadowRoot.querySelector('#sealXReactRoot');
     if (!rootContainer) throw new Error("Can't find Content root element");
 
     const root = createRoot(rootContainer);

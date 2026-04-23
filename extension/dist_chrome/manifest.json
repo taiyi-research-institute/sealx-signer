@@ -39,7 +39,7 @@
     "alarms"
   ],
   "oauth2": {
-    "client_id": "978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com",
+    "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/drive.file"
     ]
@@ -47,7 +47,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.tsx-loader-BseVAJGo.js"
+        "assets/index.tsx-loader-DZ1J_aW0.js"
       ],
       "matches": [
         "http://*/*",
@@ -56,7 +56,7 @@
       "run_at": "document_start",
       "all_frames": true,
       "css": [
-        "assets/index-BpzCuD_4.css"
+        "assets/index-tn0RQdqM.css"
       ]
     }
   ],
@@ -67,7 +67,9 @@
       ],
       "resources": [
         "inpage.js",
+        "inpage.js.map",
         "sandbox.js",
+        "sandbox.js.map",
         "public/logo/sealx-logo-icon-16.png",
         "public/logo/sealx-logo-icon-32.png",
         "public/logo/sealx-logo-icon-48.png",
@@ -83,13 +85,19 @@
         "https://*/*"
       ],
       "resources": [
-        "assets/client-CRBwutFG.js",
-        "assets/index-Bj7Y5nDa.js",
-        "assets/messager-manager-DtyG9-yU.js",
-        "assets/lodash-BUKDu3TW.js",
-        "assets/index.tsx-BY_szedG.js"
+        "assets/client-BFv89GyB.js",
+        "assets/client-BFv89GyB.js.map",
+        "assets/index-DV-eyYeY.js",
+        "assets/index-DV-eyYeY.js.map",
+        "assets/messager-manager-D-PF5IjU.js",
+        "assets/messager-manager-D-PF5IjU.js.map",
+        "assets/index-BDvyUYL3.js",
+        "assets/index-BDvyUYL3.js.map",
+        "assets/index.tsx-0d5ZtU3V.js",
+        "assets/index.tsx-0d5ZtU3V.js.map"
       ],
       "use_dynamic_url": false
     }
-  ]
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqOMn0GPvx3IYpHGK+Hf0YatEjrfEspIbAl0UP+C64uHch+2E9tskudfTsa+58mQjNwztIDHPQCXfpl0d0/rXFtZL4BBU7H4Z3/KSrxCSLwocDeoLIzjrlcErb1xPQ9a0oK8mFnObl+/qFLH1RVcLGCSViJZerDmR2kiJrK2pdn/rVvmCiNVYWECAguQXjeetZ5HdoLp73V3mFtgtS/BUN+iY+9YDaxyOWvw7TAZMk+ntRm1wm78YnyDo4q9bp2MQdzbbGqLE2YAcEPp15PqKkYSRDB1s+tFMqNmCZlxyXOau+wy+x9Vxw4qUDjKDnPtjy/J2ib3EVH+qzQhYX+kf/wIDAQAB"
 }

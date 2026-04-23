@@ -63,3 +63,4 @@ export declare class SealxSigner {
     autoCheckTimer: any;
     autoCheck(checker: AutoCheckSealxCallback): Promise<void>;
 }
+//# sourceMappingURL=sealx-signer.d.ts.map

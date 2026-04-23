@@ -102,6 +102,16 @@ interface ConnectionSession {
 interface ConnectionResponseMessage {
     result: ConnectionSession;
 }
+/**
+ * Represents a message for locating an element in the page.
+ *
+ * @property key - The data-key attribute value to locate.
+ * @property value - Optional value of the element for matching.
+ */
+interface LocateElementMessage {
+    key: string;
+    value?: string;
+}
 
 /**
  * Actions that can be requested from the SealX service
@@ -149,6 +159,8 @@ declare enum SealxTopic {
     CLOSE = "close",
     /** Verify temporary code for import */
     VERIFY_TEMP_CODE = "verify-temp-code",
+    /** Locate element in the page by data-key attribute */
+    LOCATE_ELEMENT = "locate-element",
     /** All topics */
     ALL = "*"
 }
@@ -834,4 +846,4 @@ declare class MessagerManager {
 declare const checkSealxSignerActive: (messager: Messager) => void;
 
 export { BackgroundMessager, ContentMessager, ExtensionMessager, MessageChannel, MessagerManager, SealxTopic, TOPIC_PREFIX, WindowMessager, checkSealxSignerActive };
-export type { ConnectionRequest, ConnectionRequestMessage, ConnectionResponseMessage, ConnectionSession, DelSignRequest, DisconnectRequest, MessageHandle, MessageListener, MessageReply, MessageSend, MessageSendStream, Messager, OffMessageListener, ReplyFunc, SealxHeader, SealxRequest, SealxTopicEvent, SignRequest, SignResponseMessage, SignResult, SignTask, SignTaskMessage, Topic };
+export type { ConnectionRequest, ConnectionRequestMessage, ConnectionResponseMessage, ConnectionSession, DelSignRequest, DisconnectRequest, LocateElementMessage, MessageHandle, MessageListener, MessageReply, MessageSend, MessageSendStream, Messager, OffMessageListener, ReplyFunc, SealxHeader, SealxRequest, SealxTopicEvent, SignRequest, SignResponseMessage, SignResult, SignTask, SignTaskMessage, Topic };

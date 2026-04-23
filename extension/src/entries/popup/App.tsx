@@ -4,6 +4,7 @@ import './App.css';
 import { Routes } from './Routes';
 import { useMemo } from 'react';
 import { usePopupType } from '@src/hooks/usePopupType';
+import { TabManager } from 'sealx-core';
 
 
 
@@ -26,10 +27,15 @@ function App() {
         } else {
             document.body.removeAttribute('popup-mode');
         }
+        const updateTab = (_tabId: number, _changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab) => {
+            TabManager.getInstance().currentTab = tab
+        }
+        chrome.tabs.onUpdated.addListener(updateTab)
         // document.getElementById('authBtn')?.addEventListener('click', handleGoogleDriveBackup);
         // 清理函数
         return () => {
             document.body.removeAttribute('popup-mode');
+            chrome.tabs.onUpdated.removeListener(updateTab)
             // document.getElementById('authBtn')?.removeEventListener('click', handleGoogleDriveBackup);
         };
     }, [popupType]);

@@ -1,12 +1,14 @@
-export { TabManager } from './sealx-core/dist/tabs/tab-manager.mjs';
-import { SealxProvider } from './sealx-core/dist/sealx/sealx-provider.mjs';
-export { SealxSigner } from './sealx-core/dist/sealx/sealx-signer.mjs';
-import { wait } from './sealx-core/dist/utils/index.mjs';
-export { isNativeFullscreen, isViewportFullscreenBySize } from './sealx-core/dist/utils/index.mjs';
-export { dbStorageWrapper, localStorageWrapper } from './sealx-core/dist/storage/index.mjs';
-export { buildSignRenderContext, checkTemplateArgValid, convertToISOFormat, layoutRender, parseSignContent } from './sealx-core/dist/utils/eip712-helper.mjs';
-export { decryptPrivateKey, deriveKeyFromPin, encryptPrivateKey, pinGenerator, slatGenerator } from './sealx-core/dist/utils/cropto.mjs';
+export { TabManager } from './sealx-sdk/node_modules/sealx-core/dist/tabs/tab-manager.mjs';
+import { SealxProvider } from './sealx-sdk/node_modules/sealx-core/dist/sealx/sealx-provider.mjs';
+export { SealxSigner } from './sealx-sdk/node_modules/sealx-core/dist/sealx/sealx-signer.mjs';
+import { wait } from './sealx-sdk/node_modules/sealx-core/dist/utils/index.mjs';
+export { isNativeFullscreen, isViewportFullscreenBySize } from './sealx-sdk/node_modules/sealx-core/dist/utils/index.mjs';
+export { dbStorageWrapper, localStorageWrapper } from './sealx-sdk/node_modules/sealx-core/dist/storage/index.mjs';
+export { default as PinError } from './sealx-sdk/node_modules/sealx-core/dist/exceptions/PinError.mjs';
+export { buildSignRenderContext, checkTemplateArgValid, convertToISOFormat, layoutRender, parseSignContent } from './sealx-sdk/node_modules/sealx-core/dist/utils/eip712-helper.mjs';
+export { decryptPrivateKey, deriveKeyFromPin, encryptPrivateKey, pinGenerator, slatGenerator } from './sealx-sdk/node_modules/sealx-core/dist/utils/cropto.mjs';
 import { MessagerManager, SealxTopic, MessageChannel } from './sealx-message/dist/index.mjs';
+export { BackgroundMessager, ContentMessager, ExtensionMessager, TOPIC_PREFIX, WindowMessager, checkSealxSignerActive } from './sealx-message/dist/index.mjs';
 import PkException from './exceptions/PkException.mjs';
 import SignException from './exceptions/SignException.mjs';
 import SessionException from './exceptions/SessionException.mjs';
@@ -678,6 +680,135 @@ const checkSealxActive = (callback) => {
         callback(res.payload);
     }, 2000);
 };
+/**
+ * Highlight style for located elements
+ */
+const HIGHLIGHT_STYLE = {
+    border: '2px solid #007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    transition: 'all 0.3s ease'
+};
+/**
+ * Remove highlight style from element
+ */
+const removeHighlight = (element) => {
+    element.style.border = '';
+    element.style.backgroundColor = '';
+    element.style.transition = '';
+    element.classList.remove('sealx-located-element');
+};
+/**
+ * Add highlight style to element
+ */
+const addHighlight = (element) => {
+    Object.assign(element.style, HIGHLIGHT_STYLE);
+    element.classList.add('sealx-located-element');
+};
+/**
+ * Set of registered locatable keys
+ * If empty, all keys are allowed (backward compatibility)
+ */
+let registeredKeys = new Set();
+/**
+ * Register keys that can be located from the extension
+ *
+ * @param keys - Array of data-key values that can be located
+ *
+ * @example
+ * ```typescript
+ * import { registerLocatableKeys } from 'sealx-sdk';
+ *
+ * // Register keys that can be located
+ * registerLocatableKeys(['orderId', 'message.from', 'message.to']);
+ * ```
+ */
+const registerLocatableKeys = (keys) => {
+    if (!keys || keys.length === 0) {
+        console.log('[SealX] No keys to register, clearing registered keys');
+        registeredKeys.clear();
+        return;
+    }
+    keys.forEach(key => {
+        // Filter out empty strings
+        if (key && key.trim()) {
+            registeredKeys.add(key);
+        }
+    });
+    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
+};
+/**
+ * Check if a key is registered for location
+ * @param key - The key to check
+ * @returns true if key is registered or no keys are registered (backward compatibility)
+ */
+const isKeyRegistered = (key) => {
+    // If no keys are registered, allow all keys (backward compatibility)
+    if (registeredKeys.size === 0) {
+        return true;
+    }
+    return registeredKeys.has(key);
+};
+/**
+ * Default locate function - finds element by data-key attribute
+ */
+const defaultLocateCallback = (key, value) => {
+    return document.querySelector(`[data-key="${key}"]`);
+};
+/**
+ * Listen for LOCATE_ELEMENT messages from the extension and highlight corresponding elements
+ *
+ * @param locateCallback - Optional callback function to find the element to highlight
+ * @returns Unsubscribe function to stop listening
+ *
+ * @example
+ * ```typescript
+ * import { onLocateElement } from 'sealx-sdk';
+ *
+ * // Using default element location (by data-key attribute)
+ * const unsubscribe = onLocateElement();
+ *
+ * // Or with custom element location logic
+ * const unsubscribe = onLocateElement((key, value) => {
+ *   // Custom logic to find element based on key and value
+ *   return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+ * });
+ *
+ * // Later, stop listening
+ * unsubscribe();
+ * ```
+ */
+const onLocateElement = (locateCallback) => {
+    const locator = locateCallback || defaultLocateCallback;
+    const handleLocate = async (request) => {
+        const { key, value } = request.payload;
+        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
+        // Check if key is registered (if any keys are registered)
+        if (!isKeyRegistered(key)) {
+            console.log('[SealX] Key not registered, ignoring:', key);
+            return;
+        }
+        // Call the callback to get the element to highlight
+        const element = locator(key, value);
+        if (!element) {
+            console.log('[SealX] Element not found for key:', key);
+            return;
+        }
+        // Remove any existing highlights first
+        const existingHighlighted = document.querySelectorAll('.sealx-located-element');
+        existingHighlighted.forEach(el => removeHighlight(el));
+        // Add highlight to the element
+        addHighlight(element);
+        // Scroll element into view
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+            removeHighlight(element);
+        }, 3000);
+        console.log('[SealX] Element highlighted:', key);
+    };
+    const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
+    return off;
+};
 
-export { SealxProvider, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onSign, sealxActive, sendSignResponse, signBySealx, wait };
+export { MessageChannel, MessagerManager, SealxProvider, SealxTopic, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, signBySealx, wait };
 //# sourceMappingURL=index.mjs.map

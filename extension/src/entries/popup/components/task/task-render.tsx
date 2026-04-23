@@ -22,6 +22,8 @@ import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
 import Button from '@src/components/button';
 import { useSessionStore } from '@src/core/state/index.js';
+import { generateDataKey } from '@src/core/utils/dataKey';
+import { handleLocateElement } from '@src/core/utils/locateElement';
 // import moment from 'moment';
 
 /**
@@ -90,6 +92,19 @@ export const DefaultTemplateRender = memo(({
 }: DefaultTemplateRenderProps) => {
     const [safeHtml, setSafeHtml] = useState<string>('');
     const { sendToIframe } = useGlobalContext()
+
+    // 从 keysMapStr 解析出完整的 key 映射（用于元素定位）
+    const keyMap = useMemo(() => {
+        if (props.signContent instanceof Array) return null;
+        const layout = props.signContent.layout;
+        if (!layout?.keysMapStr) return null;
+        try {
+            return JSON.parse(layout.keysMapStr);
+        } catch {
+            return null;
+        }
+    }, [props.signContent]);
+
     const onRendered = useCallback(
         async () => {
             const { type, output, error } = await sendToIframe({
@@ -120,11 +135,18 @@ export const DefaultTemplateRender = memo(({
     const messages = props.signContent.message;
     const keys = Object.keys(messages);
     return keys.map((key) => {
+        // 从 keysMapStr 映射获取顶层 originKey
+        const mapping = keyMap?.[key];
+        const originKey = mapping?.originKey || key;
+        console.log('Origin Key:', originKey, key, mapping, keyMap);
         return (
             <div className='w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px] mt-[24px]'>
                 <OrigionMessageRender
-                    origionKey={key}
+                    origionKey={originKey}
+                    displayKey={key}
+                    keyMap={keyMap}
                     context={context}
+                    parentKeys={[]}
                     value={messages[key]}></OrigionMessageRender>
             </div>
         );
@@ -133,21 +155,87 @@ export const DefaultTemplateRender = memo(({
 
 export const OrigionMessageRender = memo(({
     origionKey,
+    displayKey,
+    keyMap,
     value,
-    context
-}: {
+    context,
+    parentKeys = [] }: {
     origionKey: string;
+        displayKey?: string;
+        keyMap?: Record<string, any>;
     context?: SignLayoutContext | null
     value: unknown;
+        parentKeys?: string[];
+        displayKeyPath?: string[];
 }) => {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-        const recordValue = value as Record<string, unknown>;
-        const keys = Object.keys(recordValue);
-        const context1 = context ? (Object.values(context).find(a => a.label === origionKey)?.value as SignLayoutContext) : null
+    // displayKey 是来自 message 的 key（如 "Fund Control", "#1", "Guardians"）
+    // keyMap 包含 originKey 和 originType 映射
+    // 参考 buildSignRenderContext: 用 message 的 key 去 keyMap 中查找
+    const keyForDisplay = displayKey || origionKey;
+
+    // 从 keyMap 查找当前 key 对应的 mapping
+    const currentMapping = keyMap?.[keyForDisplay];
+    // 如果没找到，尝试匹配 # 开头的键（如 #1）
+    const finalMapping = currentMapping || (keyForDisplay.startsWith('#') ? keyMap : undefined);
+
+    const originKey = finalMapping?.originKey || keyForDisplay;
+
+    // 处理叶子节点值的显示
+    const displayValue = (val: unknown): string => {
+        if (val === null || val === undefined) return '';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val);
+    };
+
+    // 根据 value 的类型来决定渲染方式（不修改这部分）
+    if (Array.isArray(value)) {
+        // 数组类型：遍历数组
+        // 参考 buildSignRenderContext: 数组元素的 children 在 children[数组key] 中
+        const arrayChildrenMap = finalMapping?.children;
         return (
             <>
                 <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                    {origionKey}
+                    {keyForDisplay}
+                </div>
+                <div className='w-full mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px] gap-y-[8px]'>
+                    {value.map((item, index) => {
+                        const itemKey = `#${index + 1}`;
+                        // 使用 originKey + 下标作为 data-key
+                        //const itemDataKey = `${originKey}.${itemKey}`;
+                        // 获取数组元素对应的 children
+                        const itemChildrenMap = arrayChildrenMap?.[itemKey];
+                        // 如果数组元素是对象，需要将 childrenMap 合并，让它能通过属性名查找
+                        // itemChildrenMap 包含 "Coin ID", "Fund Control Rules" 等属性
+                        return (
+                            <div
+                                key={index}
+                                className='flex flex-col gap-y-[8px]'
+                            >
+                                <OrigionMessageRender
+                                    origionKey={itemKey}
+                                    displayKey={itemKey}
+                                    keyMap={itemChildrenMap || arrayChildrenMap}
+                                    context={context}
+                                    parentKeys={[...parentKeys, originKey]}
+                                    value={item}
+                                />
+                            </div>
+                        );
+                    })}
+                </div>
+            </>
+        );
+    }
+
+    if (value && typeof value === 'object') {
+    // 对象类型：遍历对象属性
+        const recordValue = value as Record<string, unknown>;
+        const keys = Object.keys(recordValue);
+        const childrenMap = finalMapping?.children;
+        return (
+            <>
+                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                    {keyForDisplay}
                 </div>
                 <div className='w-full border-t border-[rgba(0,0,0,0.2)]'></div>
                 <div className='w-full pl-[12px] mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px]'>
@@ -156,30 +244,39 @@ export const OrigionMessageRender = memo(({
                             <div className='w-full pt-[20px]'>
                                 <OrigionMessageRender
                                     origionKey={key1}
-                                    context={context1}
-                                    value={
-                                        recordValue[key1]
-                                    }></OrigionMessageRender>
+                                    displayKey={key1}
+                                    keyMap={childrenMap}
+                                    context={context}
+                                    parentKeys={[...parentKeys, originKey]}
+                                    value={recordValue[key1]}
+                                />
                             </div>
                         );
                     })}
                 </div>
             </>
         );
-    } else {
-        const context1 = context ? (Object.values(context).find(a => a.label === origionKey)?.value) : null
-        return (
-            <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                    {origionKey}
-                </div>
-                <div className='w-full mt-[16px] flex text-left break-all font-[500] text-[24px] leading-[29px]'>
-                    {context1 ? String(context1) : String(value)}
-                </div>
-            </>
-        );
     }
-})
+
+    // 默认：叶子节点（简单值）
+    // 使用累积的 parentKeys + originKey 生成完整路径
+    const fullDataKey = [...parentKeys, originKey].filter(Boolean).join('.');
+    return (
+        <>
+            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                {keyForDisplay}
+            </div>
+            <div
+                className='w-full mt-[16px] flex text-left break-all font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                data-key={fullDataKey}
+                title='点击定位到业务系统中的对应数据'
+                onClick={handleLocateElement}
+            >
+                {displayValue(value)}
+            </div>
+        </>
+    );
+});
 
 /**
  * Props for OutsideTemplateRender component
@@ -223,7 +320,7 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
     }
     props.setSigning?.(true)
     try {
-        console.log('-------- request tab --------', TabManager.getInstance().currentTab, request.header)
+        //console.log('-------- request tab --------', TabManager.getInstance().currentTab, request.header)
         const signatures = [] as { taskId: string, signature: string }[];
         if (props.signContent instanceof Array) {
             for (const signContent of props.signContent) {
@@ -269,6 +366,7 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
 export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     const navigate = useNavigate();
     const { sendToIframe } = useGlobalContext()
+    //console.log('SignTaskRender props:', props);
     /**
      * Parses the raw sign content into a renderable format
      * - Uses memoization to avoid unnecessary re-parsing
@@ -534,7 +632,12 @@ export const TreasuryUnitTask = memo((
                         <CheckBox className='mr-[11px]'></CheckBox>
                         {commandLabel}
                     </div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                    <div
+                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        data-key='command'
+                        title='点击定位到业务系统中的对应数据'
+                        onClick={handleLocateElement}
+                    >
                         {command}
                     </div>
                 </div>
@@ -543,7 +646,12 @@ export const TreasuryUnitTask = memo((
                         <Calendar className='mr-[11px]'></Calendar>
                         {validTimeLabel}
                     </div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] break-all leading-[29px]'>
+                    <div
+                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] break-all leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        data-key='valid_until_time'
+                        title='点击定位到业务系统中的对应数据'
+                        onClick={handleLocateElement}
+                    >
                         {validDateFormat}
                     </div>
                 </div>
@@ -554,7 +662,12 @@ export const TreasuryUnitTask = memo((
                         <Vault className='mr-[11px]'></Vault>
                         {vaultCodeLabel}
                     </div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                    <div
+                        className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        data-key='vault_code'
+                        title='点击定位到业务系统中的对应数据'
+                        onClick={handleLocateElement}
+                    >
                         {vaultCode}
                     </div>
                 </div>

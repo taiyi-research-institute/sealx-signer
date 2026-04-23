@@ -97,10 +97,8 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
             const res = await messager.send({ userId, host, title }, SealxTopic.CONNECT, MessageChannel.POPUP)
             const user1 = await getUser(userId, host)
             // PopupManager.closeWindow()
-            return {
-                session: res.payload,
-                account: user1
-            }
+            // 直接返回 res.payload，Popup 已经返回了 { session, account }
+            return res.payload
         } catch (error) {
             console.error('Popup connection failed:', error)
             throw error

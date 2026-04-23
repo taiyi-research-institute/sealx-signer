@@ -15,7 +15,7 @@ import NoTasksIcon from '@assets/svg/no-tasks.svg?react'
 import { PopupCategory } from './category.js'
 import { useClickOutside } from '@src/hooks/useOutsideClick'
 import { useRequestContext } from '@src/hooks/useRequestContextHook'
-import { type SealxSignTask } from 'sealx-core'
+import { TabManager, type SealxSignTask } from 'sealx-core'
 import moment from 'moment'
 import { groupBy, map } from 'lodash'
 import { SealxTopic } from 'sealx-message'
@@ -133,6 +133,7 @@ export const TaskHome = () => {
             setTotal(items.length)
             setList(items)
             replyRef.current = request.reply ?? null
+            TabManager.getInstance().updateActiveTab(request.header.tabId)
         }
     }, [request])
 
@@ -185,6 +186,7 @@ export const TaskHome = () => {
                 date: date.format('YYYY-MM-DD')
             }
         }), 'days')
+        console.log('Tasks:', tasks)
         return tasks
     }, [list])
     const onSign = useCallback(async (taskId: string, signatures: { taskId: string, signature: string }[] | string | null) => {

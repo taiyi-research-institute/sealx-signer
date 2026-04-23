@@ -85,3 +85,4 @@ export declare const buildSignRenderContext: (keyMap: KeyMap, message: Record<st
  * layoutRender("Hello, <%= user.value.name.value %>!", { user: { value:{ name: {value: "Json"} } } })
  */
 export declare const layoutRender: (template: string, context: Record<string, any>) => string;
+//# sourceMappingURL=eip712-helper.d.ts.map

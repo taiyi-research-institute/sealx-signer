@@ -90,6 +90,8 @@ export interface SignContent extends Eip712Struct {
 export interface SignContextItem {
     label: string;
     value: Record<string, SignContextItem> | string | number | boolean | SignLayoutContext[];
+    /** Original key name from the message object (for element location) */
+    originKey?: string;
 }
 export type SignLayoutContext = Record<string, SignContextItem>;
 export interface SignLayoutRender {
@@ -97,3 +99,4 @@ export interface SignLayoutRender {
     readonly render: string;
     readonly context: SignLayoutContext | null;
 }
+//# sourceMappingURL=eip712-struct.d.ts.map

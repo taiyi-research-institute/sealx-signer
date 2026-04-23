@@ -65,6 +65,7 @@ export default defineConfig({
                 inpage: path.resolve(__dirname, '../src/entries/inpage/index.ts'),
                 popup: path.resolve(__dirname, '../src/entries/popup/index.html'),
                 sandbox: path.resolve(__dirname, '../src/entries/sandbox/index.html'),
+                web: path.resolve(__dirname, '../src/entries/web/index.html'),
             },
             output: {
                 entryFileNames: '[name].js',
