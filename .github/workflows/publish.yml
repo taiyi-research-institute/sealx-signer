@@ -15,18 +15,66 @@ permissions:
   contents: write
   id-token: write
 
-env:
-  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
 jobs:
+  check-versions:
+    name: Check version changes
+    runs-on: ubuntu-latest
+    outputs:
+      publish-core: ${{ steps.check.outputs.core }}
+      publish-message: ${{ steps.check.outputs.message }}
+      publish-sdk: ${{ steps.check.outputs.sdk }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Check local vs remote versions
+        id: check
+        run: |
+          check_package() {
+            local name=$1
+            local path=$2
+
+            if [[ "${{ github.event.inputs.packages }}" != "all" && "${{ github.event.inputs.packages }}" != "" ]]; then
+              if ! echo "${{ github.event.inputs.packages }}" | grep -q "$name"; then
+                echo "$name not selected, skipping"
+                echo "${name#sealx-}=false" >> $GITHUB_OUTPUT
+                return
+              fi
+            fi
+
+            LOCAL=$(node -p "require('./$path/package.json').version")
+            REMOTE=$(npm view "$name" version 2>/dev/null || echo "0.0.0")
+            echo "$name: local=$LOCAL remote=$REMOTE"
+
+            SHOULD_PUBLISH=$(node -e "
+              const local = '$LOCAL'.split('.').map(Number);
+              const remote = '$REMOTE'.split('.').map(Number);
+              for (let i = 0; i < 3; i++) {
+                if (local[i] > remote[i]) { console.log('true'); process.exit(0); }
+                if (local[i] < remote[i]) { console.log('false'); process.exit(0); }
+              }
+              console.log('false');
+            ")
+
+            echo "$name publish: $SHOULD_PUBLISH"
+            echo "${name#sealx-}=$SHOULD_PUBLISH" >> $GITHUB_OUTPUT
+          }
+
+          check_package "sealx-core" "packages/sealx-core"
+          check_package "sealx-message" "packages/sealx-message"
+          check_package "sealx-sdk" "packages/sealx-sdk"
+
   publish-core:
     name: Publish sealx-core
     runs-on: ubuntu-latest
-    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-core') || github.event.inputs.packages == '' || github.event_name == 'release'
+    needs: check-versions
+    if: needs.check-versions.outputs.publish-core == 'true'
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -50,12 +98,10 @@ jobs:
   publish-message:
     name: Publish sealx-message
     runs-on: ubuntu-latest
-    needs: publish-core
-    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-message') || github.event.inputs.packages == '' || github.event_name == 'release'
+    needs: check-versions
+    if: needs.check-versions.outputs.publish-message == 'true'
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -79,12 +125,10 @@ jobs:
   publish-sdk:
     name: Publish sealx-sdk
     runs-on: ubuntu-latest
-    needs: publish-message
-    if: github.event.inputs.packages == 'all' || contains(github.event.inputs.packages, 'sealx-sdk') || github.event.inputs.packages == '' || github.event_name == 'release'
+    needs: check-versions
+    if: needs.check-versions.outputs.publish-sdk == 'true'
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
