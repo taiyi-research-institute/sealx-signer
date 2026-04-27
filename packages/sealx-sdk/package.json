@@ -44,7 +44,7 @@
     "dependencies": {
         "@types/aes-js": "^3.1.4",
         "rxjs": "^7.8.2",
-        "sealx-core": "^1.0.12",
+        "sealx-core": "^1.0.13",
         "sealx-message": "^1.0.14"
     },
     "devDependencies": {
