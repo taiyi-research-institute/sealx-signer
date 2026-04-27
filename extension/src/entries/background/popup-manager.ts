@@ -250,8 +250,21 @@ export default class PopupManager {
         // Close popup windows opened by chrome.windows.create
         const existingWindow = await this.findPopupWindow()
         if (existingWindow && existingWindow.id) {
+            this.openWindows.delete(existingWindow.id)
             chrome.windows.remove(existingWindow.id)
             return true
+        }
+
+        // Close popup opened by chrome.action.openPopup
+        if (this.actionPopupOpened) {
+            try {
+                await chrome.action.closePopup()
+                this.actionPopupOpened = false
+                return true
+            } catch (error) {
+                console.warn('Failed to close action popup:', error)
+                this.actionPopupOpened = false
+            }
         }
 
         // Close tabs opened by chrome.tabs.create

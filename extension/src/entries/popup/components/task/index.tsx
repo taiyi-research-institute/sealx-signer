@@ -101,6 +101,7 @@ export const TaskHome = () => {
     const [list, setList] = useState<Array<SealxSignTask>>([])
     const [signing, setSigning] = useState(false)
     const replyRef = useRef<ReplyFunc>(null)
+    const originTabIdRef = useRef<number | undefined>(undefined)
     const { state } = useLocation() as {
         state: {
             result: {
@@ -119,6 +120,14 @@ export const TaskHome = () => {
             } catch (e) {
                 console.debug(e, '--------------- 00000 ---------')
             }
+            // 签名结果已通过 reply + messager.send 发送给业务页面
+            // popup 的职责已完成，不需要等待 SDK 回传来关闭
+            // 使用 2 秒超时作为安全网：如果 SDK 回传成功会在此之前触发 closeWindow
+            // 如果回传失败（tabId 不一致、消息链断裂等），超时后强制关闭
+            setTimeout(() => {
+                setSigning(false)
+                closeWindow()
+            }, 2000)
         }
     }, [
         state,
@@ -133,6 +142,10 @@ export const TaskHome = () => {
             setTotal(items.length)
             setList(items)
             replyRef.current = request.reply ?? null
+            // 保存原始请求的 tabId，确保 SIGN_RESPONSE 发送到正确的 tab
+            if (request.header?.tabId) {
+                originTabIdRef.current = request.header.tabId
+            }
             TabManager.getInstance().updateActiveTab(request.header.tabId)
         }
     }, [request])
@@ -220,7 +233,12 @@ export const TaskHome = () => {
                 }
             } as never, over)
         }
-        messager.send({ taskId, signatures }, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
+        // 确保 SIGN_RESPONSE 发送到正确的 tab（使用保存的原始 tabId）
+        const signResponsePayload = { taskId, signatures }
+        if (originTabIdRef.current) {
+            signResponsePayload.__tabId = originTabIdRef.current
+        }
+        messager.send(signResponsePayload, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
         // setSigning(false)
         // closeWindow()
     }, [list])

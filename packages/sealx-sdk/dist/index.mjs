@@ -522,6 +522,16 @@ const sendSignResponse = async (taskId, error = '', userId) => {
     if (!res?.payload) {
         throw new SignException(res?.error ?? '');
     }
+    // 签名响应已成功发送给插件，延迟发送关闭消息通知 background 关闭 popup
+    // 延迟 500ms 确保 SIGN_RESPONSE 先到达 popup 处理完成
+    setTimeout(() => {
+        try {
+            messager.send('', SealxTopic.CLOSE, CHANNEL_BACKGROUND);
+        }
+        catch (e) {
+            console.warn('[SealX] Failed to send close message:', e);
+        }
+    }, 500);
     return res.payload;
 };
 /**
@@ -564,11 +574,24 @@ const onSign = (callback, taskId) => {
                 taskIds.includes(request.payload.taskId + ''))) {
             try {
                 await callback(request, reply);
-                sendSignResponse(request.payload.taskId);
             }
             catch (e) {
                 const error = e instanceof Error ? e.message : String(e);
-                sendSignResponse(request.payload.taskId, error);
+                try {
+                    await sendSignResponse(request.payload.taskId, error);
+                }
+                catch (sendError) {
+                    console.warn('[SealX] Failed to send error sign response:', sendError);
+                }
+                return;
+            }
+            // sendSignResponse 成功发送确认回插件，不阻塞主流程
+            try {
+                await sendSignResponse(request.payload.taskId);
+            }
+            catch (sendError) {
+                // 回传失败不影响业务页面已收到的签名结果
+                console.warn('[SealX] Failed to send sign response back to plugin:', sendError);
             }
         }
     };

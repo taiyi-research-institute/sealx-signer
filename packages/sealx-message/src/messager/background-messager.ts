@@ -55,7 +55,11 @@ export default class BackgroundMessager extends MessagerBase {
             if (message && message.header) {
                 if (sender?.tab) {
                     message.header.tabId = sender.tab.id
-                    TabManager.getInstance().currentTab = sender.tab
+                    // 只保存 web 页面的 tab 到 TabManager，避免 extension tab 污染
+                    const tabUrl = sender.tab.url || '';
+                    if (!tabUrl.startsWith('chrome-extension://')) {
+                        TabManager.getInstance().currentTab = sender.tab
+                    }
                 } else {
                     await (TabManager.getInstance().updateActiveTab())
                 }

@@ -354,7 +354,7 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
             }
         }
     } finally {
-        // props.setSigning?.(false)
+        props.setSigning?.(false)
     }
 };
 
