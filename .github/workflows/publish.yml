@@ -35,7 +35,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/sealx-core
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: packages/sealx-core
@@ -64,7 +64,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/sealx-message
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: packages/sealx-message
@@ -93,7 +93,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: packages/sealx-sdk
-        run: npm ci
+        run: npm install
 
       - name: Build
         working-directory: packages/sealx-sdk
