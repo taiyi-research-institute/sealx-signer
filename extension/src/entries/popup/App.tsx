@@ -40,6 +40,20 @@ function App() {
         };
     }, [popupType]);
 
+    // 监听 background 发送的关闭消息（用于 actionPopup 模式）
+    useEffect(() => {
+        const closeHandler = (message: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+            if (message?.type === 'close-popup') {
+                window.close()
+                sendResponse({ closed: true })
+            }
+        }
+        chrome.runtime.onMessage.addListener(closeHandler)
+        return () => {
+            chrome.runtime.onMessage.removeListener(closeHandler)
+        }
+    }, []);
+
     return (
         <div className='sealx-container relative flex' style={isFullscreen ? { marginTop: "120px" } : {}}>
             {/* <span className=' absolute z-[1000] top-[10px] '>{popupType}</span> */}

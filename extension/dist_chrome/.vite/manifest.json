@@ -1,6 +1,6 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-CzjsnAl0.js",
+    "file": "assets/crx-manifest.js-D578UkcR.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
@@ -163,7 +163,7 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-Cy17lCIL.js",
+    "file": "assets/index.ts-CwkRRMx3.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,

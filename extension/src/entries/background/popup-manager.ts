@@ -256,10 +256,16 @@ export default class PopupManager {
         }
 
         // Close popup opened by chrome.action.openPopup
+        // chrome.action.closePopup() does NOT exist in MV3
+        // The popup opened by chrome.action.openPopup() is a special UI element,
+        // not a regular tab, so chrome.tabs.query() cannot find it.
+        // Use chrome.runtime.sendMessage() to broadcast to all extension contexts.
         if (this.actionPopupOpened) {
             try {
-                await chrome.action.closePopup()
                 this.actionPopupOpened = false
+                // Broadcast close-popup message to all extension contexts
+                // The popup's App.tsx listens for this and calls window.close()
+                chrome.runtime.sendMessage({ type: 'close-popup' })
                 return true
             } catch (error) {
                 console.warn('Failed to close action popup:', error)
