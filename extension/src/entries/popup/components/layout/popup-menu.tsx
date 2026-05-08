@@ -8,7 +8,7 @@ interface PopupMenuProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ closeMenu, ...props }, ref) => {
     const navigate = useSealXNavigate()
-    const { isActionPopup, isLoading: isPopupTypeLoading } = usePopupType()
+    const { isActionPopup, isSidePanel, isLoading: isPopupTypeLoading } = usePopupType()
 
     const handleItemClick = useCallback((callback: () => void) => {
         return () => {
@@ -17,14 +17,15 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
         };
     }, [closeMenu]);
 
+    // Side Panel 模式下不需要"在新 tab 打开"
+    const shouldOpenInNewTab = !isPopupTypeLoading && isActionPopup && !isSidePanel && chrome?.tabs?.create
+
     return <div {...props} ref={ref}>
         <div onClick={handleItemClick(() => {
             navigate('/reset-pin')
         })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Reset Pin</div>
         <div onClick={handleItemClick(() => {
-            // If we're in an action popup (icon弹框模式), open in new tab
-            // Otherwise, navigate normally
-            if (!isPopupTypeLoading && isActionPopup && chrome?.tabs?.create) {
+            if (shouldOpenInNewTab) {
                 console.log('Opening key-manage in new tab (action popup detected)')
                 chrome.tabs.create({
                     url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
@@ -37,6 +38,5 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
         <div onClick={handleItemClick(() => {
             navigate('/set-screen-timer')
         })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Set Screen Off Time</div>
-        {/* <div className="pt-[18px]  px-[24px] cursor-pointer hover:bg=[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Turn Off Screen</div> */}
     </div>
 })

@@ -169,11 +169,5 @@ export const closeWindow = async () => {
     } catch (error) {
         console.error('[closeWindow] sendMessage error:', error)
     }
-    // 无论 sendMessage 是否成功，都尝试调用 window.close()
-    // window.close() 在 popup 环境中可能不起作用，但作为 fallback
-    try {
-        window.close()
-    } catch (e) {
-        console.warn('[closeWindow] window.close() failed:', e)
-    }
+    // Side Panel 模式下 window.close() 无效，不再调用
 }

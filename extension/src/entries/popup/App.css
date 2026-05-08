@@ -41,6 +41,15 @@ body[popup-mode='tab'] #root {
     height: 800px;
 }
 
+/* Side Panel mode - full width, auto height */
+body[popup-mode='sidepanel'] #root {
+    width: 100%;
+    height: 100vh;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
 .sealx-container {
     display: flex;
     flex-direction: column;

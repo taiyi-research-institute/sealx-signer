@@ -42,38 +42,32 @@ const NoPendingTasks = () => {
     )
 }
 
-const TypingAnimation = () => {
-    const [displayText, setDisplayText] = useState('')
-    const [currentIndex, setCurrentIndex] = useState(0)
-    const [isDeleting, setIsDeleting] = useState(false)
-    const text = 'Waiting ...'
-
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            if (!isDeleting) {
-                if (currentIndex < text.length) {
-                    setDisplayText(text.substring(0, currentIndex + 1))
-                    setCurrentIndex(currentIndex + 1)
-                } else {
-                    setTimeout(() => setIsDeleting(true), 1000)
-                }
-            } else {
-                if (currentIndex > 0) {
-                    setDisplayText(text.substring(0, currentIndex - 1))
-                    setCurrentIndex(currentIndex - 1)
-                } else {
-                    setIsDeleting(false)
-                }
-            }
-        }, isDeleting ? 50 : 150)
-
-        return () => clearTimeout(timer)
-    }, [currentIndex, isDeleting, text])
-
+const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
+    if (timeout) {
+        return (
+            <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+                <div className="flex flex-col items-center">
+                    <div className="text-[#ff4d4f] text-[20px] font-[500] mb-4">Signing Timeout</div>
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2 bg-[#1677ff] text-white rounded-lg text-[14px] font-[500] cursor-pointer border-none"
+                    >
+                        Close
+                    </button>
+                </div>
+            </div>
+        )
+    }
     return (
-        <div className="text-[#fff] text-[32px]  font-[500]">
-            {displayText}
-            {/* <span className="animate-pulse">|</span> */}
+        <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+            <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-[3px] border-white/30 border-t-white mb-4"></div>
+                {progress >= 75 ? (
+                    <div className="text-white/80 text-[16px] font-[400] animate-pulse">Almost done...</div>
+                ) : (
+                    <div className="text-white text-[20px] font-[500]">Signing...</div>
+                )}
+            </div>
         </div>
     )
 }
@@ -100,8 +94,12 @@ export const TaskHome = () => {
     const { request } = useRequestContext()
     const [list, setList] = useState<Array<SealxSignTask>>([])
     const [signing, setSigning] = useState(false)
+    const [signTimeout, setSignTimeout] = useState(false)
+    const [signProgress, setSignProgress] = useState<number>(0)
     const replyRef = useRef<ReplyFunc>(null)
-    const originTabIdRef = useRef<number | undefined>(undefined)
+    const originTabIdMapRef = useRef<Map<string, number>>(new Map())
+    const currentSigningTaskIdRef = useRef<string | null>(null)
+    const signTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const { state } = useLocation() as {
         state: {
             result: {
@@ -110,30 +108,50 @@ export const TaskHome = () => {
             }
         }
     };
+
+    // SIGN/BATCH_SIGN handler: send signature result, start signing state
     useEffect(() => {
         if (!signing && (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN) && state && state.result && state.result.taskId && state.result.signatures.length > 0 && state.result.signCount > 0) {
             setSigning(true)
+            setSignTimeout(false)
+            setSignProgress(0)
+            currentSigningTaskIdRef.current = state.result.taskId
             const reply = replyRef.current ? replyRef.current : request.reply
             try {
                 reply?.(state)
-            messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
+                messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
             } catch (e) {
                 console.debug(e, '--------------- 00000 ---------')
             }
-            // 签名结果已通过 reply + messager.send 发送给业务页面
-            // popup 的职责已完成，不需要等待 SDK 回传来关闭
-            // 使用 2 秒超时作为安全网：如果 SDK 回传成功会在此之前触发 closeWindow
-            // 如果回传失败（tabId 不一致、消息链断裂等），超时后强制关闭
-            setTimeout(() => {
-                setSigning(false)
-                closeWindow()
-            }, 2000)
+
+            // 20s fallback timeout: show timeout hint if no SIGN_RESPONSE arrives
+            if (signTimeoutRef.current) {
+                clearTimeout(signTimeoutRef.current)
+            }
+            const startTime = Date.now()
+            const DURATION = 20000
+            signTimeoutRef.current = setTimeout(() => {
+                setSignTimeout(true)
+            }, DURATION)
+
+            // Progress timer: update every 500ms
+            const progressTimer = setInterval(() => {
+                const elapsed = Date.now() - startTime
+                const progress = Math.min((elapsed / DURATION) * 100, 100)
+                setSignProgress(progress)
+            }, 500)
+
+            return () => {
+                if (signTimeoutRef.current) {
+                    clearTimeout(signTimeoutRef.current)
+                    signTimeoutRef.current = null
+                }
+                clearInterval(progressTimer)
+            }
         }
-    }, [
-        state,
-        request,
-        signing
-    ])
+    }, [state, request, signing])
+
+    // SIGN/BATCH_SIGN request: store task list and origin tabId mapping
     useEffect(() => {
         if (request.topic === SealxTopic.BATCH_SIGN || request.topic === SealxTopic.SIGN) {
             const items = ((request.payload instanceof Array ? request.payload : [request.payload]) as SealxSignTask[]).filter((task) => {
@@ -142,19 +160,47 @@ export const TaskHome = () => {
             setTotal(items.length)
             setList(items)
             replyRef.current = request.reply ?? null
-            // 保存原始请求的 tabId，确保 SIGN_RESPONSE 发送到正确的 tab
+            // Store tabId per taskId for later SIGN_RESPONSE routing
             if (request.header?.tabId) {
-                originTabIdRef.current = request.header.tabId
+                items.forEach((task: SealxSignTask) => {
+                    originTabIdMapRef.current.set(task.taskId, request.header.tabId)
+                })
             }
             TabManager.getInstance().updateActiveTab(request.header.tabId)
         }
     }, [request])
 
+    // SIGN_RESPONSE handler: validate, clear signing state, update task list
     useEffect(() => {
         if (request.topic === SealxTopic.SIGN_RESPONSE) {
-            setSigning(false)
             const payload = request.payload as { taskId: string, error: string }
+
+            // Security: verify tabId matches the originating tab
+            const expectedTabId = originTabIdMapRef.current.get(payload.taskId)
+            if (expectedTabId && request.header?.tabId && request.header.tabId !== expectedTabId) {
+                console.warn(`SIGN_RESPONSE from unexpected tab: expected ${expectedTabId}, got ${request.header.tabId}`)
+                return
+            }
+
+            // Race condition prevention: verify taskId matches current signing task
+            if (currentSigningTaskIdRef.current && payload.taskId !== currentSigningTaskIdRef.current) {
+                console.warn(`Sign response taskId mismatch: expected ${currentSigningTaskIdRef.current}, got ${payload.taskId}`)
+                return
+            }
+
+            currentSigningTaskIdRef.current = null
+            setSigning(false)
+            setSignTimeout(false)
+            setSignProgress(0)
+
+            // Clear fallback timeout
+            if (signTimeoutRef.current) {
+                clearTimeout(signTimeoutRef.current)
+                signTimeoutRef.current = null
+            }
+
             if (payload.error) {
+                closeWindow()
                 return
             }
             setList(currentList => {
@@ -170,10 +216,13 @@ export const TaskHome = () => {
                 setTotal(items.length)
                 if (items.length === 0) {
                     setTimeout(() => {
-                        // Use message to close window through background script
-                        // messager.send(null, SealxTopic.CLOSE, MessageChannel.BACKGROUND)
+                        // 通知 background 处理队列中的下一个请求
+                        chrome.runtime.sendMessage({ type: 'panel-process-queue' })
                         closeWindow()
                     }, 50)
+                } else {
+                    // 还有任务，通知处理队列
+                    chrome.runtime.sendMessage({ type: 'panel-process-queue' })
                 }
                 return items
             })
@@ -185,6 +234,47 @@ export const TaskHome = () => {
 
         }
     }, [request])
+
+    // Visibility change: auto-timeout when page is hidden
+    useEffect(() => {
+        if (!signing) return
+
+        let quickTimer: ReturnType<typeof setTimeout> | null = null
+
+        const handleVisibility = () => {
+            if (document.hidden && signing && !signTimeout) {
+                // 清除上一个 timer
+                if (quickTimer) clearTimeout(quickTimer)
+                quickTimer = setTimeout(() => {
+                    if (signing && document.hidden) {
+                        setSignTimeout(true)
+                    }
+                }, 5000)
+            } else if (!document.hidden) {
+                // 页面恢复可见时清除 timer
+                if (quickTimer) {
+                    clearTimeout(quickTimer)
+                    quickTimer = null
+                }
+            }
+        }
+
+        document.addEventListener('visibilitychange', handleVisibility)
+        return () => {
+            document.removeEventListener('visibilitychange', handleVisibility)
+            if (quickTimer) clearTimeout(quickTimer)
+        }
+    }, [signing, signTimeout])
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            originTabIdMapRef.current.clear()
+            if (signTimeoutRef.current) {
+                clearTimeout(signTimeoutRef.current)
+            }
+        }
+    }, [])
 
     const tasks = useMemo(() => {
         const tasks = groupBy(list.sort((a, b) => {
@@ -202,8 +292,10 @@ export const TaskHome = () => {
         console.log('Tasks:', tasks)
         return tasks
     }, [list])
+
+    // Note: signing state is managed by the SIGN/BATCH_SIGN request handler
+    // This callback only sends the signature result
     const onSign = useCallback(async (taskId: string, signatures: { taskId: string, signature: string }[] | string | null) => {
-        // setSigning(true)
         const reply = replyRef.current
         const over = list.length - 1 === 0
         if (signatures instanceof Array) {
@@ -233,14 +325,13 @@ export const TaskHome = () => {
                 }
             } as never, over)
         }
-        // 确保 SIGN_RESPONSE 发送到正确的 tab（使用保存的原始 tabId）
         const signResponsePayload = { taskId, signatures }
-        if (originTabIdRef.current) {
-            signResponsePayload.__tabId = originTabIdRef.current
+        const tabId = originTabIdMapRef.current.get(taskId)
+        if (tabId) {
+            signResponsePayload.__tabId = tabId
+            originTabIdMapRef.current.delete(taskId)
         }
         messager.send(signResponsePayload, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-        // setSigning(false)
-        // closeWindow()
     }, [list])
     return <>
         {/* <button onClick={onTest}>Test</button> */}
@@ -250,9 +341,6 @@ export const TaskHome = () => {
                     setShowPopupMenu(true)
                 }} className='mr-[8px]'></FilterMenu>
                 <span className='font-[500] leading-[25px] text-[21px]'>Total {total}</span>
-                {/* <div className='flex-1 flex justify-end'>
-                    <Switch className=" w-[160px] text-[19px] leading-[22px] font-[500]  rounded-[20px] bg-[rgba(22,38,48,0.04)]" items={['Date', 'Expiry']} selected={switchSelected} onChange={setSwitchSelected}></Switch>
-                </div> */}
                 {showPopupMenu ? <PopupCategory category={category} onChange={(c: string) => {
                     setCategory(c)
                     setShowPopupMenu(false)
@@ -420,11 +508,17 @@ export const TaskHome = () => {
                 </div>
             </div>
         </div>
-        {signing && (<div className='w-full h-full bg-[#000]/[70%] absolute left-0 top-0 flex items-center justify-center'>
-            <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                <TypingAnimation />
-            </div>
-        </div>)}
+        {signing && (
+            <SigningOverlay
+                timeout={signTimeout}
+                progress={signProgress}
+                onClose={() => {
+                    setSigning(false)
+                    setSignTimeout(false)
+                    setSignProgress(0)
+                    closeWindow()
+                }}
+            />
+        )}
     </>
 }

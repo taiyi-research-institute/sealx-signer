@@ -1,5 +1,5 @@
 import { MessageChannel, MessagerManager, SealxTopic, type SealxRequest } from "sealx-message";
-import PopupManager from "./popup-manager";
+import PanelManager from "./panel-manager";
 import { addUser, generateSession, getAddressByPin, getSealxInfo, getUser, initializeSealx, initializeSealxInfo, installDB, pkHex, resetSealxPin, setSealxSessionTimeout } from "./state";
 import { decodeSession, decodeSessionPrivateKey, sessionKey } from "@src/core/utils/helper";
 import { sessionStore } from "@src/core/state";
@@ -11,10 +11,10 @@ import { useRequestStore } from "@src/core/state/request";
  * Current version of the IndexedDB database schema
  */
 const DB_VERSION = 1
-// Initialize message handler and popup manager
+// Initialize message handler and panel manager
 const messager = MessagerManager.getMessager()
-PopupManager.setMessager(messager)
-PopupManager.setPopupWindow()
+PanelManager.setMessager(messager)
+PanelManager.init()
 
 /**
  * Handles extension installation by setting up required databases
@@ -80,14 +80,15 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         state.setSession(null)
         const setRequest = useRequestStore.getState().setRequest
         setRequest(request)
-        if (request.header.fullscreen) {
-            await PopupManager.popupWindow(2, 'login')
-        } else {
-            await PopupManager.popupWindow(1, 'login')
+        // 打开 side panel 登录页
+        await PanelManager.openPanel('login', request.header.tabId)
+
+        // 等待面板就绪
+        const ready = await PanelManager.waitForReady(5_000)
+        if (!ready) {
+            console.warn('Panel did not become ready within timeout, attempting communication anyway')
         }
-        while (!await checkPopup()) {
-            // check active
-        }
+
         try {
             state.setSession({
                 sessionId: "",
@@ -96,11 +97,10 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
             })
             const res = await messager.send({ userId, host, title }, SealxTopic.CONNECT, MessageChannel.POPUP)
             const user1 = await getUser(userId, host)
-            // PopupManager.closeWindow()
-            // 直接返回 res.payload，Popup 已经返回了 { session, account }
+            // 直接返回 res.payload
             return res.payload
         } catch (error) {
-            console.error('Popup connection failed:', error)
+            console.error('Panel connection failed:', error)
             throw error
         }
     }
@@ -117,7 +117,7 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
     if (userId) state.setUserId(userId)
     const setRequest = useRequestStore.getState().setRequest
     setRequest(request)
-    // Ensure popup is fully loaded before forwarding messages
+    // 确定路由
     let route = ''
     switch (request.topic) {
         case SealxTopic.BIND_PK:
@@ -130,45 +130,40 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
         default:
             route = ''
     }
+    // 打开 side panel（替代 PopupManager.popupWindow）
     if (request.topic !== SealxTopic.SIGN_RESPONSE) {
-        // await PopupManager.popupWindow(2, route)
-        if (request.header.fullscreen) {
-            await PopupManager.popupWindow(2, route)
-        } else {
-            await PopupManager.popupWindow(1, route)
+        await PanelManager.openPanel(route as any, request.header.tabId)
+        // 等待面板就绪
+        const ready = await PanelManager.waitForReady(5_000)
+        if (!ready) {
+            console.warn('Side panel failed to become ready within timeout')
         }
     }
-    // Wait for popup to be fully initialized and ready to receive messages
-    // Increased timeout to ensure React app is fully mounted
-    // await wait(1000)
-    while (!await checkPopup()) {
-        // check active
-    }
-
 })
 
-const checkPopup = async () => {
-    return new Promise((resolve) => {
-        const timer = setTimeout(() => {
-            resolve(false)
-        }, 100)
-        const checkActive = async () => {
-            try {
-                const res = await messager.send('', SealxTopic.CHECK_ACTIVE, MessageChannel.POPUP)
-                resolve(res?.payload ?? false)
-            } catch (e) {
-                console.error(e)
-                resolve(false)
-            } finally {
-                clearTimeout(timer)
-            }
+// ========== 统一 panel-* 消息处理 ==========
+// 处理面板队列处理和关闭通知
+chrome.runtime.onMessage.addListener((message: any, _sender, _sendResponse) => {
+    if (message?.type === 'panel-process-queue') {
+        PanelManager.processNextInQueue()
+        return true
+    }
+    if (message?.type === 'panel-closing') {
+        // Side Panel 中 sender.tab 为 undefined，使用 processingTabId 清除队列
+        const tabId = _sender.tab?.id ?? null
+        if (tabId) {
+            PanelManager.clearQueueForTab(tabId)
         }
-        checkActive()
-    })
-}
+        useRequestStore.getState().clearRequest()
+        return true
+    }
+    return false
+})
+
+// ========== 其他 handler ==========
 
 messager.on(SealxTopic.CLOSE, async () => {
-    return await PopupManager.closeWindow()
+    return await PanelManager.closePanel()
 })
 
 messager.on(SealxTopic.BIND_PK, async (request: SealxRequest<{ pk: string, userId: string, host: string }>) => {

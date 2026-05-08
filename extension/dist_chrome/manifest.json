@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "SealX: Secure Review & Sign What You See for Crypto Assets",
-  "version": "0.0.44",
+  "version": "0.0.46",
   "description": "SealX is a secure plugin for crypto custody, enabling trusted review, signatures, and full transaction visibility across platforms.",
   "action": {
-    "default_popup": "src/entries/popup/index.html",
     "default_title": "SealX"
+  },
+  "side_panel": {
+    "default_path": "src/entries/popup/index.html"
   },
   "icons": {
     "16": "public/logo/sealx-logo-icon-16.png",
@@ -36,10 +38,11 @@
     "scripting",
     "tabs",
     "identity",
-    "alarms"
+    "alarms",
+    "sidePanel"
   ],
   "oauth2": {
-    "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
+    "client_id": "978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com",
     "scopes": [
       "https://www.googleapis.com/auth/drive.file"
     ]
@@ -67,9 +70,7 @@
       ],
       "resources": [
         "inpage.js",
-        "inpage.js.map",
         "sandbox.js",
-        "sandbox.js.map",
         "public/logo/sealx-logo-icon-16.png",
         "public/logo/sealx-logo-icon-32.png",
         "public/logo/sealx-logo-icon-48.png",
@@ -86,18 +87,12 @@
       ],
       "resources": [
         "assets/client-BwqjnpzY.js",
-        "assets/client-BwqjnpzY.js.map",
         "assets/index-BTqkewhy.js",
-        "assets/index-BTqkewhy.js.map",
         "assets/messager-manager-CJq8Z-v6.js",
-        "assets/messager-manager-CJq8Z-v6.js.map",
         "assets/___vite-browser-external_commonjs-proxy-DS4Da0Xp.js",
-        "assets/___vite-browser-external_commonjs-proxy-DS4Da0Xp.js.map",
-        "assets/index.tsx-BbimIuIC.js",
-        "assets/index.tsx-BbimIuIC.js.map"
+        "assets/index.tsx-BbimIuIC.js"
       ],
       "use_dynamic_url": false
     }
-  ],
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqOMn0GPvx3IYpHGK+Hf0YatEjrfEspIbAl0UP+C64uHch+2E9tskudfTsa+58mQjNwztIDHPQCXfpl0d0/rXFtZL4BBU7H4Z3/KSrxCSLwocDeoLIzjrlcErb1xPQ9a0oK8mFnObl+/qFLH1RVcLGCSViJZerDmR2kiJrK2pdn/rVvmCiNVYWECAguQXjeetZ5HdoLp73V3mFtgtS/BUN+iY+9YDaxyOWvw7TAZMk+ntRm1wm78YnyDo4q9bp2MQdzbbGqLE2YAcEPp15PqKkYSRDB1s+tFMqNmCZlxyXOau+wy+x9Vxw4qUDjKDnPtjy/J2ib3EVH+qzQhYX+kf/wIDAQAB"
+  ]
 }

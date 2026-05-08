@@ -4,8 +4,10 @@
     "version": "1.0.0",
     "description": "SealX is a secure plugin for crypto custody, enabling trusted review, signatures, and full transaction visibility across platforms.",
     "action": {
-        "default_popup": "src/entries/popup/index.html",
         "default_title": "SealX"
+    },
+    "side_panel": {
+        "default_path": "src/entries/popup/index.html"
     },
     "icons": {
         "16": "public/logo/sealx-logo-icon-16.png",
@@ -34,7 +36,8 @@
         "scripting",
         "tabs",
         "identity",
-        "alarms"
+        "alarms",
+        "sidePanel"
     ],
     "oauth2": {
         "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",

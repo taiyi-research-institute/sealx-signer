@@ -9,7 +9,7 @@ import './styles.css';
 const Home: React.FC = () => {
     const navigate = useSealXNavigate();
     const { address } = useGlobalContext();
-    const { isActionPopup, isLoading: isPopupTypeLoading } = usePopupType();
+    const { isActionPopup, isSidePanel, isLoading: isPopupTypeLoading } = usePopupType();
     const [showSettingsMenu, setShowSettingsMenu] = useState<boolean>(false);
     const settingsMenuRef = useRef<HTMLDivElement>(null);
     useClickOutside(settingsMenuRef, () => setShowSettingsMenu(false));
@@ -28,10 +28,8 @@ const Home: React.FC = () => {
                 navigate('/reset-pin');
                 break;
             case 'key-manage':
-
-                // // If we're in an action popup (icon弹框模式), open in new tab
-                // // Otherwise, navigate normally
-                if (!isPopupTypeLoading && isActionPopup && chrome?.tabs?.create) {
+                // Side Panel 模式下不需要新 tab 打开
+                if (!isPopupTypeLoading && isActionPopup && !isSidePanel && chrome?.tabs?.create) {
                     console.log('Opening key-manage in new tab (action popup detected)');
                     chrome.tabs.create({
                         url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'

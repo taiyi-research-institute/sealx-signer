@@ -1,6 +1,6 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-D578UkcR.js",
+    "file": "assets/crx-manifest.js-RU173r43.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
@@ -23,11 +23,15 @@
       "_index-Ds8d1C5O.js"
     ]
   },
-  "_global-2yfdYWyz.js": {
-    "file": "assets/global-2yfdYWyz.js",
+  "_global-B5CtZI9z.css": {
+    "file": "assets/global-B5CtZI9z.css",
+    "src": "_global-B5CtZI9z.css"
+  },
+  "_global-CbiVf2Iz.js": {
+    "file": "assets/global-CbiVf2Iz.js",
     "name": "global",
     "css": [
-      "assets/global-Bs6-LBnD.css"
+      "assets/global-B5CtZI9z.css"
     ],
     "assets": [
       "assets/Gellix-Regular-gOmSiHtW.woff2",
@@ -48,25 +52,21 @@
       "assets/NanumPen-Cx4X1OcW.woff"
     ]
   },
-  "_global-Bs6-LBnD.css": {
-    "file": "assets/global-Bs6-LBnD.css",
-    "src": "_global-Bs6-LBnD.css"
-  },
-  "_index-BTqkewhy.js": {
-    "file": "assets/index-BTqkewhy.js",
-    "name": "index",
-    "imports": [
-      "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js"
-    ]
-  },
-  "_index-CMCRDTb2.js": {
-    "file": "assets/index-CMCRDTb2.js",
+  "_index-BIUN5sYp.js": {
+    "file": "assets/index-BIUN5sYp.js",
     "name": "index",
     "imports": [
       "_index-ChUXR8u8.js",
       "_index-Ds8d1C5O.js",
       "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js",
       "_index-BTqkewhy.js"
+    ]
+  },
+  "_index-BTqkewhy.js": {
+    "file": "assets/index-BTqkewhy.js",
+    "name": "index",
+    "imports": [
+      "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js"
     ]
   },
   "_index-ChUXR8u8.js": {
@@ -163,13 +163,13 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-CwkRRMx3.js",
+    "file": "assets/index.ts-BBJAg-NZ.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,
     "imports": [
       "_messager-manager-CJq8Z-v6.js",
-      "_index-CMCRDTb2.js",
+      "_index-BIUN5sYp.js",
       "_index-Ds8d1C5O.js",
       "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js",
       "_index-ChUXR8u8.js",
@@ -209,18 +209,18 @@
     "src": "src/entries/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_global-2yfdYWyz.js",
+      "_global-CbiVf2Iz.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_messager-manager-CJq8Z-v6.js",
-      "_index-CMCRDTb2.js",
+      "_index-BIUN5sYp.js",
       "_index-ChUXR8u8.js",
       "_index-Ds8d1C5O.js",
       "_eip712-helper-BqGnlX8z.js",
       "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js"
     ],
     "css": [
-      "assets/popup-BwOFEGeh.css"
+      "assets/popup-C7Cn2IgL.css"
     ]
   },
   "src/entries/sandbox/index.html": {
@@ -229,7 +229,7 @@
     "src": "src/entries/sandbox/index.html",
     "isEntry": true,
     "imports": [
-      "_global-2yfdYWyz.js",
+      "_global-CbiVf2Iz.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_eip712-helper-BqGnlX8z.js",
@@ -246,7 +246,7 @@
     "src": "src/entries/web/index.html",
     "isEntry": true,
     "imports": [
-      "_global-2yfdYWyz.js",
+      "_global-CbiVf2Iz.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_sealx-provider-Dpxj5qkk.js",

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 
 /**
- * Hook to determine if the popup was opened via chrome.window.create, action.popup, or chrome.tabs.create
+ * Hook to determine if the popup was opened via chrome.window.create, action.popup, chrome.tabs.create, or sidepanel
  * @returns {Object} Object containing popup type information
  */
 export const usePopupType = () => {
-    const [popupType, setPopupType] = useState<'window' | 'action' | 'tab' | 'unknown'>('unknown');
+    const [popupType, setPopupType] = useState<'window' | 'action' | 'tab' | 'sidepanel' | 'unknown'>('unknown');
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -19,15 +19,39 @@ export const usePopupType = () => {
                     return;
                 }
 
-                // Method 1: Check window and tab properties
                 const currentWindow = await chrome.windows.getCurrent();
                 const currentTab = await chrome.tabs.getCurrent();
-                console.log('------- current window -----', currentWindow)
-                // Method 2: Check URL parameters or hash first (highest priority)
+
+                // ===== Side Panel 检测 =====
+                // Side Panel 中 chrome.tabs.getCurrent() 返回 undefined（多数情况）
+                // Side Panel 中 chrome.windows.getCurrent() 返回 type: 'normal'
+                // 排除 tab 模式：如果 currentTab 存在且能在 allTabs 中找到，说明是 tab 模式
+                let isTabMode = false
+                if (currentWindow?.type === 'normal' && currentTab) {
+                    const allTabs = await chrome.tabs.query({});
+                    isTabMode = allTabs.some(tab => tab.id === currentTab.id && tab.windowId === currentWindow.id);
+                }
+
+                const isLikelySidePanel = !isTabMode && (
+                    (currentWindow?.type === 'normal' && !currentTab) ||
+                    (currentWindow?.type === 'normal' && currentTab?.url?.includes('src/entries/popup/index.html'))
+                )
+
+                if (isLikelySidePanel) {
+                    setPopupType('sidepanel');
+                    setIsLoading(false);
+                    return;
+                }
+
+                // URL hash 参数检测（URL 参数优先级最高）
                 const urlParams = new URLSearchParams(window.location.search);
                 const hashParams = new URLSearchParams(window.location.hash.substring(1));
 
-                if (urlParams.get('popupType') === 'action' || hashParams.get('popupType') === 'action') {
+                if (urlParams.get('popupType') === 'sidepanel' || hashParams.get('popupType') === 'sidepanel') {
+                    setPopupType('sidepanel');
+                    setIsLoading(false);
+                    return;
+                } else if (urlParams.get('popupType') === 'action' || hashParams.get('popupType') === 'action') {
                     setPopupType('action');
                     setIsLoading(false);
                     return;
@@ -42,10 +66,8 @@ export const usePopupType = () => {
                 }
 
 
-                // Method 4: Detect tab mode
-                // If we're in a normal tab (not popup window) and not an action popup, it's likely a tab
+                // Detect tab mode
                 if (currentWindow.type === 'normal' && currentTab) {
-                    // Check if this is a regular browser tab
                     const allTabs = await chrome.tabs.query({});
                     const isRegularTab = allTabs.some(tab => tab.id === currentTab.id && tab.windowId === currentWindow.id);
 
@@ -56,28 +78,23 @@ export const usePopupType = () => {
                     }
                 }
 
-                // Method 5: Detect window popup
-                // If window type is 'popup' and has specific dimensions, it's likely from chrome.window.create
+                // Detect window popup
                 if (currentWindow.type === 'popup') {
-                    // Check if this is a standalone popup window (created via chrome.window.create)
-                    // These typically have specific dimensions and are not the browser action popup
                     if (currentWindow.width && currentWindow.width >= 400 && currentWindow.width <= 800 || currentWindow.height && currentWindow.height > 600) {
                         setPopupType('window');
                         setIsLoading(false);
                         return;
                     } else {
-                        // For action popups, the window dimensions might be different or unavailable
                         setPopupType('action');
                         setIsLoading(false);
                         return;
                     }
                 }
 
-                // Method 3: Check if we can access chrome.action API (only available in action popups)
+                // Check if we can access chrome.action API
                 if (typeof chrome.action !== 'undefined' && chrome.action.getPopup) {
                     try {
                         const popupDetails = await chrome.action.getPopup({});
-                        console.log('------- popup --------', popupDetails)
                         if (popupDetails) {
                             setPopupType('action');
                             setIsLoading(false);
@@ -88,9 +105,7 @@ export const usePopupType = () => {
                     }
                 }
 
-
-
-                // Method 6: Default to action popup if none of the above conditions match
+                // Default to action popup
                 setPopupType('action');
 
             } catch (error) {
@@ -109,6 +124,7 @@ export const usePopupType = () => {
         isLoading,
         isWindowPopup: popupType === 'window',
         isActionPopup: popupType === 'action',
-        isTabPopup: popupType === 'tab'
+        isTabPopup: popupType === 'tab',
+        isSidePanel: popupType === 'sidepanel',
     };
 };

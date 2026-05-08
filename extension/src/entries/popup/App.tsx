@@ -5,6 +5,7 @@ import { Routes } from './Routes';
 import { useMemo } from 'react';
 import { usePopupType } from '@src/hooks/usePopupType';
 import { TabManager } from 'sealx-core';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 
 
@@ -14,11 +15,8 @@ function App() {
         return request?.header?.fullscreen
     }, [request])
 
-
-    // 使用防止全屏的钩子
-    // usePreventFullscreen();
-
     const { popupType } = usePopupType()
+    const isSidePanel = popupType === 'sidepanel'
 
     // 设置body元素的popup-mode属性
     useEffect(() => {
@@ -31,35 +29,97 @@ function App() {
             TabManager.getInstance().currentTab = tab
         }
         chrome.tabs.onUpdated.addListener(updateTab)
-        // document.getElementById('authBtn')?.addEventListener('click', handleGoogleDriveBackup);
         // 清理函数
         return () => {
             document.body.removeAttribute('popup-mode');
             chrome.tabs.onUpdated.removeListener(updateTab)
-            // document.getElementById('authBtn')?.removeEventListener('click', handleGoogleDriveBackup);
         };
     }, [popupType]);
 
-    // 监听 background 发送的关闭消息（用于 actionPopup 模式）
+    // ========== Side Panel 心跳发送 ==========
+    useEffect(() => {
+        // 每 3 秒向 background 发送心跳，证明自己还活着
+        const heartbeatTimer = setInterval(() => {
+            chrome.runtime.sendMessage({ type: 'panel-heartbeat' })
+        }, 3_000)
+
+        // 页面加载完成后立即发送就绪消息
+        // 确保 React Router 已挂载
+        const readyTimer = setTimeout(() => {
+            chrome.runtime.sendMessage(
+                { type: 'panel-ready', route: window.location.hash },
+                (response) => {
+                    if (chrome.runtime.lastError) {
+                        console.warn('Failed to send panel-ready:', chrome.runtime.lastError)
+                    }
+                }
+            )
+        }, 500)  // 等 React 初始化完成
+
+        return () => {
+            clearInterval(heartbeatTimer)
+            clearTimeout(readyTimer)
+        };
+    }, []);
+
+    // ========== 导航消息监听 ==========
+    useEffect(() => {
+        const navigateHandler = (message: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+            if (message?.type === 'panel-navigate' && message?.route !== undefined) {
+                const currentHash = window.location.hash
+                const newHash = message.route ? `#${message.route}` : '#'
+                if (currentHash !== newHash) {
+                    window.history.replaceState(null, '', newHash)
+                    window.dispatchEvent(new HashChangeEvent('hashchange'))
+                }
+                sendResponse({ ok: true })
+                return true
+            }
+        }
+
+        chrome.runtime.onMessage.addListener(navigateHandler)
+        return () => {
+            chrome.runtime.onMessage.removeListener(navigateHandler)
+        };
+    }, []);
+
+    // ========== close-popup 消息监听（保留兼容） ==========
     useEffect(() => {
         const closeHandler = (message: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
             if (message?.type === 'close-popup') {
-                window.close()
-                sendResponse({ closed: true })
+                // Side Panel 模式下不关闭，改为导航回首页
+                window.location.hash = '#'
+                sendResponse({ navigated: true })
             }
         }
         chrome.runtime.onMessage.addListener(closeHandler)
         return () => {
             chrome.runtime.onMessage.removeListener(closeHandler)
-        }
+        };
+    }, []);
+
+    // ========== 面板关闭前清理 ==========
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            chrome.runtime.sendMessage({
+                type: 'panel-closing',
+                route: window.location.hash
+            });
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        window.addEventListener('pagehide', handleBeforeUnload);
+        return () => {
+            window.removeEventListener('beforeunload', handleBeforeUnload);
+            window.removeEventListener('pagehide', handleBeforeUnload);
+        };
     }, []);
 
     return (
-        <div className='sealx-container relative flex' style={isFullscreen ? { marginTop: "120px" } : {}}>
-            {/* <span className=' absolute z-[1000] top-[10px] '>{popupType}</span> */}
-            <Routes></Routes>
-            {/* <button id="authBtn" style={{ position: 'absolute', bottom: '10px', right: '10px', zIndex: 1000 }}>Authenticate with OAuth</button> */}
-        </div>
+        <ErrorBoundary>
+            <div className='sealx-container relative flex' style={isFullscreen && !isSidePanel ? { marginTop: "120px" } : {}}>
+                <Routes></Routes>
+            </div>
+        </ErrorBoundary>
     );
 }
 

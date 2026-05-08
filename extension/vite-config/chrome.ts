@@ -19,6 +19,9 @@ export default mergeConfig(
             crx({
                 manifest: {
                     ...baseManifest,
+                    side_panel: {
+                        default_path: 'src/entries/popup/index.html'
+                    },
                     background: {
                         service_worker: 'src/entries/background/index.ts',
                         type: 'module'
