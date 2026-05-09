@@ -106,21 +106,22 @@ export default function Login() {
     }, [userId, activeTabHost, setSession, request.topic, navigate, attempt, setAttempt, maxLockTime, setLockTime])
 
     return (
-        <div className="login-container flex ">
-            <div className='w-[600px] min-h-[780px] flex flex-col mx-auto relative'>
+        <div className="login-container w-full flex ">
+            <div className='w-full min-h-[780px] flex flex-col mx-auto relative'>
                 <div className='sealx-logo w-full mt-[120px] '>
                     <img className='m-auto w-[190px] h-[184px]' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
-                <div className='mx-auto px-[41px] w-full flex mt-[91.57px] mb-[24px]'>
+                <div className='mx-auto px-[24px] w-full flex mt-[91.57px] mb-[24px]'>
                     <Password
                         key="password-input"
                         password={password}
                         className='w-full password-input-wrapper'
                         onChange={handlePasswordChange}
+                        autoFocus
                         readonly={attempt === 0}
                     />
                 </div>
-                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[65px] text-[21px] leading-[28px]'}>
+                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]'}>
                     {
                         attempt === 0 ? (`Too many incorrect attempts. Your account is locked for ${maxLockTime} minutes. ${countdown} left.`) :
                             (`You have ${attempt} attempt${attempt !== 1 ? 's' : ''} remaining. `)

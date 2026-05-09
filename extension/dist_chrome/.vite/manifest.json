@@ -23,15 +23,15 @@
       "_index-Ds8d1C5O.js"
     ]
   },
-  "_global-B5CtZI9z.css": {
-    "file": "assets/global-B5CtZI9z.css",
-    "src": "_global-B5CtZI9z.css"
+  "_global-CY_dnQ0d.css": {
+    "file": "assets/global-CY_dnQ0d.css",
+    "src": "_global-CY_dnQ0d.css"
   },
-  "_global-CbiVf2Iz.js": {
-    "file": "assets/global-CbiVf2Iz.js",
+  "_global-LkkhhKaa.js": {
+    "file": "assets/global-LkkhhKaa.js",
     "name": "global",
     "css": [
-      "assets/global-B5CtZI9z.css"
+      "assets/global-CY_dnQ0d.css"
     ],
     "assets": [
       "assets/Gellix-Regular-gOmSiHtW.woff2",
@@ -163,7 +163,7 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-BBJAg-NZ.js",
+    "file": "assets/index.ts-Dkfp6ebM.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,
@@ -209,7 +209,7 @@
     "src": "src/entries/popup/index.html",
     "isEntry": true,
     "imports": [
-      "_global-CbiVf2Iz.js",
+      "_global-LkkhhKaa.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_messager-manager-CJq8Z-v6.js",
@@ -220,7 +220,7 @@
       "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js"
     ],
     "css": [
-      "assets/popup-C7Cn2IgL.css"
+      "assets/popup-CU4PNTFF.css"
     ]
   },
   "src/entries/sandbox/index.html": {
@@ -229,7 +229,7 @@
     "src": "src/entries/sandbox/index.html",
     "isEntry": true,
     "imports": [
-      "_global-CbiVf2Iz.js",
+      "_global-LkkhhKaa.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_eip712-helper-BqGnlX8z.js",
@@ -246,7 +246,7 @@
     "src": "src/entries/web/index.html",
     "isEntry": true,
     "imports": [
-      "_global-CbiVf2Iz.js",
+      "_global-LkkhhKaa.js",
       "_client-BwqjnpzY.js",
       "_index-BTqkewhy.js",
       "_sealx-provider-Dpxj5qkk.js",

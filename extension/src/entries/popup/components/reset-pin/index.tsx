@@ -128,11 +128,11 @@ export default function ResetPin() {
 
     return (
         <div className="login-container ">
-            <div className='w-[600px] min-h-full mx-auto relative'>
+            <div className='w-full min-h-full mx-auto relative'>
                 <div className='sealx-logo w-full pt-[80px] font-[500] text-[17px]'>
                     <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
-                <div className='mx-auto px-[41px] mt-[91.57px] mb-[24px]'>
+                <div className='mx-auto px-[24px] mt-[91.57px] mb-[24px]'>
                     {
                         !showConfirmPassword ? (
                             <Password
@@ -141,6 +141,7 @@ export default function ResetPin() {
                                 password={password}
                                 className='w-full password-input-wrapper'
                                 onChange={handlePasswordChange}
+                                autoFocus
                             />
                         ) : (
                             <Password
@@ -153,7 +154,7 @@ export default function ResetPin() {
                         )
                     }
                 </div>
-                <div className={(showError ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[65px] text-[21px] leading-[28px]'}>
+                <div className={(showError ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]'}>
                     {tip}
                 </div>
                 <div className=' text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px]  w-full text-center'>Sign What You See</div>

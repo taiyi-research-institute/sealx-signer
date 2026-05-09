@@ -353,8 +353,8 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
                 }
             }
         }
-    } finally {
-        props.setSigning?.(false)
+    } catch (e) {
+        console.debug('onApproval error:', e)
     }
 };
 

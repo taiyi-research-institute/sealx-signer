@@ -7,9 +7,10 @@ interface PasswordProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCh
     password?: string;
     readonly?: boolean
     seePassword?: boolean
+    autoFocus?: boolean
 }
 
-export const Password = ({ onChange, readonly = false, errorIndex = -1, password = '', seePassword = false, ...props }: PasswordProps) => {
+export const Password = ({ onChange, readonly = false, errorIndex = -1, password = '', seePassword = false, autoFocus = false, ...props }: PasswordProps) => {
     const [digits, setDigits] = useState<string[]>([...Array(6).fill('')]);
     const divRefs = useRef<(HTMLDivElement | null)[]>([]);
     const [focusedIndex, setFocusedIndex] = useState<number>(0);
@@ -17,6 +18,17 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
     const [isPasting, setIsPasting] = useState(false);
     const lastInputTimeRef = useRef<number>(0);
     const pendingFocusIndexRef = useRef<number | null>(null);
+
+    // 自动聚焦 - 挂载时聚焦第一个空输入格
+    useEffect(() => {
+        if (!autoFocus) return
+        const timer = setTimeout(() => {
+            const firstEmpty = digits.findIndex(d => !d)
+            const targetIndex = firstEmpty !== -1 ? firstEmpty : 0
+            divRefs.current[targetIndex]?.focus()
+        }, 100)
+        return () => clearTimeout(timer)
+    }, [autoFocus])
 
     // 页面切换到前台时自动获取焦点
     useEffect(() => {

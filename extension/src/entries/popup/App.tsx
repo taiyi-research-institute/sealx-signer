@@ -116,7 +116,7 @@ function App() {
 
     return (
         <ErrorBoundary>
-            <div className='sealx-container relative flex' style={isFullscreen && !isSidePanel ? { marginTop: "120px" } : {}}>
+            <div className='sealx-container w-full min-h-full relative flex' style={isFullscreen && !isSidePanel ? { marginTop: "120px" } : {}}>
                 <Routes></Routes>
             </div>
         </ErrorBoundary>

@@ -1,6 +1,6 @@
 /// <reference types="chrome"/>
 
-import { sessionStore } from "@src/core/state"
+// import { sessionStore } from "@src/core/state"
 import { getSealxInfo } from "./state"
 import { MessageChannel, SealxTopic, type Messager } from "sealx-message"
 import { TabManager } from "sealx-core"

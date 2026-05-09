@@ -367,6 +367,7 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
             }
             sealxSigner.account.newPk = '';
             sealxSigner.account.pk = res.payload;
+            closeSealx()
             return res.payload as string;
         } catch (error) {
             console.error('Public key binding failed:', error);

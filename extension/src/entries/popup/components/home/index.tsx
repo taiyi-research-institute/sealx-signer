@@ -54,7 +54,7 @@ const Home: React.FC = () => {
 
     return (
         <div className='home-container flex w-full flex-col h-fit overflow-auto'>
-            <div className='w-[600px]  flex flex-col h-fit py-[24px] mx-auto relative'>
+            <div className='w-full flex flex-col h-fit py-[24px] mx-auto relative'>
                 {/* Header with Settings Button */}
                 <div className='w-full px-[26.25px]  flex items-center justify-end relative'>
                     <FilterMenu

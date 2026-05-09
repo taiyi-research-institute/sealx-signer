@@ -185,8 +185,8 @@ export default function Initialize() {
         };
     }, [errorIndex, initError]);
     return (
-        <div className='login-container '>
-            <div className='w-[600px] min-h-[780px] max-h-full mx-auto relative'>
+        <div className='login-container w-full '>
+            <div className='w-full h-full mx-auto relative'>
                 <div className='sealx-logo w-full pt-[120px] font-[500] text-[17px]'>
                     <img
                         className='m-auto'
@@ -194,7 +194,7 @@ export default function Initialize() {
                         alt='SealX Logo'
                     />
                 </div>
-                <div className='mx-auto px-[41px] mt-[91.57px] mb-[24px]'>
+                <div className='mx-auto px-[24px] mt-[91.57px] mb-[24px]'>
                     {isInitializing ? (
                         <div className='w-full flex justify-center items-center min-h-[60px]'>
                             <div className='flex flex-col items-center w-full'>
@@ -225,6 +225,7 @@ export default function Initialize() {
                                 password={password}
                                 className='w-full password-input-wrapper'
                                 onChange={handlePasswordChange}
+                                autoFocus
                             />
                         ) : (
                             <Password
@@ -241,7 +242,7 @@ export default function Initialize() {
                         (errorIndex > -1 || initError
                             ? 'text-[#F0231E] '
                             : 'text-[#000]/[60%] ') +
-                        ' text-center w-full px-[65px] text-[21px] leading-[28px]'
+                        ' text-center w-full px-[24px] text-[21px] leading-[28px]'
                     }>
                     {initError
                         ? initError

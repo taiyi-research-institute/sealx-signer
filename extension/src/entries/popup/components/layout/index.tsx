@@ -20,14 +20,14 @@ export default function Layout() {
 
 
     return (
-        <div className="app-layout h-full flex flex-col bg-[#f2f2f2]">
+        <div className="app-layout w-full h-full flex flex-col bg-[#f2f2f2]">
             <header className="app-header bg-[#fff] flex flex-col  justify-center relative">
                 <div className='flex  justify-center items-center leading-[20px] mt-[24px] font-[500] text-[18px]'><Link className="w-[18px] h-[18px] text-[#00BE78] mr-[8.5px]"></Link>{title}</div>
                 <div className='flex  justify-center leading-[29px] text-[24px] mt-[17px] mb-[16px] font-[500]'>{address?.substring?.(0, 8)}...{address?.substring?.(address?.length - 6, address?.length)}</div>
                 <MenuIcon onClick={() => setShowPopupMenu(!showPopupMenu)} className=" cursor-pointer w-[24px] h-[24px] absolute right-[32px] top-[41px]"></MenuIcon>
                 {showPopupMenu ? <PopupMenu closeMenu={closeMenu} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] right-[12px] top-[100px] rounded-[8px] px-[12px]  w-fit bg-[#fff] popup-menu'></PopupMenu> : ('')}
             </header>
-            <main className="app-main flex-1 w-[600px] m-auto overflow-y-auto">
+            <main className="app-main flex-1 w-full m-auto overflow-y-auto">
                 <Outlet />
             </main>
             {/* <footer className="app-footer">

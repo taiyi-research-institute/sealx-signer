@@ -26,8 +26,8 @@ export function Initialized() {
     };
 
     return (
-        <div className="login-container flex flex-col">
-            <div className='w-[600px] min-h-full flex flex-col mx-auto relative'>
+        <div className="login-container w-full flex flex-col">
+            <div className='w-full h-full flex flex-col mx-auto relative'>
                 <div className='sealx-logo w-full mt-[120px] font-[500] text-[17px]'>
                     <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>

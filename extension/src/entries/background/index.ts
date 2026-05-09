@@ -17,12 +17,25 @@ PanelManager.setMessager(messager)
 PanelManager.init()
 
 /**
- * Handles extension installation by setting up required databases
+ * Handles extension installation and startup
  */
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
     installDB('sealx', ['base-info', 'sealx-pk', 'user'], DB_VERSION).then(() => {
         initializeSealxInfo()
     })
+    sessionStore.getState().clearAllSession()
+    if (details.reason === 'install') {
+        chrome.tabs.create({
+            url: chrome.runtime.getURL('src/entries/popup/index.html#/login')
+        }).catch(() => {
+            PanelManager.openPanel('login')
+        })
+    }
+    chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
+})
+
+chrome.runtime.onStartup.addListener(() => {
+    chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
 })
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
