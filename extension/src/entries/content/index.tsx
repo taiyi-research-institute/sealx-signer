@@ -67,5 +67,19 @@ function initializeSealX() {
     injectScript('inpage.js');
 }
 
+// ===== 手势中继：事件委托监听 SealX 操作组件 =====
+// 用户在 HTML 元素上定义 sealx 属性（如 <button sealx>），
+// SDK 自动将其转换为 data-sealx-action="open"。
+// Content script 通过事件委托，只在点击带该属性的元素时，
+// 在 transient activation 窗口内发送 open-side-panel 消息。
+document.addEventListener('click', (e) => {
+    const target = (e.target as HTMLElement)?.closest?.('[data-sealx-action="open"]')
+    if (!target) return
+
+    chrome.runtime.sendMessage({ type: 'open-side-panel' }).catch((err) => {
+        console.warn('[SealX] Failed to send open-side-panel:', err?.message)
+    })
+})
+
 // 等待body加载完成后初始化
 waitForBody(initializeSealX);

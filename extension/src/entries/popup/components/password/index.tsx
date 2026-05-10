@@ -28,7 +28,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
             divRefs.current[targetIndex]?.focus()
         }, 100)
         return () => clearTimeout(timer)
-    }, [autoFocus])
+    }, [autoFocus, digits])
 
     // 页面切换到前台时自动获取焦点
     useEffect(() => {
@@ -37,6 +37,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
                 // 找到第一个为空的输入框
                 const firstEmptyIndex = errorIndex > -1 ? errorIndex : digits.findIndex(digit => !digit);
                 const targetIndex = firstEmptyIndex !== -1 ? firstEmptyIndex : Math.min(password.length, 5);
+                console.log('--------- visibility change ------', targetIndex, '----------')
                 setFocusedIndex(targetIndex);
                 setTimeout(() => divRefs.current[targetIndex]?.focus(), 100);
             }
@@ -118,10 +119,32 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
         if (errorIndex === -1) {
             const newFocusedIndex = Math.min(password.length, 5);
             setFocusedIndex(newFocusedIndex);
+            console.log('--------- password change ------', newFocusedIndex, '----------')
         }
 
         setDigits(items);
     }, [focusedIndex, errorIndex, seePassword, password]);
+
+    // 统一的数字显示更新函数 - 只更新字符，不操作光标
+    const updateDigitDisplay = useCallback((index: number, char: string) => {
+        if (divRefs.current[index]) {
+            const displayChar = char ? (seePassword ? char : '*') : '';
+            divRefs.current[index].setAttribute('data-char', displayChar);
+
+            // 只更新字符内容，不添加光标
+            const currentCaret = divRefs.current[index].querySelector('.password-caret');
+            if (currentCaret) {
+                // 如果当前有光标，保留光标
+                divRefs.current[index].textContent = '';
+                const textNode = document.createTextNode(displayChar);
+                divRefs.current[index].appendChild(textNode);
+                divRefs.current[index].appendChild(currentCaret);
+            } else {
+                // 如果没有光标，只显示字符
+                divRefs.current[index].textContent = displayChar;
+            }
+        }
+    }, [seePassword]);
 
     // 优化的键盘处理函数 - 防止长按连续输入
     const handleKeyDown = useCallback((index: number, e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -154,6 +177,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
                 // 记录需要移动到的前一个输入框，在keyup时处理
                 pendingFocusIndexRef.current = index - 1;
                 setFocusedIndex(index - 1)
+                console.log('--------- backspace move ------', index - 1, '----------')
             }
 
             const newPassword = newDigits.join('');
@@ -169,6 +193,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
             if (digits[index] !== e.key) {
                 index++
                 setFocusedIndex(index)
+                console.log('--------- key press ------', index, '----------')
             }
             // 直接处理有效字符输入
             const newDigits = [...digits];
@@ -185,7 +210,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
                 pendingFocusIndexRef.current = index + 1;
             }
         }
-    }, [digits, onChange, passwordRegex, errorIndex, password]);
+    }, [digits, errorIndex, passwordRegex, onChange, updateDigitDisplay, password]);
 
     // 键盘释放处理函数 - 在按钮释放时设置下一个输入框的焦点
     const handleKeyUp = useCallback((index: number, e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -199,6 +224,8 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
             setFocusedIndex(nextIndex);
         }
     }, [passwordRegex, focusedIndex, password]);
+
+
 
     // 优化的输入处理函数
     const handleInput = useCallback((index: number, e: React.FormEvent<HTMLDivElement>) => {
@@ -232,31 +259,13 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
             // 立即清空输入内容，避免重复处理
             e.currentTarget.textContent = '';
         }
-    }, [isPasting, errorIndex, passwordRegex, digits, onChange]);
+    }, [isPasting, errorIndex, passwordRegex, digits, onChange, updateDigitDisplay]);
 
-    // 统一的数字显示更新函数 - 只更新字符，不操作光标
-    const updateDigitDisplay = useCallback((index: number, char: string) => {
-        if (divRefs.current[index]) {
-            const displayChar = char ? (seePassword ? char : '*') : '';
-            divRefs.current[index].setAttribute('data-char', displayChar);
 
-            // 只更新字符内容，不添加光标
-            const currentCaret = divRefs.current[index].querySelector('.password-caret');
-            if (currentCaret) {
-                // 如果当前有光标，保留光标
-                divRefs.current[index].textContent = '';
-                const textNode = document.createTextNode(displayChar);
-                divRefs.current[index].appendChild(textNode);
-                divRefs.current[index].appendChild(currentCaret);
-            } else {
-                // 如果没有光标，只显示字符
-                divRefs.current[index].textContent = displayChar;
-            }
-        }
-    }, [seePassword]);
 
     // 优化的焦点处理 - 防止失焦
     const onFocus = useCallback((index: number) => {
+        console.log('--------- focus ------', index, '----------', focusedIndex)
         if (focusedIndex !== index) return;
         lastInputTimeRef.current = Date.now();
         setFocusedIndex(index);
@@ -273,7 +282,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
                 }
             }, 0);
         }
-    }, [focusedIndex]);
+    }, [digits, focusedIndex]);
 
     // 移除全局焦点保护 - 允许用户手动控制焦点
 

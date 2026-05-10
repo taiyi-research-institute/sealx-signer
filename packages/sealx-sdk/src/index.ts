@@ -61,6 +61,66 @@ const CHANNEL_POPUP = MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
 
 /**
+ * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
+ * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
+ */
+const SEALX_ACTION_ATTR = 'data-sealx-action';
+const SEALX_ACTION_VALUE = 'open';
+const SEALX_SOURCE_ATTR = 'sealx-component';
+
+export const setupSealxActions = () => {
+    document.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
+        if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
+            el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+        }
+    });
+};
+
+// DOMContentLoaded 时扫描已渲染的元素
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupSealxActions);
+} else {
+    setupSealxActions();
+}
+
+// MutationObserver: 监听后续动态添加的 sealx 元素
+const sealxObserver = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+        mutation.addedNodes.forEach((node) => {
+            if (node instanceof HTMLElement) {
+                if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
+                    if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
+                        node.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                    }
+                }
+                // 同时扫描子节点
+                if (node.querySelectorAll) {
+                    node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
+                        if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
+                            el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                        }
+                    });
+                }
+            }
+        });
+        // 属性变更也可能添加 sealx
+        if (mutation.type === 'attributes' && mutation.attributeName === SEALX_SOURCE_ATTR) {
+            const el = mutation.target as HTMLElement;
+            if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
+                el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+            }
+        }
+    }
+});
+
+sealxObserver.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: [SEALX_SOURCE_ATTR],
+});
+
+/**
  * Cache for SealX extension status to reduce redundant checks
  * @private
  */

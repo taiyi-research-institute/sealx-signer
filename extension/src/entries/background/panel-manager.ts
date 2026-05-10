@@ -65,6 +65,33 @@ export default class PanelManager {
     // ========== 初始化 ==========
 
     /**
+     * 通知面板已通过手势通道打开
+     * 由 open-side-panel handler 在 sidePanel.open 成功后调用
+     */
+    static notifyPanelOpened(route: string) {
+        this.isPanelOpen = true
+        this.currentRoute = route
+        this.lastHeartbeatAt = Date.now()
+        this.clearBadge()
+        this.resolveReadyWaiters(true)
+    }
+
+    /**
+     * 设置扩展图标 badge（用于 fallback 提示）
+     */
+    static setBadge() {
+        chrome.action.setBadgeText({ text: '!' })
+        chrome.action.setBadgeBackgroundColor({ color: '#F0231E' })
+    }
+
+    /**
+     * 清除扩展图标 badge
+     */
+    static clearBadge() {
+        chrome.action.setBadgeText({ text: '' })
+    }
+
+    /**
      * 初始化 side panel 配置
      * 替代原来的 PopupManager.setPopupWindow()
      */
@@ -123,9 +150,12 @@ export default class PanelManager {
     // ========== 面板打开 ==========
 
     /**
-     * 打开 side panel 并导航到指定路由
+     * 导航到指定路由（不调用 sidePanel.open）
      *
-     * 替代原来的 PopupManager.popupWindow(showWindow, route)
+     * sidePanel.open() 只能由用户手势触发（通过 open-side-panel handler），
+     * 此方法仅负责：
+     * - 面板已打开且存活 → 发送导航消息
+     * - 面板未打开 → 设置路径（点击扩展图标时生效）+ 显示 badge 提示用户
      *
      * 并发处理：如果面板正在处理其他 tab 的请求，新请求入队等待
      *
@@ -164,34 +194,30 @@ export default class PanelManager {
                 return
             }
 
-            // 6. 面板未打开，需要重新打开：先设置路径，再打开
+            // 6. 面板未打开或心跳超时：
+            //    sidePanel.open() 必须由用户手势触发，此处无法调用。
+            //    先设置路径（openPanelOnActionClick 生效时用户点击图标即打开到正确路由），
+            //    再尝试导航（面板可能已通过手势通道打开但心跳尚未到达），
+            //    如果面板确实未打开则显示 badge 提示用户点击扩展图标。
             const fullPath = route ? `${this.panelPath}#${route}` : this.panelPath
             try {
-                await chrome.sidePanel.setOptions({
-                    path: fullPath,
-                    enabled: true,
-                })
+                await chrome.sidePanel.setOptions({ path: fullPath, enabled: true })
             } catch (err) {
-                console.error('PanelManager: setOptions failed', err)
+                console.warn('PanelManager: setOptions failed', err)
             }
 
-            // 7. 打开面板
-            try {
-                await chrome.sidePanel.open({ tabId: targetTabId })
-            } catch (err) {
-                // open 失败时降级为导航消息（面板可能已在其他上下文中打开）
-                await this.navigateToRoute(route)
-                return
+            // 尝试导航（面板可能已通过手势通道打开，尚未收到心跳）
+            const navigated = await this.tryNavigate(route)
+            if (!navigated) {
+                // 面板确实未打开，显示 badge 提示用户点击扩展图标
+                this.setBadge()
+                console.info('PanelManager: panel not open, badge set — user can click extension icon')
             }
-
-            // 8. 记录状态
-            this.isPanelOpen = true
-            this.currentRoute = route
         } finally {
             this.isProcessing = false
         }
 
-        // 9. 处理队列中的下一个请求（异步非阻塞）
+        // 7. 处理队列中的下一个请求（异步非阻塞）
         this.scheduleProcessQueue()
     }
 
@@ -203,18 +229,38 @@ export default class PanelManager {
      * 此处不依赖 response 值，仅依赖消息投递的副作用（side panel 页面接收并导航）。
      * registerHeartbeatListener 对 panel-navigate 返回 false，不会拦截。
      * panel-navigate 消息的实际处理在 App.tsx 的 navigateHandler 中。
+     *
+     * @returns true 如果导航消息发送成功，false 如果失败（面板未打开/未加载）
      */
-    static async navigateToRoute(route: AllowedRoute): Promise<void> {
+    static async navigateToRoute(route: AllowedRoute): Promise<boolean> {
         try {
             await chrome.runtime.sendMessage({
                 type: 'panel-navigate',
                 route,
             })
             this.currentRoute = route
+            return true
         } catch (err) {
             // sendMessage 失败通常意味着侧边栏页面已关闭或未加载
             console.warn('PanelManager: navigate failed', err)
+            return false
         }
+    }
+
+    /**
+     * 尝试导航到指定路由（用于面板可能刚通过手势通道打开但心跳尚未到达的场景）
+     * 先尝试直接导航，如果失败则短暂重试一次
+     *
+     * @returns true 如果导航成功，false 如果面板确实未打开
+     */
+    private static async tryNavigate(route: AllowedRoute): Promise<boolean> {
+        // 第一次尝试：面板可能已通过手势通道打开
+        if (await this.navigateToRoute(route)) {
+            return true
+        }
+        // 短暂等待后面板可能已加载完成，再试一次
+        await new Promise(resolve => setTimeout(resolve, 300))
+        return await this.navigateToRoute(route)
     }
 
     /**
@@ -228,6 +274,9 @@ export default class PanelManager {
     /**
      * 处理队列中的下一个请求
      * 由 side panel 页面在完成签名后调用，或 openPanel 完成后自动调度
+     *
+     * 注意：不调用 sidePanel.open()，因为此方法不在用户手势上下文中。
+     * 仅通过导航或设置路径+badge 来处理。
      */
     static async processNextInQueue(): Promise<void> {
         if (this.requestQueue.length === 0) return
@@ -237,21 +286,22 @@ export default class PanelManager {
         this.isProcessing = true
 
         try {
-            // 如果面板未打开或心跳超时，重新打开面板
-            if (!this.isPanelOpen || Date.now() - this.lastHeartbeatAt >= 15_000) {
+            // 如果面板已打开且存活，直接导航
+            if (this.isPanelOpen && Date.now() - this.lastHeartbeatAt < 15_000) {
+                await this.navigateToRoute(next.route)
+                this.currentRoute = next.route
+            } else {
+                // 面板未打开或心跳超时：设置路径 + 尝试导航 + badge fallback
                 const fullPath = next.route ? `${this.panelPath}#${next.route}` : this.panelPath
                 try {
                     await chrome.sidePanel.setOptions({ path: fullPath, enabled: true })
-                    await chrome.sidePanel.open({ tabId: next.tabId })
-                    this.isPanelOpen = true
-                    this.currentRoute = next.route
                 } catch (err) {
-                    console.warn('PanelManager: processNextInQueue reopen failed', err)
-                    await this.navigateToRoute(next.route)
+                    console.warn('PanelManager: processNextInQueue setOptions failed', err)
                 }
-            } else {
-                await this.navigateToRoute(next.route)
-                this.currentRoute = next.route
+                const navigated = await this.tryNavigate(next.route)
+                if (!navigated) {
+                    this.setBadge()
+                }
             }
         } finally {
             this.isProcessing = false
@@ -271,6 +321,30 @@ export default class PanelManager {
     }
 
     // ========== 面板关闭 ==========
+
+    /**
+     * Panel closed by user — immediately sync state (faster than heartbeat timeout).
+     * Called from background's panel-closing handler.
+     */
+    static notifyPanelClosing(): void {
+        // F8: resolve any pending waitForReady() callers with false
+        // (panel closed while someone was waiting for it to be ready)
+        this.resolveReadyWaiters(false)
+        this.isPanelOpen = false
+        this.processingTabId = null
+        this.isProcessing = false
+    }
+
+    /**
+     * Clear the queue entry for the currently processing tab.
+     * Used by panel-closing handler where sender.tab is undefined for side panels,
+     * so clearQueueForTab(sender.tab.id) wouldn't work.
+     */
+    static clearCurrentProcessingQueue(): void {
+        if (this.processingTabId) {
+            this.clearQueueForTab(this.processingTabId)
+        }
+    }
 
     /**
      * 关闭面板 / 结束签名流程

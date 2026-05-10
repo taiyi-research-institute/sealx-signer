@@ -95,8 +95,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                             pk: currentSession.pk
                         }
                     });
+                    return null;  // Valid session — stay on current route
                 }
-                return null;
+                // F3: Session invalid — redirect to login
+                return '/login';
             }
 
             // If session invalid, redirect to login
@@ -267,8 +269,22 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             return;
         }
 
-        // Check for cached request data
-        const storeRequest = useRequestStore.getState().request;
+        // F2: 等待 useRequestStore hydration 完成（Zustand persist 从 chrome.storage.local 回灌）
+        // background 的 setRequest() 通过 chrome.storage.local 同步到 panel，
+        // 但异步写入可能有延迟。先 rehydrate，再轮询重试。
+        if (!useRequestStore.persist.hasHydrated()) {
+            await useRequestStore.persist.rehydrate();
+        }
+
+        // Check for cached request data with polling retry
+        // (handles race: background wrote to storage but async propagation hasn't completed)
+        let storeRequest = useRequestStore.getState().request;
+        for (let attempt = 0; attempt < 3 && !storeRequest; attempt++) {
+            if (attempt > 0) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            storeRequest = useRequestStore.getState().request;
+        }
         if (storeRequest) {
             // Restore request with reply function binding
             if (storeRequest.once) {

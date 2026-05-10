@@ -93,10 +93,10 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         state.setSession(null)
         const setRequest = useRequestStore.getState().setRequest
         setRequest(request)
-        // 打开 side panel 登录页
-        await PanelManager.openPanel('login', request.header.tabId)
+        // Panel opens via gesture channel (content script click listener),
+        // not via openPanel(). Store the request for panel self-routing.
 
-        // 等待面板就绪
+        // 等待面板就绪（gesture channel 触发 sidePanel.open 后 panel 加载→发送 panel-ready）
         const ready = await PanelManager.waitForReady(5_000)
         if (!ready) {
             console.warn('Panel did not become ready within timeout, attempting communication anyway')
@@ -130,33 +130,33 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
     if (userId) state.setUserId(userId)
     const setRequest = useRequestStore.getState().setRequest
     setRequest(request)
-    // 确定路由
-    let route = ''
-    switch (request.topic) {
-        case SealxTopic.BIND_PK:
-            route = 'bind-pubkey'
-            break
-        case SealxTopic.SIGN:
-        case SealxTopic.BATCH_SIGN:
-            route = 'task-home'
-            break
-        default:
-            route = ''
-    }
-    // 打开 side panel（替代 PopupManager.popupWindow）
-    if (request.topic !== SealxTopic.SIGN_RESPONSE) {
-        await PanelManager.openPanel(route as any, request.header.tabId)
-        // 等待面板就绪
-        const ready = await PanelManager.waitForReady(5_000)
-        if (!ready) {
-            console.warn('Side panel failed to become ready within timeout')
-        }
-    }
+    // Store request in persist store — panel self-routes from store on load.
+    // Panel opens via gesture channel (content script click listener).
+    // No need to openPanel() or determine route here.
+    // Forward the message to panel via bridge (no-op if panel not loaded).
+
 })
 
 // ========== 统一 panel-* 消息处理 ==========
 // 处理面板队列处理和关闭通知
 chrome.runtime.onMessage.addListener((message: any, _sender, _sendResponse) => {
+    if (message?.type === 'open-side-panel') {
+        const tabId = _sender.tab?.id
+        if (tabId) {
+            chrome.sidePanel.open({ tabId }).then(() => {
+                PanelManager.notifyPanelOpened('')
+            }).catch((err: Error) => {
+                console.warn('open-side-panel: sidePanel.open failed', err.message)
+                PanelManager.setBadge()
+                // Ensure default path + enabled (use PanelManager.panelPath, not hardcoded)
+                chrome.sidePanel.setOptions({
+                    path: PanelManager.panelPath,
+                    enabled: true
+                })
+            })
+        }
+        return true
+    }
     if (message?.type === 'panel-process-queue') {
         PanelManager.processNextInQueue()
         return true
@@ -166,7 +166,10 @@ chrome.runtime.onMessage.addListener((message: any, _sender, _sendResponse) => {
         const tabId = _sender.tab?.id ?? null
         if (tabId) {
             PanelManager.clearQueueForTab(tabId)
+        } else {
+            PanelManager.clearCurrentProcessingQueue()
         }
+        PanelManager.notifyPanelClosing()
         useRequestStore.getState().clearRequest()
         return true
     }

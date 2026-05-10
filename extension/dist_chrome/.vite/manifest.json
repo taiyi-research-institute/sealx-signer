@@ -1,6 +1,6 @@
 {
   "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-RU173r43.js",
+    "file": "assets/crx-manifest.js-RmJuDCbL.js",
     "name": "crx-manifest.js",
     "src": "../../../../../@crx/manifest",
     "isEntry": true
@@ -80,9 +80,9 @@
       "____vite-browser-external_commonjs-proxy-DS4Da0Xp.js"
     ]
   },
-  "_index.tsx-loader-CqKLW_Yc.js": {
-    "file": "assets/index.tsx-loader-CqKLW_Yc.js",
-    "src": "_index.tsx-loader-CqKLW_Yc.js"
+  "_index.tsx-loader-1jY6KF6s.js": {
+    "file": "assets/index.tsx-loader-1jY6KF6s.js",
+    "src": "_index.tsx-loader-1jY6KF6s.js"
   },
   "_messager-manager-CJq8Z-v6.js": {
     "file": "assets/messager-manager-CJq8Z-v6.js",
@@ -163,7 +163,7 @@
     "src": "src/assets/fonts/open-sans/OpenSans-SemiBold.woff2"
   },
   "src/entries/background/index.ts": {
-    "file": "assets/index.ts-Dkfp6ebM.js",
+    "file": "assets/index.ts-DJTxAQ4Y.js",
     "name": "index.ts",
     "src": "src/entries/background/index.ts",
     "isEntry": true,
@@ -177,7 +177,7 @@
     ]
   },
   "src/entries/content/index.tsx": {
-    "file": "assets/index.tsx-BbimIuIC.js",
+    "file": "assets/index.tsx-Cb1OIFej.js",
     "name": "index.tsx",
     "src": "src/entries/content/index.tsx",
     "isEntry": true,
