@@ -47,7 +47,7 @@ export const encodePrivateKey = async (address: string, privateKey: string, pin:
 
     // Create final storage record with double-encrypted data
     const storeRecord: PrivateKeyStoreRecord = {
-        id: pin,
+        id: CryptoJS.SHA256(pin).toString(CryptoJS.enc.Hex),
         address: address,                    // Wallet address as record ID
         encrypted: encryptedRecord.encrypted, // Double-encrypted private key
         iv: encryptedRecord.iv,         // IV for second layer encryption
