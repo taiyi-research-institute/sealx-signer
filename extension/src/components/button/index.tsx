@@ -1,4 +1,5 @@
 import type React from "react"
+import './styles.css'
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     /** Button type - primary (black background) or secondary (outline) */
@@ -31,12 +32,12 @@ const Button = ({
     ...props
 }: ButtonProps) => {
     // Base styles common to all buttons
-    const baseStyles = 'rounded-[34px] border-2 font-[500] text-[1.5rem] leading-[1.75] pt-[1.125rem] pb-[1.375rem] transition-all duration-200'
+    const baseStyles = 'sealx-button rounded-[34px] border-2 font-[500] text-[1.5rem] leading-[1.75] pt-[1.125rem] pb-[1.375rem] transition-all duration-200'
 
     // Padding styles based on variant
     const paddingStyles = variant === 'primary'
-        ? 'pl-[3.6106rem] pr-[3.6394rem]'
-        : 'pl-[3.2981rem] pr-[3.3269rem]'
+        ? 'pl-[3.6106rem] pr-[3.6394rem] primary-padding'
+        : 'pl-[3.2981rem] pr-[3.3269rem] secondary-padding'
 
     // Variant-specific styles
     const variantStyles = {

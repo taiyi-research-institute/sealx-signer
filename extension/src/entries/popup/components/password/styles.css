@@ -80,3 +80,29 @@
         opacity: 0;
     }
 }
+
+/* Side Panel elastic layout — prevent password box compression at narrow widths */
+body[popup-mode='sidepanel'] .password-container {
+    gap: 0.5rem;
+}
+
+body[popup-mode='sidepanel'] .password {
+    width: auto !important;
+    flex: 1 !important;
+    max-width: 70px !important;
+    height: auto !important;
+    aspect-ratio: 70 / 76;
+    line-height: normal;
+    font-size: 24px !important;
+}
+
+body[popup-mode='sidepanel'] .password::after {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+body[popup-mode='sidepanel'] .password:focus .password-caret {
+    width: 3.16px !important;
+    height: 30.38px !important;
+}
