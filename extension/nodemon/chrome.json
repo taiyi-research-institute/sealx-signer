@@ -10,5 +10,5 @@
     ],
     "ext": "tsx,css,html,ts,json",
     "ignore": ["./src/**/*.spec.ts"],
-    "exec": "vite build --config ./vite-config/chrome.inpage.config.ts && vite build --config ./vite-config/chrome.ts --mode development"
+    "exec": "vite build --config ./vite-config/chrome.inpage.config.ts && cp dist_inpage/inpage.js inpage.js && vite build --config ./vite-config/chrome.ts --mode development"
 }

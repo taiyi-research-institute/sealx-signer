@@ -5,6 +5,13 @@ import { SealxRequest } from "../contracts";
 import { MessageChannel } from "../enums";
 import { SealxResponse } from "../contracts/response";
 
+const ignoreMissingReceiver = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist')) return;
+    if (message.includes('Extension context invalidated')) return;
+    console.warn('ContentMessager postMessage failed:', error);
+};
+
 /**
  * Handles message communication for content scripts in browser extensions.
  * Manages message passing between:
@@ -95,9 +102,9 @@ export default class ContentMessager extends MessagerBase {
         } else {
             try {
                 const runtime = chrome.runtime
-                if (runtime) runtime.sendMessage(message)
+                if (runtime) runtime.sendMessage(message).catch(ignoreMissingReceiver)
             } catch (e) {
-                console.error('postMessage error:', e)
+                ignoreMissingReceiver(e)
                 this.replyError(e, message)
             }
         }

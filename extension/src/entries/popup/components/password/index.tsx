@@ -95,7 +95,7 @@ export const Password = ({
     const isError = (index: number) => errorIndex > -1 && index <= errorIndex;
 
     return (
-        <div {...props} className={`password-container flex justify-between ${props.className || ''}`}>
+        <div {...props} className={`password-container max-w-[436px] mx-auto flex justify-between ${props.className || ''}`}>
             {Array.from({ length: 6 }).map((_, i) => (
                 <input
                     key={i}

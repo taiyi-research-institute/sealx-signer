@@ -1,23 +1,30 @@
 ---
-title: 'Fix Side Panel Flash — 按钮触发打开时 Loading 状态'
-slug: 'fix-side-panel-flash-loading'
+title: '修复 Side Panel 按钮触发 Loading 的用户手势丢失问题'
+slug: 'fix-side-panel-loading'
 created: '2026-05-11'
-status: 'in-progress'
-stepsCompleted: [1]
-tech_stack: ['TypeScript', 'React', 'Chrome Extension API', 'Tailwind CSS']
+status: 'implementation-complete'
+stepsCompleted: [1, 2, 3, 4]
+tech_stack: ['Chrome Extension MV3', 'TypeScript', 'React', 'chrome.storage.session API']
 files_to_modify:
-  - 'extension/src/entries/background/index.ts'
   - 'extension/src/entries/background/panel-manager.ts'
   - 'extension/src/providers/RequestContextProvider.tsx'
+files_reviewed:
+  - 'extension/src/entries/background/panel-manager.ts'
+  - 'extension/src/providers/RequestContextProvider.tsx'
+  - 'extension/src/entries/background/index.ts'
+  - 'extension/src/entries/content/index.tsx'
   - 'extension/src/hooks/usePopupType.ts'
+  - 'extension/manifest/manifest.json'
+  - 'packages/sealx-sdk/src/index.ts'
 code_patterns:
-  - '`chrome.sidePanel.setOptions({ path })` 在 `open()` 前设置 URL 参数'
-  - '`new URLSearchParams(window.location.search).get()` 读取 URL 参数'
-  - '`request.topic` 为 BIND_PK / SIGN / BATCH_SIGN 时结束 loading'
+  - 'chrome.sidePanel.open() must be called synchronously within user gesture activation window'
+  - 'chrome.storage.session for transient cross-context messaging (set in background, get+remove in panel)'
+  - 'content script event delegation preserves gesture token via sendMessage → background onMessage chain'
+  - 'async/await breaks Chrome transient activation; sync API calls preserve it'
 test_patterns: []
 ---
 
-# Tech-Spec: Fix Side Panel Flash — 按钮触发打开时 Loading 状态
+# Tech-Spec: 修复 Side Panel 按钮触发 Loading 的用户手势丢失问题
 
 **Created:** 2026-05-11
 
@@ -25,123 +32,163 @@ test_patterns: []
 
 ### Problem Statement
 
-点击 DApp 页面上的 `[data-sealx-action="open"]` 按钮打开 Side Panel 时出现闪屏：Home 页面先渲染一帧，然后 `checkRoute` / `panel-navigate` 异步重定向到 sign/bind/login 页面。时序如下：
-
-```
-用户点击 → sidePanel.open(defaultPath, 无 hash)
-              │
-              ├── HashRouter 默认路由 '/' → Home 渲染 (用户看到!)
-              │
-              ├── 500ms 后 panel-ready 发出 (route='')
-              │
-              ├── RootLayout.checkRoute() 异步重定向 → /login 或 /initialize
-              │
-              └── messager 推送请求 → 导航到 sign/bind 页
-```
-
-`RequestContextProvider` 已有 `loading` 状态和 `Loading` 组件（半透明遮罩），但两个问题导致闪屏：
-1. `Loading` 遮罩是半透明的（`bg-[#000]/10 backdrop-blur-sm`），Home 内容透出
-2. `initializeApplication` 的 loading 在请求到达前就结束，Home 暴露后才收到请求进行二次跳转
+在 Service Worker 上下文中，`openPanelWithSource` 方法在调用 `chrome.sidePanel.open()` 之前先执行了 `await chrome.sidePanel.setOptions({ path: '...?source=button' })`。这个异步操作使 Service Worker 的用户手势 token 过期，导致后续 `sidePanel.open()` 抛出 `"may only be called in response to a user gesture"` 错误，面板无法打开。
 
 ### Solution
 
-在后台收到 `open-side-panel` 消息时，通过 `chrome.sidePanel.setOptions({ path })` 将面板 URL 设为带 `?source=button` 参数的地址。面板端检测到 `source=button` 且为 Side Panel 模式时，显示不透明全屏 Loading，直到绑定/签名请求到达（`request.topic` 为 `BIND_PK` / `SIGN` / `BATCH_SIGN`），然后正常渲染路由。CONNECT 请求不结束 loading。
+去掉 URL query 参数方案，改为 `chrome.storage.session` 传递 "button source" 标识：
+- **写入（Background）**：收到 content script 的 `open-side-panel` 消息后，`chrome.storage.session.set({ panelTriggerSource: 'button' })`，然后直接 `sidePanel.open()`（不经过 setOptions）
+- **读取（Panel/Provider）**：`RequestContextProvider` 挂载时通过 `chrome.storage.session.get('panelTriggerSource')` 检测来源，读到 `'button'` 则显示 opaque loading，读取后立即清除
 
 ### Scope
 
 **In Scope:**
-- 后台 `open-side-panel` 处理器：`setOptions` 带 `?source=button` 参数
-- `PanelManager`：面板打开后恢复默认路径
-- `RequestContextProvider`：检测 `source=button` + side panel → 延长 loading 到请求到达
-- `Loading` 组件：`source=button` 时全不透明白色背景
+- 重写 `PanelManager.openPanelWithSource`：移除 `setOptions` + query path，改用 `chrome.storage.session.set`
+- 重写 `RequestContextProvider` 的 `isButtonTriggered` 检测：移除 URL 参数解析，改用 `chrome.storage.session.get`
+- 确保 storage flag 在面板加载完成后及时清除
 
 **Out of Scope:**
-- popup/action/tab 模式的 loading 逻辑
-- 手动点击扩展图标打开 Side Panel
-- 修改路由逻辑（`checkRoute`、`routeByRequest` 保持不变）
-- `App.tsx` 的 `panel-ready` 时序
+- 心跳机制改动
+- Panel 队列系统
+- Content script 的 click delegation 逻辑
+- 其他 Side Panel 功能
 
 ## Context for Development
 
 ### Codebase Patterns
 
-- Side Panel 模式检测：`usePopupType()` hook，`popupType === 'sidepanel'`
-- URL 参数读取：`new URLSearchParams(window.location.search)`
-- 请求上下文：`RequestContextProvider` 管理 `request: SealxRequest` 状态
-- 请求到达信号：`request.header` 有值
-- Loading 组件：`RequestContextProvider` 内置 `Loading: React.FC`，当前为半透明遮罩
-- 面板管理器：`PanelManager` 类，管理 `isPanelOpen`、`panelPath`、`navigateToRoute` 等
+- **手势链**：Content script click → `sendMessage({ type: 'open-side-panel' })` → background `onMessage` → `openPanelWithSource` → `await setOptions()` 打破手势 → `sidePanel.open()` 失败
+- `chrome.sidePanel.open()` 仅在 `panel-manager.ts:239-262` 的 `openPanelWithSource` 中被调用
+- `isButtonTriggered` 当前通过 `URLSearchParams('source')` 检测（`RequestContextProvider.tsx:72`），清理 URL 在 `useEffect`（line 77-81）
+- Panel 通过 `messager` 系统与 background 通信
+- `usePopupType` hook 通过 `chrome.windows.getCurrent()` + `chrome.tabs.getCurrent()` 推断是否为 sidepanel，返回 'sidepanel' | 'action' | 'window' | 'tab' | 'unknown'
+- `isSidePanelCandidate` 派生逻辑：排除已知非 sidepanel 模式后保守判定（`RequestContextProvider.tsx:85-86`）
 
 ### Files to Reference
 
-| File | Purpose |
-| ---- | ------- |
-| `extension/src/entries/background/index.ts` | `open-side-panel` 消息处理 (line 142)，设置 URL 参数 |
-| `extension/src/entries/background/panel-manager.ts` | `PanelManager`，`setOptions`/`open`/`init`，发布后恢复默认 path |
-| `extension/src/providers/RequestContextProvider.tsx` | 请求上下文 + `loading` 状态 + `Loading` 组件 |
-| `extension/src/hooks/usePopupType.ts` | `usePopupType()` hook，返回 `isSidePanel` |
+| File | Purpose | Key Line(s) |
+| ---- | ------- | ----------- |
+| `extension/src/entries/background/panel-manager.ts` | `openPanelWithSource()` — 需要移除 setOptions + query path | 239-262 |
+| `extension/src/providers/RequestContextProvider.tsx` | `isButtonTriggered` 检测 + loading 渲染 — 从 URL → storage 迁移 | 72-81, 88-128, 447-456 |
+| `extension/src/entries/background/index.ts` | `open-side-panel` 消息处理 — 无需改，已有错误兜底 | 142-158 |
+| `extension/src/entries/content/index.tsx` | click 事件委托发送 `open-side-panel` 消息 | 75-82 |
+| `extension/src/hooks/usePopupType.ts` | popup type 检测 hook | 全文件 |
+| `extension/manifest/manifest.json` | 确认 `side_panel.default_path` = `src/entries/popup/index.html` | 9-11 |
+| `packages/sealx-sdk/src/index.ts` | SDK 自动设置 `data-sealx-action="open"` 属性 | 63-118 |
 
 ### Technical Decisions
 
-- **Loading 结束条件**: `request.header` 有值 且 `request.topic` 为 `SealxTopic.BIND_PK` / `SealxTopic.SIGN` / `SealxTopic.BATCH_SIGN`。CONNECT 不结束 loading。加 3s 超时兜底
-- **URL 参数传参**: `?source=button` 作为 signal，通过 `window.location.search` 读取
-- **不透明遮罩**: `source=button` 模式下 `bg-white` 全白，不透视底层内容
-- **路径恢复**: 面板打开 500ms 后用 `setOptions` 恢复默认路径（无 ?source），避免后续手动打开也进入 loading
-- **已有 loading 流转**: `initializeApplication` 中 `setLoading(true)` 保持不变，仅在请求到达后才 `setLoading(false)`
+- **`chrome.storage.session`（非 `localStorage`）**：session storage 生命周期与浏览器会话一致，避免持久化残留
+- **写入不 await，直接 `open()`**：`chrome.storage.session.set()` 同步入队，不阻塞主线程；不使用 await 打断手势链
+- **读取后立即 `remove()`**：防止后续刷新或手动打开 panel 时误触发 loading 状态
+- **`chrome.storage.session.set` → `sidePanel.open` 无竞态**：storage 操作在扩展进程内序列化，`set` 在 `open` 触发面板加载前完成
+- **`open-side-panel` handler 已有 catch 兜底**：`index.ts:148-156` 包含 `setBadge()` + `setOptions restore` 降级逻辑
+
+### Investigation Findings
+
+1. **根因确认**：`panel-manager.ts:242` 的 `await chrome.sidePanel.setOptions()` 创建 microtask 边界，使 Chrome transient activation token 在 `sidePanel.open()`（line 251）执行前过期
+2. **`sendMessage` 传递手势**：content script 的 `sendMessage` 保留 transient activation 上下文到 background 的 `onMessage` 监听器，但任何 `await` 都会丢失
+3. **URL 方案不可行**：`?source=button` query param 方案需要在 `open()` 前 `await setOptions()`，天生与手势要求冲突
+4. **storage.session 方案优势**：
+   - 无 microtask 边界：`set` 同步调用，不打断链
+   - 自然隔离：手动点击扩展图标不会写 storage flag，故不触发 loading
+   - 自动清理：读取后 remove，无残留风险
+5. **`RequestContextProvider` 需要适配异步**：`isButtonTriggered` 状态当前由同步的 URLSearchParams 驱动；改为 `chrome.storage.session.get()` 后需异步初始化，loading 显示时机不变（React state 驱动）
 
 ## Implementation Plan
 
 ### Tasks
 
-- [ ] **Task 1: PanelManager 新增 `openPanelWithSource` 方法**
-  - File: `extension/src/entries/background/panel-manager.ts`
-  - Action: 新增方法，设置 `setOptions({ path: 'src/entries/popup/index.html?source=button' })`，调用 `open()`，然后 500ms 后恢复默认路径
-  - Notes: 方法返回 Promise，确保 open 完成
+- [x] **Task 1: 重写 `PanelManager.openPanelWithSource`**
+  - File: `extension/src/entries/background/panel-manager.ts` (line 239-262)
+  - Action: 替换整个方法体
+  - Changes:
+    1. 移除 `const sourcedPath`、`await setOptions`、`catch fallback open()` 块
+    2. 替换为：`chrome.storage.session.set({ panelTriggerSource: 'button' })` → `await chrome.sidePanel.open({ tabId })`
+    3. 移除 `setTimeout restore default path`（line 253-261）
+    4. 在 `set` 和 `open` 之间加 `// MUST remain synchronous — no await between set and open, preserves transient activation`
+  - Notes: 不再需要 catch 中的降级 open()——调用方 handler（index.ts）已有完整错误处理
 
-- [ ] **Task 2: 后台 `open-side-panel` 处理器调用新方法**
-  - File: `extension/src/entries/background/index.ts`
-  - Action: 将 `chrome.sidePanel.open({ tabId })` 替换为 `PanelManager.openPanelWithSource(tabId)`
-  - Notes: 保持 `notifyPanelOpened('')` 调用不变
+- [x] **Task 2: 重写 `RequestContextProvider` 的 `buttonSource` 检测**
+  - File: `extension/src/providers/RequestContextProvider.tsx` (line 72-105)
+  - Action: 替换 URL 解析为 storage.session 读取
+  - Changes:
+    1. 移除 `buttonSource` useMemo（line 72-74）——URLSearchParams 解析
+    2. 移除 URL cleanup useEffect（line 77-81）——`history.replaceState`
+    3. 新增 `useEffect`：`chrome.storage.session.get('panelTriggerSource')` → 如值为 `'button'` 则 `setIsButtonTriggered(true)` → 立即 `chrome.storage.session.remove('panelTriggerSource')`
+    4. 移除 `initializeApplication` 中 `if (buttonSource !== 'button') { setLoading(false) }` 的条件（line 326-328, 358-359, 390-392），改为由新的 isButtonTriggered 状态统一管理
+  - Notes: `get` 和 `remove` 在同一个 async 函数内顺序执行，中间不会被打断。`remove` 失败不影响功能（session storage 生命周期 = 浏览器会话，自然过期）
 
-- [ ] **Task 3: `RequestContextProvider` 检测 `source=button` 并延长 loading**
-  - File: `extension/src/providers/RequestContextProvider.tsx`
-  - Action:
-    1. 读取 `URLSearchParams(window.location.search).get('source')`
-    2. 检测 `popupType === 'sidepanel' && source === 'button'`
-    3. 满足条件时，`initializeApplication` 完成后 `setLoading(true)` 不释放
-    4. 在 `request.topic` 为 `BIND_PK` / `SIGN` / `BATCH_SIGN` 时 `setLoading(false)`（CONNECT 不解锁）
-    5. 加 3s 超时兜底
-
-- [ ] **Task 4: `Loading` 组件 `source=button` 时不透明背景**
-  - File: `extension/src/providers/RequestContextProvider.tsx`
-  - Action: Loading 组件接收 `opaque` prop，为 true 时用 `bg-white` 替代 `bg-[#000]/10 backdrop-blur-sm`
+- [x] **Task 3: `open-side-panel` handler catch 分支清除 storage flag**
+  - File: `extension/src/entries/background/index.ts` (line 148-156)
+  - Action: 在 `.catch()` 中添加 `chrome.storage.session.remove('panelTriggerSource')`
+  - Changes: 在 `PanelManager.setBadge()` 之前添加 `chrome.storage.session.remove('panelTriggerSource').catch(() => {})`
+  - Notes: 防止 `sidePanel.open()` 失败（如 tab 无效）后残留 flag，导致手动打开面板时误显示 opaque loading
 
 ### Acceptance Criteria
 
-| # | Given | When | Then |
-|---|-------|------|------|
-| AC1 | Side Panel 模式，DApp 点击按钮触发打开 | 面板加载 | 显示不透明白色 Loading 页面，不出现 Home 页内容 |
-| AC2 | Side Panel 模式，点击按钮触发 | bind/sign 请求到达 | Loading 结束，直接渲染签名/绑定页面，无 Home 闪现 |
-| AC3 | Side Panel 模式，手动打开（非按钮触发） | 面板加载 | 行为不变，无 loading 遮罩 |
-| AC4 | Side Panel 模式，按钮触发但 3s 无请求 | 超时 | Loading 结束，正常渲染默认路由 |
-| AC5 | popup/action/tab 模式，任何方式打开 | 页面加载 | 行为不变，不受影响 |
+- [ ] **AC1: 按钮触发打开面板并显示 loading**
+  - Given: 用户在业务页面（如 `localhost:5173`）
+  - When: 点击带有 `data-sealx-action="open"` 的按钮
+  - Then: Side Panel 打开，显示不透明白色全屏 loading（`<Loading opaque />`）
+
+- [ ] **AC2: SIGN/BIND_PK/BATCH_SIGN 请求到达后解除 loading**
+  - Given: Side Panel 因按钮触发而显示 opaque loading
+  - When: messager 收到 `SealxTopic.BIND_PK` / `SealxTopic.SIGN` / `SealxTopic.BATCH_SIGN` 请求
+  - Then: loading 消失，路由跳转到对应页面（`/bind-pubkey` / `/task-home`）
+
+- [ ] **AC3: CONNECT 请求不解除 loading**
+  - Given: Side Panel 因按钮触发而显示 opaque loading
+  - When: messager 收到 `SealxTopic.CONNECT` 请求（session 无效需登录）
+  - Then: loading 保持，等待后续 SIGN/BIND_PK 或 5 秒超时
+
+- [ ] **AC4: 5 秒超时 fallback**
+  - Given: Side Panel 因按钮触发而显示 opaque loading
+  - When: 5 秒内没有收到 SIGN/BIND_PK/BATCH_SIGN 请求
+  - Then: loading 自动消失，面板显示当前路由页面
+
+- [ ] **AC5: 手动点击扩展图标不显示 loading**
+  - Given: Side Panel 未打开
+  - When: 用户点击 Chrome 工具栏的扩展图标（非业务页面按钮）
+  - Then: Side Panel 正常打开，无 opaque loading，直接显示对应路由页面
+
+- [ ] **AC6: 无手势错误**
+  - Given: 用户在业务页面点击按钮
+  - When: content script 发送 `open-side-panel` 消息
+  - Then: console 无 `sidePanel.open() may only be called in response to a user gesture` 错误
+
+- [ ] **AC7: 无 heartbeat timeout**
+  - Given: Side Panel 正常打开并存活
+  - When: 面板加载完成后
+  - Then: console 无 `PanelManager: heartbeat timeout, panel likely closed` 日志
+
+- [ ] **AC8: open() 失败时清除 storage flag**
+  - Given: `sidePanel.open()` 因非手势原因失败（如 tab 无效）
+  - When: catch 分支执行
+  - Then: `chrome.storage.session` 中 `panelTriggerSource` 被清除，后续手动打开面板不显示 loading
+
+- [ ] **AC9: 快速连续点击不同 tab**
+  - Given: 用户在不同 tab 快速连续点击按钮
+  - When: 第一个 tab 的面板正在处理请求
+  - Then: 后续 tab 的请求进入队列，队列依次处理，无静默丢失
 
 ## Additional Context
 
 ### Dependencies
 
-- 依赖 `usePopupType()` hook 正常工作
-- 依赖 `chrome.sidePanel.setOptions` API 在 `open()` 前生效
-- 依赖 `PanelManager` 现有接口
+- 无外部依赖，仅使用 Chrome Extension API
 
 ### Testing Strategy
 
-- 手动测试：在安装了 SealX 的 DApp 页面点击 `[data-sealx-action="open"]` 按钮
-- 验证 Side Panel 打开时显示白色 loading，不闪现 Home
-- 验证 loading 结束后直接显示目标页面
-- 验证手动打开 Side Panel 无异常
+- 在本地开发环境 `localhost:5173` 中，点击带有 `data-sealx-action="open"` 属性的按钮，验证 Side Panel 正常打开
+- 验证 loading 行为：按钮触发 → opaque loading；扩展图标触发 → 正常面板（无 loading）
+- 检查 console 无报错
 
 ### Notes
 
-- `?source=button` 参数只在首次按钮触发打开时存在，后续手动打开不会带此参数
-- 路由逻辑（`checkRoute`、`routeByRequest`）不修改，loading 只是挡住首页内容
+- 原始 `setOptions + timeout restore` 设计是为了在 URL 层面区分 button 触发和手动触发。改用 session storage 后，通过 storage key 的存在性做区分，逻辑更简洁。
+- **Advanced Elicitation 加固发现**：
+  - Red Team：catch 分支缺乏 storage 清理逻辑，会导致 `open()` 失败后残留 flag → 已加入 Task 3
+  - Pre-mortem：快速连续点击行为已通过队列系统处理，符合预期；`get→remove` 不存在竞态（同步顺序调用）
+  - First Principles：`storage.session` 是唯一同时满足 "无 await 写入" + "跨上下文" + "非持久化" 的方案
+  - 5 Whys 根因：Chrome API 的手势约束是隐式知识，`await` 打断 transient activation 不可见 — 后续 code review 应对 `sidePanel.open()` 周边代码做专项检查

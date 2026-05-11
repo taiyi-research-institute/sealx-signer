@@ -4,9 +4,10 @@
     "version": "0.0.46",
     "type": "module",
     "scripts": {
-        "build": "vite build --config vite-config/chrome.ts",
-        "build:test": "vite build --config vite-config/chrome.ts --mode development",
-        "build:chrome": "vite build --config vite-config/chrome.ts",
+        "build": "npm run build:inpage && cp dist_inpage/inpage.js inpage.js && vite build --config vite-config/chrome.ts",
+        "build:inpage": "vite build --config vite-config/chrome.inpage.config.ts",
+        "build:test": "npm run build:inpage && cp dist_inpage/inpage.js inpage.js && vite build --config vite-config/chrome.ts --mode development",
+        "build:chrome": "npm run build:inpage && cp dist_inpage/inpage.js inpage.js && vite build --config vite-config/chrome.ts",
         "build:firefox": "vite build --config vite-config/firefox.ts",
         "dev": "nodemon --config nodemon/chrome.json",
         "dev:chrome": "nodemon --config nodemon/chrome.json",

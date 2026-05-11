@@ -60,7 +60,7 @@ export default defineConfig({
             ethers: path.resolve(__dirname, '../node_modules', 'ethers'),
             lodash: path.resolve(__dirname, '../node_modules', 'lodash'),
             'webextension-polyfill': path.resolve(__dirname, '../node_modules', 'webextension-polyfill'),
-            buffer: path.resolve(__dirname, 'node_modules', 'buffer')
+            buffer: path.resolve(__dirname, '../node_modules', 'buffer')
         },
     },
     define: {
@@ -70,7 +70,6 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                inpage: path.resolve(__dirname, '../src/entries/inpage/index.ts'),
                 popup: path.resolve(__dirname, '../src/entries/popup/index.html'),
                 sandbox: path.resolve(__dirname, '../src/entries/sandbox/index.html'),
                 web: path.resolve(__dirname, '../src/entries/web/index.html'),

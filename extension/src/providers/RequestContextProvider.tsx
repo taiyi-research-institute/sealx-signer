@@ -10,7 +10,7 @@ import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
 // import { MessageChannel } from 'sealx-message';
-// import { usePopupType } from '@src/hooks/usePopupType';
+import { usePopupType } from '@src/hooks/usePopupType';
 
 /**
  * Props for RequestContextProvider component
@@ -49,6 +49,26 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const [title, setTitle] = useState<string>('Sealx Sign What You See');
     const [loading, setLoading] = useState(false);
 
+    // Enforce minimum 3s loading duration for all extension opens
+    const loadingStartRef = useRef(0);
+    const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const MIN_LOADING_MS = 3000;
+
+    // Clear loading only after minimum duration has elapsed
+    const finishLoading = useCallback(() => {
+        if (loadingTimerRef.current) {
+            clearTimeout(loadingTimerRef.current);
+            loadingTimerRef.current = null;
+        }
+        const elapsed = Date.now() - loadingStartRef.current;
+        const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
+        if (remaining > 0) {
+            loadingTimerRef.current = setTimeout(() => setLoading(false), remaining);
+        } else {
+            setLoading(false);
+        }
+    }, []);
+
     // Use ref to track initialization status and prevent duplicate operations
     const initializedRef = useRef(false);
 
@@ -66,7 +86,58 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const { pathname } = useLocation();
 
     // Popup type detection
-    // const { popupType } = usePopupType();
+    const { popupType } = usePopupType();
+
+    // isSidePanelCandidate: treat anything other than known non-sidepanel modes as sidepanel
+    // This covers 'sidepanel' and 'unknown' states conservatively
+    const isSidePanelCandidate =
+        popupType !== 'action' && popupType !== 'window' && popupType !== 'tab';
+
+    // Freeze isButtonTriggered: once set, don't unset on re-render
+    const buttonTriggeredRef = useRef(false);
+    const [isButtonTriggered, setIsButtonTriggered] = useState(false);
+
+    // Detect button-triggered source via chrome.storage.session
+    // Set by PanelManager.openPanelWithSource before sidePanel.open()
+    // Read on mount, then immediately clear the flag
+    useEffect(() => {
+        chrome.storage.session.get('panelTriggerSource').then((res) => {
+            if (res.panelTriggerSource === 'button') {
+                buttonTriggeredRef.current = true;
+                setIsButtonTriggered(true);
+                setLoading(true);  // Ensure opaque loading displays even if init already cleared it
+                loadingStartRef.current = Date.now();
+                chrome.storage.session.remove('panelTriggerSource');
+            }
+        }).catch(() => { });
+    }, []);
+
+    // 5s timeout fallback: unlock loading if no bind/sign request arrives in time
+    useEffect(() => {
+        if (!isButtonTriggered) return;
+        const timer = setTimeout(() => {
+            if (loadingTimerRef.current) {
+                clearTimeout(loadingTimerRef.current);
+                loadingTimerRef.current = null;
+            }
+            setLoading(false);
+        }, 5_000);
+        return () => clearTimeout(timer);
+    }, [isButtonTriggered]);
+
+    // Watch request.topic: unlock loading when BIND_PK / SIGN / BATCH_SIGN arrives
+    // CONNECT does NOT end loading (per spec)
+    useEffect(() => {
+        if (!isButtonTriggered) return;
+        if (!request.topic) return;
+        if (
+            request.topic === SealxTopic.BIND_PK ||
+            request.topic === SealxTopic.SIGN ||
+            request.topic === SealxTopic.BATCH_SIGN
+        ) {
+            finishLoading();
+        }
+    }, [request.topic, isButtonTriggered, finishLoading]);
 
     /**
      * Determine target route based on request topic and session state
@@ -249,6 +320,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
         if (initializedRef.current) return;
 
         setLoading(true);
+        loadingStartRef.current = Date.now();
 
         // Wait for store hydration
         const addressLoaded = useInitializedStore.persist.hasHydrated();
@@ -264,7 +336,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             if (pathname !== '/initialize') {
                 navigate('/initialize', { replace: true });
             }
-            setLoading(false);
+            if (!buttonTriggeredRef.current) {
+                finishLoading();
+            }
+            initializedRef.current = true;
             return;
         }
 
@@ -293,7 +368,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             }
             setRequest(storeRequest);
             useRequestStore.getState().clearRequest();
-            setLoading(false);
+            if (!buttonTriggeredRef.current) {
+                finishLoading();
+            }
+            initializedRef.current = true;
             return;
         }
 
@@ -322,7 +400,9 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             // Otherwise stay on current page
         }
 
-        setLoading(false);
+        if (!buttonTriggeredRef.current) {
+            setLoading(false);
+        }
         initializedRef.current = true;
     }, [pathname, navigate, setHost, setUserId, setSession]);
 
@@ -349,6 +429,16 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             routeByRequest(request);
         }
     }, [request, routeByRequest]);
+
+    // Cleanup loading timer on unmount
+    useEffect(() => {
+        return () => {
+            if (loadingTimerRef.current) {
+                clearTimeout(loadingTimerRef.current);
+                loadingTimerRef.current = null;
+            }
+        };
+    }, []);
 
     /**
      * Clear expired session and handle address changes
@@ -377,31 +467,50 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                 userId,
                 title,
             }}>
-            {children}
-            {loading && <Loading />}
+            {isButtonTriggered && loading ? (
+                <Loading opaque />
+            ) : (
+                <>
+                        {children}
+                        {loading && <Loading />}
+                </>
+            )}
         </RequestContext.Provider>
     );
 };
 
-const Loading: React.FC = () => {
+const Loading: React.FC<{ opaque?: boolean }> = ({ opaque }) => {
     return (
-        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#000]/10 backdrop-blur-sm'>
-            <div className='relative flex flex-col items-center justify-center p-[2rem]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
-                {/* Spinner */}
+        <div className={`fixed inset-0 z-50 flex w-full h-full items-center justify-center ${opaque ? 'bg-white' : 'bg-white/70 backdrop-blur-sm'}`}>
+            <div className='relative flex flex-col items-center justify-center p-[2rem] rounded-2xl shadow-2xl min-w-[200px] min-h-[200px] bg-white/80'>
+                {/* Progress bar loader */}
                 <div
-                    className='w-[64px] h-[64px] mb-[1.5rem] border-4 border-[#fff]/20   rounded-full animate-spin'
-                    style={{
-                        borderTopColor: '#00be78',
-                        animation: 'spin 1s linear infinite',
-                    }}></div>
+                    className='w-[120px] h-[22px] rounded-[20px] border-2 border-solid relative mb-6'
+                    style={{ color: '#00be78' }}
+                >
+                    <div
+                        className='absolute m-[2px] rounded-[20px] bg-[#00be78]'
+                        style={{
+                            animation: 'loader-fill 2s infinite',
+                            left: 0,
+                            top: 0,
+                            bottom: 0,
+                            right: '100%',
+                        }}
+                    />
+                </div>
 
                 {/* Loading text */}
-                <div className='text-[1.5rem] font-medium text-gray-800'>
+                <div className='text-[1.25rem] font-medium text-[#00be78]'>
                     Loading...
                 </div>
 
-                {/* Optional subtle pulsing background */}
-                <div className='absolute inset-0 -z-10 rounded-2xl bg-linear-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
+                {/* Keyframes */}
+                <style>{`
+                    @keyframes loader-fill {
+                        100% { right: 0; }
+                    }
+                `}</style>
             </div>
         </div>
     );

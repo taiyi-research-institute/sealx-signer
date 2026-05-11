@@ -64,13 +64,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
         if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
-            // Check if content script is loaded without reloading the page
-            await chrome.tabs.sendMessage(activeInfo.tabId, {
-                type: 'CHECK_CONTENT_SCRIPT_LOADED'
-            }).catch(() => {
-                // Content script not loaded yet — it will load via manifest content_scripts
-                // without forcing a page reload that would destroy user state
-            });
+            TabManager.getInstance().currentTab = tab;
         }
     } catch (error) {
         console.error('Failed to handle tab activation:', error);
@@ -151,10 +145,11 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
     if (message?.type === 'open-side-panel') {
         const tabId = _sender.tab?.id
         if (tabId) {
-            chrome.sidePanel.open({ tabId }).then(() => {
+            PanelManager.openPanelWithSource(tabId).then(() => {
                 PanelManager.notifyPanelOpened('')
             }).catch((err: Error) => {
-                console.warn('open-side-panel: sidePanel.open failed', err.message)
+                console.warn('open-side-panel: openPanelWithSource failed', err.message)
+                chrome.storage.session.remove('panelTriggerSource').catch(() => {})
                 PanelManager.setBadge()
                 // Ensure default path + enabled (use PanelManager.panelPath, not hardcoded)
                 chrome.sidePanel.setOptions({
