@@ -300,7 +300,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
     }, [onChange]);
 
     return (
-        <div {...props} className={`password-container flex justify-between ${props.className || ''}`}>
+        <div {...props} className={`password-container max-w-[436px] mx-auto flex justify-between ${props.className || ''}`}>
             {digits.map((_, index) => (
                 <div
                     key={index}
