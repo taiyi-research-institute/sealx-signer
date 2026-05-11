@@ -124,10 +124,11 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
     if (message?.type === 'open-side-panel') {
         const tabId = _sender.tab?.id
         if (tabId) {
-            chrome.sidePanel.open({ tabId }).then(() => {
+            PanelManager.openPanelWithSource(tabId).then(() => {
                 PanelManager.notifyPanelOpened('')
             }).catch((err: Error) => {
-                console.warn('open-side-panel: sidePanel.open failed', err.message)
+                console.warn('open-side-panel: openPanelWithSource failed', err.message)
+                chrome.storage.session.remove('panelTriggerSource').catch(() => {})
                 PanelManager.setBadge()
                 // Ensure default path + enabled (use PanelManager.panelPath, not hardcoded)
                 chrome.sidePanel.setOptions({
