@@ -6,6 +6,7 @@ import {
     type SignContent,
     type SignLayoutContext,
     type SignLayoutRender,
+    type OrigionType,
 } from 'sealx-core';
 import Clock from '@assets/svg/clock.svg?react';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
@@ -79,6 +80,36 @@ const templates: Record<string, string> = {
     initAuthorizer: initAuthorizerTemplate,
 };
 
+type FieldReflection = {
+    originKey?: string;
+    originType?: OrigionType;
+    children?: unknown;
+};
+
+type FieldKeyMap = Record<string, FieldReflection>;
+
+const asFieldKeyMap = (value: unknown): FieldKeyMap | undefined => {
+    if (!value || typeof value !== 'object') return undefined;
+    return value as FieldKeyMap;
+};
+
+const getFieldSemanticClass = (key = '', originType: OrigionType | '' = '') => {
+    const normalizedKey = key.toLowerCase().replace(/[\s_-]+/g, '-');
+    if (originType === 'time' || normalizedKey.includes('time') || normalizedKey.includes('date') || normalizedKey.includes('valid')) return 'field-time';
+    if (normalizedKey.includes('address') || normalizedKey.includes('account')) return 'field-address';
+    if (normalizedKey.includes('amount') || normalizedKey.includes('value') || normalizedKey.includes('quantity')) return 'field-amount';
+    if (normalizedKey.includes('command') || normalizedKey.includes('action') || normalizedKey.includes('type')) return 'field-command';
+    if (normalizedKey.includes('network') || normalizedKey.includes('chain')) return 'field-network';
+    if (normalizedKey.includes('asset') || normalizedKey.includes('coin') || normalizedKey.includes('token')) return 'field-asset';
+    if (normalizedKey.includes('vault') || normalizedKey.includes('safe')) return 'field-vault';
+    if (normalizedKey.includes('target') || normalizedKey.includes('to') || normalizedKey.includes('recipient')) return 'field-target';
+    if (normalizedKey.includes('file') || normalizedKey.includes('hash')) return 'field-file';
+    if (normalizedKey.includes('password') || normalizedKey.includes('pin')) return 'field-password';
+    if (originType === 'array') return 'field-list';
+    if (originType === 'struct') return 'field-struct';
+    return 'field-default';
+};
+
 /**
  * Renders content using the default template from template factory
  * @param props Component props
@@ -97,7 +128,7 @@ export const DefaultTemplateRender = memo(({
         const layout = props.signContent.layout;
         if (!layout?.keysMapStr) return null;
         try {
-            return JSON.parse(layout.keysMapStr);
+            return JSON.parse(layout.keysMapStr) as FieldKeyMap;
         } catch {
             return null;
         }
@@ -135,13 +166,14 @@ export const DefaultTemplateRender = memo(({
         // 从 keysMapStr 映射获取顶层 originKey
         const mapping = keyMap?.[key];
         const originKey = mapping?.originKey || key;
+        const semanticClass = getFieldSemanticClass(originKey, mapping?.originType);
         // Origin key mapping for element location
         return (
-            <div className='w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px] mt-[24px]'>
+            <div className={`sx-field-card ${semanticClass}`}>
                 <OrigionMessageRender
                     origionKey={originKey}
                     displayKey={key}
-                    keyMap={keyMap}
+                    keyMap={keyMap ?? undefined}
                     context={context}
                     parentKeys={[]}
                     value={messages[key]}></OrigionMessageRender>
@@ -159,7 +191,7 @@ export const OrigionMessageRender = memo(({
     parentKeys = [] }: {
     origionKey: string;
         displayKey?: string;
-        keyMap?: Record<string, unknown>;
+        keyMap?: FieldKeyMap;
     context?: SignLayoutContext | null
     value: unknown;
         parentKeys?: string[];
@@ -173,9 +205,11 @@ export const OrigionMessageRender = memo(({
     // 从 keyMap 查找当前 key 对应的 mapping
     const currentMapping = keyMap?.[keyForDisplay];
     // 如果没找到，尝试匹配 # 开头的键（如 #1）
-    const finalMapping = currentMapping || (keyForDisplay.startsWith('#') ? keyMap : undefined);
+    const finalMapping = currentMapping || (keyForDisplay.startsWith('#') ? keyMap?.[keyForDisplay] : undefined);
 
     const originKey = finalMapping?.originKey || keyForDisplay;
+    const originType = finalMapping?.originType || '';
+    const semanticClass = getFieldSemanticClass(originKey, originType);
 
     // 处理叶子节点值的显示
     const displayValue = (val: unknown): string => {
@@ -188,19 +222,19 @@ export const OrigionMessageRender = memo(({
     if (Array.isArray(value)) {
         // 数组类型：遍历数组
         // 参考 buildSignRenderContext: 数组元素的 children 在 children[数组key] 中
-        const arrayChildrenMap = finalMapping?.children;
+        const arrayChildrenMap = asFieldKeyMap(finalMapping?.children);
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+                <div className='sx-field-title'>
                     {keyForDisplay}
                 </div>
-                <div className='w-full mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px] gap-y-[8px]'>
+                <div className='sx-field-list'>
                     {value.map((item, index) => {
                         const itemKey = `#${index + 1}`;
                         // 使用 originKey + 下标作为 data-key
                         //const itemDataKey = `${originKey}.${itemKey}`;
                         // 获取数组元素对应的 children
-                        const itemChildrenMap = arrayChildrenMap?.[itemKey];
+                        const itemChildrenMap = asFieldKeyMap(arrayChildrenMap?.[itemKey]);
                         // 如果数组元素是对象，需要将 childrenMap 合并，让它能通过属性名查找
                         // itemChildrenMap 包含 "Coin ID", "Fund Control Rules" 等属性
                         return (
@@ -228,17 +262,17 @@ export const OrigionMessageRender = memo(({
     // 对象类型：遍历对象属性
         const recordValue = value as Record<string, unknown>;
         const keys = Object.keys(recordValue);
-        const childrenMap = finalMapping?.children;
+        const childrenMap = asFieldKeyMap(finalMapping?.children);
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+                <div className='sx-field-title'>
                     {keyForDisplay}
                 </div>
-                <div className='w-full border-t border border-black/20'></div>
-                <div className='w-full pl-[12px] mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='sx-field-divider'></div>
+                <div className='sx-field-nested'>
                     {keys.map((key1) => {
                         return (
-                            <div className='w-full pt-[20px]'>
+                            <div className='sx-field-nested-item'>
                                 <OrigionMessageRender
                                     origionKey={key1}
                                     displayKey={key1}
@@ -260,11 +294,11 @@ export const OrigionMessageRender = memo(({
     const fullDataKey = [...parentKeys, originKey].filter(Boolean).join('.');
     return (
         <>
-            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+            <div className='sx-field-title'>
                 {keyForDisplay}
             </div>
             <div
-                className='w-full mt-[16px] flex text-left break-all font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                className={`sx-field-value ${semanticClass}`}
                 data-key={fullDataKey}
                 title='点击定位到业务系统中的对应数据'
                 onClick={handleLocateElement}
@@ -524,20 +558,20 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     // const session = useSessionStore.use.session()
 
     return (
-        <div {...props}>
-            <div className='cmd-info-container w-full rounded-[20px] bg-surface'>
-                <div className='cmd-title-wrapper flex text-left  w-full rounded-t-[20px] bg-[50px] text-surface bg-neutral-950 px-[24px] pt-[22px] pb-[20px]'>
-                    <span className='font-[500] text-[26px] leading-[32px]'>
+        <div {...props} className={`sx-task-render ${props.className ?? ''}`}>
+            <div className='cmd-info-container sx-task-card'>
+                <div className='cmd-title-wrapper sx-task-header'>
+                    <span className='sx-task-title'>
                         {primaryType}
                     </span>
-                    <div className='flex-1 flex justify-end items-end'>
-                        <Clock className='mr-[17.87px] '></Clock>
-                        <span className=' font-[500] leading-[29px] text-[24px]'>
+                    <div className='sx-task-timer'>
+                        <Clock></Clock>
+                        <span>
                             {validTime}
                         </span>
                     </div>
                 </div>
-                <div className='cmd-content-body w-full p-[24px]'>
+                <div className='cmd-content-body sx-task-body'>
                     {props.signContent instanceof Array ? (<TreasuryUnitTask {...props} context={layoutRender.context}></TreasuryUnitTask>) : (layoutRender.render ? (
                         <OutsideTemplateRender
                             render={
@@ -553,15 +587,17 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 </div>
             </div>
 
-            {!props.preViewUrl ? (<div className='w-full mt-[32px] flex justify-between mb-[32px]'>
+            {!props.preViewUrl ? (<div className='sx-task-actions'>
                 <Button
                     variant="secondary"
                     onClick={() => onRejected(props)}
+                    disabled={props.signing}
                 >
                     {props.cencelText ?? 'Reject'}
                 </Button>
                 <Button
                     variant="primary"
+                    disabled={props.signing}
                     onClick={() => {
                         const req = {
                             ...request
@@ -575,7 +611,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 >
                     {props.confirmText ?? 'Sign to Approve'}
                 </Button>
-            </div>) : (<div className='w-full my-[32px] flex justify-center'>
+            </div>) : (<div className='sx-task-actions sx-task-actions-review'>
                 <Button
                     variant="primary"
                     onClick={onReview}
@@ -636,15 +672,15 @@ export const TreasuryUnitTask = memo((
     }, [props.validUntilTime])
 
     return (
-        <div className='w-full flex flex-col gap-y-[24px]'>
-            <div className='flex  w-full gap-x-[24px]'>
-                <div className='cmd-name  w-1/2  rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+        <div className='sx-treasury-grid'>
+            <div className='sx-treasury-row'>
+                <div className='cmd-name sx-field-card field-command'>
+                    <div className='sx-field-title'>
                         <CheckBox className='mr-[11px]'></CheckBox>
                         {commandLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='sx-field-value field-command'
                         data-key='command'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}
@@ -652,13 +688,13 @@ export const TreasuryUnitTask = memo((
                         {command}
                     </div>
                 </div>
-                <div className='cmd-name w-1/2 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+                <div className='cmd-name sx-field-card field-time'>
+                    <div className='sx-field-title'>
                         <Calendar className='mr-[11px]'></Calendar>
                         {validTimeLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] break-all leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='sx-field-value field-time'
                         data-key='valid_until_time'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}
@@ -667,14 +703,14 @@ export const TreasuryUnitTask = memo((
                     </div>
                 </div>
             </div>
-            <div className='flex justify-between w-full gap-x-[24px]'>
-                <div className='cmd-name flex-1 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
+            <div className='sx-treasury-row'>
+                <div className='cmd-name sx-field-card field-vault'>
+                    <div className='sx-field-title'>
                         <Vault className='mr-[11px]'></Vault>
                         {vaultCodeLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='sx-field-value field-vault'
                         data-key='vault_code'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}
@@ -682,7 +718,6 @@ export const TreasuryUnitTask = memo((
                         {vaultCode}
                     </div>
                 </div>
-                <div className='flex-1'></div>
             </div>
         </div>
     );

@@ -28,13 +28,13 @@ import { useLocation } from 'react-router-dom'
 
 const NoPendingTasks = () => {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center py-[3.75rem]">
+        <div className="w-full h-full flex flex-col items-center justify-center py-[3.75rem] px-[1.5rem]">
             <NoTasksIcon className="mb-[1.5rem]" />
             <div className="text-center">
-                <div className="text-[1.5rem] leading-[1.8125] font-[500] text-[#000] mb-[0.75rem]">
+                <div className="text-[1.25rem] leading-[1.35] font-[850] text-[var(--sx-text)] mb-[0.5rem]">
                     No Pending Tasks
                 </div>
-                <div className="text-[1rem] leading-[1.375] font-[400] text-[rgba(0,0,0,0.6)]">
+                <div className="text-[0.875rem] leading-[1.45] font-[650] text-[var(--sx-muted)]">
                     No pending tasks for sign-off or rejection at this time
                 </div>
             </div>
@@ -45,12 +45,12 @@ const NoPendingTasks = () => {
 const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
     if (timeout) {
         return (
-            <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
-                <div className="flex flex-col items-center">
-                    <div className="text-[#ff4d4f] text-[1.25rem] font-[500] mb-4">Signing Timeout</div>
+            <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
+                <div className="flex flex-col items-center rounded-[16px] bg-white px-6 py-5 shadow-[var(--sx-shadow-raised)]">
+                    <div className="text-[var(--sx-danger)] text-[1rem] font-[800] mb-4">Signing Timeout</div>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-[#1677ff] text-white rounded-lg text-[0.875rem] font-[500] cursor-pointer border-none"
+                        className="px-4 py-2 bg-[#101820] text-white rounded-[10px] text-[0.875rem] font-[800] cursor-pointer border-none"
                     >
                         Close
                     </button>
@@ -59,13 +59,13 @@ const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; prog
         )
     }
     return (
-        <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
+        <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
             <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-[3px] border-white/30 border-t-white mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-white/30 border-t-white mb-4"></div>
                 {progress >= 75 ? (
-                    <div className="text-white/80 text-[1rem] font-[400] animate-pulse">Almost done...</div>
+                    <div className="text-white/80 text-[0.875rem] font-[700] animate-pulse">Almost done...</div>
                 ) : (
-                        <div className="text-white text-[1.25rem] font-[500]">Signing...</div>
+                        <div className="text-white text-[1rem] font-[800]">Signing...</div>
                 )}
             </div>
         </div>

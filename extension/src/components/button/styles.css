@@ -2,16 +2,17 @@
 body[popup-mode='sidepanel'] .sealx-button {
     padding-top: 0.5rem !important;
     padding-bottom: 0.5rem !important;
-    font-size: 1.25rem !important;
-    border-radius: 24px !important;
+    font-size: 1rem !important;
+    border-radius: 10px !important;
+    min-height: 46px !important;
 }
 
 body[popup-mode='sidepanel'] .sealx-button.primary-padding {
-    padding-left: 1.5rem !important;
-    padding-right: 1.5rem !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
 }
 
 body[popup-mode='sidepanel'] .sealx-button.secondary-padding {
-    padding-left: 1.3rem !important;
-    padding-right: 1.3rem !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
 }

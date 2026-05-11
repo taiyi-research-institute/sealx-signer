@@ -3,9 +3,30 @@
     line-height: 1.5;
     font-weight: 400;
 
+    --sx-bg: #f4f6f8;
+    --sx-surface: #ffffff;
+    --sx-surface-soft: #fbfcfd;
+    --sx-text: #17202a;
+    --sx-muted: #5a6677;
+    --sx-brand: #0aa06e;
+    --sx-brand-soft: #ecf8f3;
+    --sx-warning: #875300;
+    --sx-warning-soft: #fffaf0;
+    --sx-danger: #b42318;
+    --sx-danger-soft: #fff1f1;
+    --sx-border: #dce3ea;
+    --sx-border-strong: #cbd8e5;
+    --sx-focus: rgba(10, 160, 110, 0.3);
+    --sx-shadow-card: 0 10px 24px rgba(16, 24, 32, 0.055);
+    --sx-shadow-raised: 0 14px 34px rgba(16, 24, 32, 0.07);
+    --sx-radius-sm: 10px;
+    --sx-radius-md: 12px;
+    --sx-radius-lg: 16px;
+    --sx-radius-xl: 20px;
+
     /* color-scheme: light dark; */
     color: #1a1a1a;
-    background-color: #fff;
+    background-color: var(--sx-bg);
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -51,7 +72,8 @@ button:hover {
 }
 button:focus,
 button:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
+    outline: 3px solid var(--sx-focus);
+    outline-offset: 3px;
 }
 
 /* @media (prefers-color-scheme: light) {
@@ -76,4 +98,235 @@ html {
 html:has(body[popup-mode='sidepanel']) {
   --scale-factor: 0.8167;
   font-size: calc(100% * var(--scale-factor));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+.sx-task-render {
+    color: var(--sx-text);
+}
+
+.sx-task-card {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(16, 24, 32, 0.08);
+    border-radius: var(--sx-radius-lg);
+    background: var(--sx-surface);
+    box-shadow: var(--sx-shadow-card);
+}
+
+.sx-task-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+    min-height: 76px;
+    padding: 18px 18px 16px;
+    color: #fff;
+    background: linear-gradient(135deg, #101820 0%, #1f2c38 100%);
+    text-align: left;
+}
+
+.sx-task-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 20px;
+    line-height: 1.25;
+    font-weight: 850;
+    overflow-wrap: anywhere;
+}
+
+.sx-task-timer {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    padding: 6px 9px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.09);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 800;
+}
+
+.sx-task-timer svg {
+    width: 15px;
+    height: 15px;
+}
+
+.sx-task-body {
+    width: 100%;
+    padding: 16px;
+    background: var(--sx-surface);
+}
+
+.sx-field-card {
+    width: 100%;
+    margin-top: 12px;
+    padding: 13px 14px 12px;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-md);
+    background: var(--sx-surface-soft);
+    text-align: left;
+}
+
+.sx-task-body > .sx-field-card:first-child,
+.sx-treasury-grid > .sx-field-card:first-child,
+.sx-treasury-row:first-child .sx-field-card {
+    margin-top: 0;
+}
+
+.sx-field-card.field-command,
+.sx-field-card.field-time,
+.sx-field-card.field-vault {
+    background: var(--sx-surface);
+    box-shadow: 0 8px 18px rgba(16, 24, 32, 0.04);
+}
+
+.sx-field-card.field-amount {
+    border-color: rgba(135, 83, 0, 0.24);
+    background: var(--sx-warning-soft);
+}
+
+.sx-field-card.field-address,
+.sx-field-card.field-target,
+.sx-field-card.field-file {
+    background: #f7fafc;
+}
+
+.sx-field-title {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    color: var(--sx-muted);
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.sx-field-title svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    color: currentColor;
+}
+
+.sx-field-value {
+    width: 100%;
+    margin-top: 8px;
+    display: flex;
+    color: var(--sx-text);
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-size: 16px;
+    line-height: 1.45;
+    font-weight: 780;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.sx-field-value:hover {
+    color: #007aff;
+}
+
+.sx-field-value.field-address,
+.sx-field-value.field-target,
+.sx-field-value.field-file,
+.sx-field-value.field-vault {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.sx-field-value.field-amount {
+    color: var(--sx-warning);
+    font-size: 18px;
+    font-weight: 850;
+}
+
+.sx-field-divider {
+    width: 100%;
+    height: 1px;
+    margin-top: 10px;
+    background: var(--sx-border);
+}
+
+.sx-field-list,
+.sx-field-nested {
+    width: 100%;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: left;
+}
+
+.sx-field-nested {
+    padding-left: 8px;
+}
+
+.sx-field-nested-item {
+    width: 100%;
+}
+
+.sx-task-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 10px;
+    margin: 14px 0 18px;
+}
+
+.sx-task-actions-review {
+    display: flex;
+    justify-content: center;
+}
+
+.sx-task-actions .sealx-button {
+    width: 100%;
+}
+
+.sx-treasury-grid {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sx-treasury-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.sx-treasury-row .sx-field-card {
+    margin-top: 0;
+}
+
+@media (max-width: 420px) {
+    .sx-treasury-row,
+    .sx-task-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .sx-task-header {
+        flex-direction: column;
+        gap: 10px;
+    }
 }
