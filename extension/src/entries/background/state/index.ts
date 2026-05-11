@@ -8,6 +8,19 @@ import { sessionStore } from "@src/core/state/session";
 import { syncStores } from "@src/core/state/internal/syncStores";
 syncStores()
 
+// --- IndexedDB write mutex ---
+// Serializes write operations on shared tables to prevent race conditions
+// (e.g. clear() + setItem() gaps) in the single-threaded SW event loop.
+let _dbLock: Promise<void> = Promise.resolve()
+
+function withDbLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release: () => void
+    const chain = _dbLock.then(fn)
+    _dbLock = new Promise<void>(r => { release = r })
+    return chain.finally(() => release!())
+}
+// --- End DB mutex ---
+
 const privateKeyTable = () => dbStorageWrapper('sealx', 'sealx-pk');
 
 // In-memory private key cache — decrypted keys live only in Service Worker heap
@@ -94,8 +107,10 @@ export const initializeSealx = async (pin: string, privateKey: string = ''): Pro
             baseInfo.updateTime = Date.now()
             await sealxTable().setItem(baseInfoKey, baseInfo)
         }
-        await db.clear()
-        await db.setItem(storeRecord.id, storeRecord);
+        await withDbLock(async () => {
+            await db.clear()
+            await db.setItem(storeRecord.id, storeRecord);
+        })
         return storeRecord;
     } catch (error) {
         console.error('Failed to initialize SealX:', error);
@@ -122,10 +137,12 @@ export const resetSealxPin = async (address: string, oldPin: string, pin: string
     try {
         const privateKey = await getPrivateKey(oldPin)
         if (privateKey) {
-            await privateKeyTable().clear()
-            // const pin1 = CryptoJS.SHA256(pin).toString(CryptoJS.enc.Hex)
             const storeRecord = await encodePrivateKey(address, privateKey, pin)
-            return await db.setItem(storeRecord.id, storeRecord);
+            await withDbLock(async () => {
+                await db.clear()
+                await db.setItem(storeRecord.id, storeRecord);
+            })
+            return storeRecord
         }
     } finally {
         db.close()
