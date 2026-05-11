@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SealX Extension Prototype</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="prototype-shell">
+    <aside class="prototype-nav" aria-label="Prototype screens">
+      <div class="brand-lockup">
+        <img src="../../../extension/public/logo/sealx-logo.svg" alt="SealX" />
+        <div>
+          <strong>SealX Signer</strong>
+          <span>Extension prototype</span>
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <p>Core Flow</p>
+        <button class="nav-item active" data-screen="initialize">Initialize</button>
+        <button class="nav-item" data-screen="initialized">Initialized</button>
+        <button class="nav-item" data-screen="login">Unlock</button>
+        <button class="nav-item" data-screen="home">Home</button>
+      </div>
+
+      <div class="nav-group">
+        <p>Signing</p>
+        <button class="nav-item" data-screen="tasks">Task Queue</button>
+        <button class="nav-item" data-screen="taskDetail">Task Detail</button>
+        <button class="nav-item" data-screen="signing">Signing State</button>
+      </div>
+
+      <div class="nav-group">
+        <p>Keys & Settings</p>
+        <button class="nav-item" data-screen="keyManage">Key Management</button>
+        <button class="nav-item" data-screen="keyExport">Export Key</button>
+        <button class="nav-item" data-screen="keyImport">Import Key</button>
+        <button class="nav-item" data-screen="settings">Settings</button>
+        <button class="nav-item" data-screen="resetPin">Reset PIN</button>
+      </div>
+    </aside>
+
+    <main class="prototype-canvas">
+      <div class="canvas-toolbar">
+        <div>
+          <span class="eyebrow">Discussion prototype</span>
+          <h1 id="prototype-title">Initialize</h1>
+        </div>
+        <div class="toolbar-actions">
+          <div class="view-toggle mode-toggle" aria-label="Design mode">
+            <button class="mode-btn active" data-mode="current">Current</button>
+            <button class="mode-btn" data-mode="proposed">Proposed</button>
+          </div>
+          <div class="view-toggle density-toggle" aria-label="Density mode">
+            <button class="density-btn active" data-density="comfortable">Comfort</button>
+            <button class="density-btn" data-density="compact">Compact</button>
+          </div>
+          <div class="view-toggle state-toggle" aria-label="State mode">
+            <button class="state-btn active" data-state="normal">Normal</button>
+            <button class="state-btn" data-state="expiring">Expiring</button>
+            <button class="state-btn" data-state="error">Error</button>
+          </div>
+          <div class="view-toggle" aria-label="View size">
+            <button class="toggle-btn active" data-frame="popup">Popup 600x800</button>
+            <button class="toggle-btn" data-frame="panel">Side panel</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="device-stage">
+        <div class="device-frame" id="device-frame">
+          <div class="extension-app" id="extension-app"></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="prototype-notes" aria-label="Design notes">
+      <div class="note-block">
+        <span class="eyebrow">Design intent</span>
+        <h2 id="note-title">High-trust signing UI</h2>
+        <p id="note-copy">
+          The signing flow should help users decide quickly and safely: who is asking, what changes, what risk exists, and what action is next.
+        </p>
+      </div>
+      <div class="note-block">
+        <h3>What changed</h3>
+        <ul id="note-points"></ul>
+      </div>
+      <div class="note-block compact">
+        <h3>Prototype scope</h3>
+        <p>Static mock data only. No extension APIs, no crypto operations, no runtime routing changes.</p>
+      </div>
+    </aside>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
