@@ -31,18 +31,18 @@ const Button = ({
     ...props
 }: ButtonProps) => {
     // Base styles common to all buttons
-    const baseStyles = 'rounded-[34px] border-2 font-[500] text-[24px] leading-[28px] pt-[18px] pb-[22px] transition-all duration-200'
+    const baseStyles = 'rounded-[34px] border-2 font-[500] text-[1.5rem] leading-[1.75] pt-[1.125rem] pb-[1.375rem] transition-all duration-200'
 
     // Padding styles based on variant
     const paddingStyles = variant === 'primary'
-        ? 'pl-[57.77px] pr-[58.23px]'
-        : 'pl-[52.77px] pr-[53.23px]'
+        ? 'pl-[3.6106rem] pr-[3.6394rem]'
+        : 'pl-[3.2981rem] pr-[3.3269rem]'
 
     // Variant-specific styles
     const variantStyles = {
         primary: disabled
-            ? 'bg-gray-400 text-[#fff] !border-inherit hover:!border-inherit   bg-[#000]/60 cursor-not-allowed'
-            : 'bg-[#000] text-[#fff] border-[#000] hover:!border-[#000] hover:scale-105 cursor-pointer',
+            ? 'bg-gray-400 text-[#fff] border-inherit! hover:border-inherit!   bg-[#000]/60 cursor-not-allowed'
+            : 'bg-[#000] text-[#fff] border-[#000] hover:border-[#000]! hover:scale-105 cursor-pointer',
         secondary: disabled
             ? 'bg-transparent text-[#000]/60 border-[rgba(0,0,0,0.3)] cursor-not-allowed'
             : 'bg-transparent text-[#000] border-[rgba(0,0,0,0.06)] hover:border-[#00be78]/30 hover:bg-[#00be78]/10 hover:scale-105 cursor-pointer'

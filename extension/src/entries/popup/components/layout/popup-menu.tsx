@@ -23,7 +23,7 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
     return <div {...props} ref={ref}>
         <div onClick={handleItemClick(() => {
             navigate('/reset-pin')
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Reset Pin</div>
+        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Reset Pin</div>
         <div onClick={handleItemClick(() => {
             if (shouldOpenInNewTab) {
                 console.log('Opening key-manage in new tab (action popup detected)')
@@ -34,9 +34,9 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
                 console.log('Navigating to key-manage normally')
                 navigate('/key-manage')
             }
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Key Management</div>
+        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Key Management</div>
         <div onClick={handleItemClick(() => {
             navigate('/set-screen-timer')
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Set Screen Off Time</div>
+        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Set Screen Off Time</div>
     </div>
 })

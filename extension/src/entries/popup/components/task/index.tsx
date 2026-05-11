@@ -28,13 +28,13 @@ import { useLocation } from 'react-router-dom'
 
 const NoPendingTasks = () => {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center py-[60px]">
-            <NoTasksIcon className="mb-[24px]" />
+        <div className="w-full h-full flex flex-col items-center justify-center py-[3.75rem]">
+            <NoTasksIcon className="mb-[1.5rem]" />
             <div className="text-center">
-                <div className="text-[24px] leading-[29px] font-[500] text-[#000] mb-[12px]">
+                <div className="text-[1.5rem] leading-[1.8125] font-[500] text-[#000] mb-[0.75rem]">
                     No Pending Tasks
                 </div>
-                <div className="text-[16px] leading-[22px] font-[400] text-[rgba(0,0,0,0.6)]">
+                <div className="text-[1rem] leading-[1.375] font-[400] text-[rgba(0,0,0,0.6)]">
                     No pending tasks for sign-off or rejection at this time
                 </div>
             </div>
@@ -45,12 +45,12 @@ const NoPendingTasks = () => {
 const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
     if (timeout) {
         return (
-            <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+            <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
                 <div className="flex flex-col items-center">
-                    <div className="text-[#ff4d4f] text-[20px] font-[500] mb-4">Signing Timeout</div>
+                    <div className="text-[#ff4d4f] text-[1.25rem] font-[500] mb-4">Signing Timeout</div>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-[#1677ff] text-white rounded-lg text-[14px] font-[500] cursor-pointer border-none"
+                        className="px-4 py-2 bg-[#1677ff] text-white rounded-lg text-[0.875rem] font-[500] cursor-pointer border-none"
                     >
                         Close
                     </button>
@@ -59,13 +59,13 @@ const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; prog
         )
     }
     return (
-        <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+        <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
             <div className="flex flex-col items-center">
                 <div className="animate-spin rounded-full h-16 w-16 border-[3px] border-white/30 border-t-white mb-4"></div>
                 {progress >= 75 ? (
-                    <div className="text-white/80 text-[16px] font-[400] animate-pulse">Almost done...</div>
+                    <div className="text-white/80 text-[1rem] font-[400] animate-pulse">Almost done...</div>
                 ) : (
-                    <div className="text-white text-[20px] font-[500]">Signing...</div>
+                        <div className="text-white text-[1.25rem] font-[500]">Signing...</div>
                 )}
             </div>
         </div>
@@ -163,7 +163,7 @@ export const TaskHome = () => {
             // Store tabId per taskId for later SIGN_RESPONSE routing
             if (request.header?.tabId) {
                 items.forEach((task: SealxSignTask) => {
-                    originTabIdMapRef.current.set(task.taskId, request.header.tabId)
+                    return originTabIdMapRef.current.set(task.taskId, request.header.tabId ?? 0)
                 })
             }
             TabManager.getInstance().updateActiveTab(request.header.tabId)
@@ -268,10 +268,12 @@ export const TaskHome = () => {
 
     // Cleanup on unmount
     useEffect(() => {
+        const originTabIdMap = originTabIdMapRef.current
+        const signTimeout = signTimeoutRef.current
         return () => {
-            originTabIdMapRef.current.clear()
-            if (signTimeoutRef.current) {
-                clearTimeout(signTimeoutRef.current)
+            originTabIdMap.clear()
+            if (signTimeout) {
+                clearTimeout(signTimeout)
             }
         }
     }, [])
@@ -325,7 +327,7 @@ export const TaskHome = () => {
                 }
             } as never, over)
         }
-        const signResponsePayload = { taskId, signatures }
+        const signResponsePayload: { taskId: string; signatures: string | { taskId: string; signature: string; }[] | null; __tabId?: number } = { taskId, signatures }
         const tabId = originTabIdMapRef.current.get(taskId)
         if (tabId) {
             signResponsePayload.__tabId = tabId
@@ -336,29 +338,29 @@ export const TaskHome = () => {
     return <>
         {/* <button onClick={onTest}>Test</button> */}
         <div className="w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
-            <div className='w-full px-[26.25px] mt-[24px] flex items-center relative'>
+            <div className='w-full px-[1.6406rem] mt-[1.5rem] flex items-center relative'>
                 <FilterMenu onClick={() => {
                     setShowPopupMenu(true)
-                }} className='mr-[8px]'></FilterMenu>
-                <span className='font-[500] leading-[25px] text-[21px]'>Total {total}</span>
+                }} className='mr-[0.5rem]'></FilterMenu>
+                <span className='font-[500] leading-[1.5625] text-[1.3125rem]'>Total {total}</span>
                 {showPopupMenu ? <PopupCategory category={category} onChange={(c: string) => {
                     setCategory(c)
                     setShowPopupMenu(false)
-                }} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] let-[12px] top-[30px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupCategory> : ('')}
+                }} ref={popupMenuRef} className=' py-[0.75rem] absolute z-999999 let-[12px] top-[30px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupCategory> : ('')}
             </div>
             {total === 0 ? (
                 <NoPendingTasks />
             ) : (
-                map(tasks, (t, day) => {
-                    return (<div className={'task-container w-full pt-[23px] '}>
-                        <div className='w-full px-[24px]'>
-                            <div className='w-full mb-[16px] text-center text-[19px] leading-[22px] font-[500] text-[rgba(0,0,0,0.40)]'>
+                    map(tasks, (t: unknown[], day: string | number) => {
+                        return (<div className={'task-container w-full pt-[1.4375rem] '}>
+                            <div className='w-full px-[1.5rem]'>
+                                <div className='w-full mb-[1rem] text-center text-[1.1875rem] leading-[1.375] font-[500] text-[rgba(0,0,0,0.40)]'>
                                 {
                                     Number(day) === 0 ? 'Urgent' : `Within ${day} Days`
                                 }
                             </div>
                             {
-                                t.map((task) => {
+                                    t.map((task: unknown) => {
                                     const taskProps = task as unknown as SignTaskRenderProps;
                                     return <SignTaskRender {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
                                 })
@@ -370,139 +372,139 @@ export const TaskHome = () => {
         </div>
         <div id='template-factory' ref={templateFactory} className=' hidden'>
             <script id="initBoardTemplate" type="text/template">
-                <div className='cmd-name w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%=command.label%>'}</div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-name w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><CheckBox className='mr-[0.6875rem]'></CheckBox>{'<%=command.label%>'}</div>
+                    <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         {'<%=command.value%>'}
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>{'<%=valid_until_time.label%>'}</div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-expire-time mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Calendar className='mr-[0.6875rem]'></Calendar>{'<%=valid_until_time.label%>'}</div>
+                    <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         {'<%=valid_until_time.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Vault className='mr-[11px]'></Vault>{'<%=vault_code.label%>'}</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-vault-id mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Vault className='mr-[0.6875rem]'></Vault>{'<%=vault_code.label%>'}</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         {'<%=vault_code.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        <Guardians className='mr-[11px]'></Guardians>{'<%=guardians.label%>'}
+                <div className='cmd-vault-guardians mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+                        <Guardians className='mr-[0.6875rem]'></Guardians>{'<%=guardians.label%>'}
                         <div className='flex-1 flex justify-end'>
-                            <div className=' rounded-[18px] text-[19px] flex items-center bg-[#00BE78]/[10%] text-[#00BE78] pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
-                                <Protected className='mr-[7.88px]'></Protected>
+                            <div className=' rounded-[18px] text-[1.1875rem] flex items-center bg-[#00BE78]/10 text-[#00BE78] pl-[1.1175rem] pt-[0.375rem] pb-[0.3125rem] pr-[1.375rem]  font-[500] leading-[1.625]'>
+                                <Protected className='mr-[0.4925rem]'></Protected>
                                 <span>{'<%=threshold.label%>'}  {'<%=threshold.value%>'}</span>
                             </div>
                         </div>
                     </div>
-                    <div className='w-full mt-[16px]'>
+                    <div className='w-full mt-[1rem]'>
                         {'<%for (let i = 0; i < guardians.value.length; i++) {%>'}
                         <div className='guardian-member w-full flex items-center'>
-                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[16px]'>{'<%=guardians.value[i].label%>'}</div>
-                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-[rgba(0,0,0,0.06)] py-[8px]'>
-                                <Avatar1 className='mr-[12.75px]'></Avatar1>
-                                <span className='text-[15px] font-[500] leading-[21px] text-[#000]'>{'<%=guardians.value[i].value%>'}</span>
+                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[1rem]'>{'<%=guardians.value[i].label%>'}</div>
+                            <div className='flex-1 rounded-[8px] flex pl-[0.8206rem] pr-[0.625rem] bg-[rgba(0,0,0,0.06)] py-[0.5rem]'>
+                                <Avatar1 className='mr-[0.7969rem]'></Avatar1>
+                                <span className='text-[0.9375rem] font-[500] leading-[1.3125] text-[#000]'>{'<%=guardians.value[i].value%>'}</span>
                             </div>
                         </div>
                         {'<%}%>'}
                     </div>
                 </div>
             </script>
-            <div data-command="initAuthorizer" className='cmd-content-body w-full p-[24px]'>
+            <div data-command="initAuthorizer" className='cmd-content-body w-full p-[1.5rem]'>
                 <div className='flex justify-between'>
-                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
-                        <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className='cmd-name flex-1 mr-[1.5rem] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><CheckBox className='mr-[0.6875rem]'></CheckBox>{'<%command.label%>'}</div>
+                        <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                             {'<%command.value%>'}
                         </div>
                     </div>
-                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AccountIcon className='mr-[11px]'></AccountIcon>{'<%account_group_code.label%>'}</div>
-                        <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><AccountIcon className='mr-[0.6875rem]'></AccountIcon>{'<%account_group_code.label%>'}</div>
+                        <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                             {'account_group_code.value'}
                         </div>
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>{'<%valid_until_time.label%>'}</div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-expire-time mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Calendar className='mr-[0.6875rem]'></Calendar>{'<%valid_until_time.label%>'}</div>
+                    <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         {'<%valid_until_time.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Vault className='mr-[11px]'></Vault>{'<%vault_code.label%>'}</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-vault-id mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Vault className='mr-[0.6875rem]'></Vault>{'<%vault_code.label%>'}</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         {'<%vault_code.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        <Guardians className='mr-[11px]'></Guardians>{'<%guardians.label%>'}
+                <div className='cmd-vault-guardians mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+                        <Guardians className='mr-[0.6875rem]'></Guardians>{'<%guardians.label%>'}
                         <div className='flex-1 flex justify-end'>
-                            <div className=' rounded-[18px] text-[19px] flex items-center bg-[#00BE78]/[10%] text-[#00BE78] pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
-                                <Protected className='mr-[7.88px]'></Protected>
+                            <div className=' rounded-[18px] text-[1.1875rem] flex items-center bg-[#00BE78]/10 text-[#00BE78] pl-[1.1175rem] pt-[0.375rem] pb-[0.3125rem] pr-[1.375rem]  font-[500] leading-[1.625]'>
+                                <Protected className='mr-[0.4925rem]'></Protected>
                                 <span>{'<%threshold.label%>'}  {'<%threshold.value%>'}</span>
                             </div>
                         </div>
                     </div>
-                    <div className='w-full mt-[16px]'>
+                    <div className='w-full mt-[1rem]'>
                         {'<%for (let i = 0; i < guardians.value.length; i++){%>'}
                         <div className='guardian-member w-full flex items-center'>
-                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[16px]'>{'<%guardians.value[i].label%>'}</div>
-                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-[rgba(0,0,0,0.06)] py-[8px]'>
-                                <Avatar1 className='mr-[12.75px]'></Avatar1>
-                                <span className='text-[15px] font-[500] leading-[21px] text-[#000]'>{'<%guardians.value[i].value%>'}</span>
+                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[1rem]'>{'<%guardians.value[i].label%>'}</div>
+                            <div className='flex-1 rounded-[8px] flex pl-[0.8206rem] pr-[0.625rem] bg-[rgba(0,0,0,0.06)] py-[0.5rem]'>
+                                <Avatar1 className='mr-[0.7969rem]'></Avatar1>
+                                <span className='text-[0.9375rem] font-[500] leading-[1.3125] text-[#000]'>{'<%guardians.value[i].value%>'}</span>
                             </div>
                         </div>
                         {'<%}%>'}
                     </div>
                 </div>
             </div>
-            <div data-command="transfer" className='cmd-content-body w-full p-[24px]'>
+            <div data-command="transfer" className='cmd-content-body w-full p-[1.5rem]'>
                 <div className='flex justify-between'>
-                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
-                        <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className='cmd-name flex-1 mr-[1.5rem] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><CheckBox className='mr-[0.6875rem]'></CheckBox>{'<%command.label%>'}</div>
+                        <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                             {'<%command.value%>'}
                         </div>
                     </div>
-                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Link className='mr-[11px]'></Link>{'<%network.label%>'}</div>
-                        <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Link className='mr-[0.6875rem]'></Link>{'<%network.label%>'}</div>
+                        <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                             {'<%network.value%>'}
                         </div>
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>指令有效时间</div>
-                    <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-expire-time mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><Calendar className='mr-[0.6875rem]'></Calendar>指令有效时间</div>
+                    <div className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         2025-06-20 10:02:30 UTC+8.5
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CoinIcon className='mr-[11px]'></CoinIcon>币种</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-coin-type mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><CoinIcon className='mr-[0.6875rem]'></CoinIcon>币种</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         0xe09c3f6dfbb9ce994eafa9e84327dd52b06eb09aadc824e36d325d4f87cc5b82::remi::REMI
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>源地址</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-coin-type mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><AddressCardIcon className='mr-[0.6875rem]'></AddressCardIcon>源地址</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         304b7de5-19eb-475c-a653-b60b09aa8bd2
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><TagIcon className='mr-[11px]'></TagIcon>数额</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-coin-type mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><TagIcon className='mr-[0.6875rem]'></TagIcon>数额</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         100,000
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>目标地址</div>
-                    <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='cmd-coin-type mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'><AddressCardIcon className='mr-[0.6875rem]'></AddressCardIcon>目标地址</div>
+                    <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         304b7de5-19eb-475c-a653-b60b09aa8bd2
                     </div>
                 </div>

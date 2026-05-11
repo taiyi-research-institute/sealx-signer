@@ -9,7 +9,6 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
-import { TabManager } from 'sealx-core';
 // import { MessageChannel } from 'sealx-message';
 // import { usePopupType } from '@src/hooks/usePopupType';
 
@@ -387,22 +386,22 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
 const Loading: React.FC = () => {
     return (
         <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#000]/10 backdrop-blur-sm'>
-            <div className='relative flex flex-col items-center justify-center p-[32px]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
+            <div className='relative flex flex-col items-center justify-center p-[2rem]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
                 {/* Spinner */}
                 <div
-                    className='w-[64px] h-[64px] mb-[24px] border-4 border-[#fff]/20   rounded-full animate-spin'
+                    className='w-[64px] h-[64px] mb-[1.5rem] border-4 border-[#fff]/20   rounded-full animate-spin'
                     style={{
                         borderTopColor: '#00be78',
                         animation: 'spin 1s linear infinite',
                     }}></div>
 
                 {/* Loading text */}
-                <div className='text-[24px] font-medium text-gray-800'>
+                <div className='text-[1.5rem] font-medium text-gray-800'>
                     Loading...
                 </div>
 
                 {/* Optional subtle pulsing background */}
-                <div className='absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
+                <div className='absolute inset-0 -z-10 rounded-2xl bg-linear-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
             </div>
         </div>
     );

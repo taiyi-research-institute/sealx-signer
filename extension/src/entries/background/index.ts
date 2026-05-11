@@ -109,7 +109,7 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
                 expire: 0
             })
             const res = await messager.send({ userId, host, title }, SealxTopic.CONNECT, MessageChannel.POPUP)
-            const user1 = await getUser(userId, host)
+            await getUser(userId, host)
             // 直接返回 res.payload
             return res.payload
         } catch (error) {
@@ -139,7 +139,7 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
 
 // ========== 统一 panel-* 消息处理 ==========
 // 处理面板队列处理和关闭通知
-chrome.runtime.onMessage.addListener((message: any, _sender, _sendResponse) => {
+chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender) => {
     if (message?.type === 'open-side-panel') {
         const tabId = _sender.tab?.id
         if (tabId) {

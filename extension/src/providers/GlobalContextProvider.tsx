@@ -3,7 +3,6 @@ import { GlobalContext } from '@src/context/globalConext';
 import { checkInitialed } from '@src/core/background';
 import { useInitializedStore } from '@src/core/state';
 import { lockLogin, loginLockExpire } from '@src/entries/popup/state/session';
-import { error } from 'console';
 
 /**
  * Props for GlobalContextProvider component

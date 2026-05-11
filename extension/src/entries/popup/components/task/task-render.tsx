@@ -3,7 +3,6 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import {
     convertToISOFormat,
-    TabManager,
     type SignContent,
     type SignLayoutContext,
     type SignLayoutRender,
@@ -22,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
 import Button from '@src/components/button';
 import { useSessionStore } from '@src/core/state/index.js';
-import { generateDataKey } from '@src/core/utils/dataKey';
+
 import { handleLocateElement } from '@src/core/utils/locateElement';
 // import moment from 'moment';
 
@@ -140,7 +139,7 @@ export const DefaultTemplateRender = memo(({
         const originKey = mapping?.originKey || key;
         console.log('Origin Key:', originKey, key, mapping, keyMap);
         return (
-            <div className='w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px] mt-[24px]'>
+            <div className='w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem] mt-[1.5rem]'>
                 <OrigionMessageRender
                     origionKey={originKey}
                     displayKey={key}
@@ -162,7 +161,7 @@ export const OrigionMessageRender = memo(({
     parentKeys = [] }: {
     origionKey: string;
         displayKey?: string;
-        keyMap?: Record<string, any>;
+        keyMap?: Record<string, unknown>;
     context?: SignLayoutContext | null
     value: unknown;
         parentKeys?: string[];
@@ -194,10 +193,10 @@ export const OrigionMessageRender = memo(({
         const arrayChildrenMap = finalMapping?.children;
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
                     {keyForDisplay}
                 </div>
-                <div className='w-full mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px] gap-y-[8px]'>
+                <div className='w-full mt-[1rem] flex flex-col text-left font-[500] text-[1.5rem] leading-[1.8125] gap-y-[0.5rem]'>
                     {value.map((item, index) => {
                         const itemKey = `#${index + 1}`;
                         // 使用 originKey + 下标作为 data-key
@@ -209,7 +208,7 @@ export const OrigionMessageRender = memo(({
                         return (
                             <div
                                 key={index}
-                                className='flex flex-col gap-y-[8px]'
+                                className='flex flex-col gap-y-[0.5rem]'
                             >
                                 <OrigionMessageRender
                                     origionKey={itemKey}
@@ -234,14 +233,14 @@ export const OrigionMessageRender = memo(({
         const childrenMap = finalMapping?.children;
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
                     {keyForDisplay}
                 </div>
                 <div className='w-full border-t border-[rgba(0,0,0,0.2)]'></div>
-                <div className='w-full pl-[12px] mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px]'>
+                <div className='w-full pl-[0.75rem] mt-[1rem] flex flex-col text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                     {keys.map((key1) => {
                         return (
-                            <div className='w-full pt-[20px]'>
+                            <div className='w-full pt-[1.25rem]'>
                                 <OrigionMessageRender
                                     origionKey={key1}
                                     displayKey={key1}
@@ -263,11 +262,11 @@ export const OrigionMessageRender = memo(({
     const fullDataKey = [...parentKeys, originKey].filter(Boolean).join('.');
     return (
         <>
-            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+            <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
                 {keyForDisplay}
             </div>
             <div
-                className='w-full mt-[16px] flex text-left break-all font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                className='w-full mt-[1rem] flex text-left break-all font-[500] text-[1.5rem] leading-[1.8125] cursor-pointer hover:text-[#007AFF]'
                 data-key={fullDataKey}
                 title='点击定位到业务系统中的对应数据'
                 onClick={handleLocateElement}
@@ -515,18 +514,18 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     return (
         <div {...props}>
             <div className='cmd-info-container w-full rounded-[20px] bg-[#fff]'>
-                <div className='cmd-title-wrapper flex text-left  w-full rounded-t-[20px] bg-[50px] text-[#fff] bg-[#000] px-[24px] pt-[22px] pb-[20px]'>
-                    <span className='font-[500] text-[26px] leading-[32px]'>
+                <div className='cmd-title-wrapper flex text-left  w-full rounded-t-[20px] bg-[50px] text-[#fff] bg-[#000] px-[1.5rem] pt-[1.375rem] pb-[1.25rem]'>
+                    <span className='font-[500] text-[1.625rem] leading-[2]'>
                         {primaryType}
                     </span>
                     <div className='flex-1 flex justify-end items-end'>
-                        <Clock className='mr-[17.87px] '></Clock>
-                        <span className=' font-[500] leading-[29px] text-[24px]'>
+                        <Clock className='mr-[1.1169rem] '></Clock>
+                        <span className=' font-[500] leading-[1.8125] text-[1.5rem]'>
                             {validTime}
                         </span>
                     </div>
                 </div>
-                <div className='cmd-content-body w-full p-[24px]'>
+                <div className='cmd-content-body w-full p-[1.5rem]'>
                     {props.signContent instanceof Array ? (<TreasuryUnitTask {...props} context={layoutRender.context}></TreasuryUnitTask>) : (layoutRender.render ? (
                         <OutsideTemplateRender
                             render={
@@ -542,7 +541,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 </div>
             </div>
 
-            {!props.preViewUrl ? (<div className='w-full mt-[32px] flex justify-between mb-[32px]'>
+            {!props.preViewUrl ? (<div className='w-full mt-[2rem] flex justify-between mb-[2rem]'>
                 <Button
                     variant="secondary"
                     onClick={() => onRejected(props)}
@@ -564,7 +563,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 >
                     {props.confirmText ?? 'Sign to Approve'}
                 </Button>
-            </div>) : (<div className='w-full my-[32px] flex justify-center'>
+            </div>) : (<div className='w-full my-[2rem] flex justify-center'>
                 <Button
                     variant="primary"
                     onClick={onReview}
@@ -625,15 +624,15 @@ export const TreasuryUnitTask = memo((
     }, [props.validUntilTime])
 
     return (
-        <div className='w-full flex flex-col gap-y-[24px]'>
-            <div className='flex  w-full gap-x-[24px]'>
-                <div className='cmd-name  w-1/2  rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        <CheckBox className='mr-[11px]'></CheckBox>
+        <div className='w-full flex flex-col gap-y-[1.5rem]'>
+            <div className='flex  w-full gap-x-[1.5rem]'>
+                <div className='cmd-name  w-1/2  rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+                        <CheckBox className='mr-[0.6875rem]'></CheckBox>
                         {commandLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125] cursor-pointer hover:text-[#007AFF]'
                         data-key='command'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}
@@ -641,13 +640,13 @@ export const TreasuryUnitTask = memo((
                         {command}
                     </div>
                 </div>
-                <div className='cmd-name w-1/2 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        <Calendar className='mr-[11px]'></Calendar>
+                <div className='cmd-name w-1/2 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+                        <Calendar className='mr-[0.6875rem]'></Calendar>
                         {validTimeLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] flex text-left font-[500] text-[24px] break-all leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] break-all leading-[1.8125] cursor-pointer hover:text-[#007AFF]'
                         data-key='valid_until_time'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}
@@ -656,14 +655,14 @@ export const TreasuryUnitTask = memo((
                     </div>
                 </div>
             </div>
-            <div className='flex justify-between w-full gap-x-[24px]'>
-                <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
-                        <Vault className='mr-[11px]'></Vault>
+            <div className='flex justify-between w-full gap-x-[1.5rem]'>
+                <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+                        <Vault className='mr-[0.6875rem]'></Vault>
                         {vaultCodeLabel}
                     </div>
                     <div
-                        className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] cursor-pointer hover:text-[#007AFF]'
+                        className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125] cursor-pointer hover:text-[#007AFF]'
                         data-key='vault_code'
                         title='点击定位到业务系统中的对应数据'
                         onClick={handleLocateElement}

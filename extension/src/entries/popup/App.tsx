@@ -48,7 +48,7 @@ function App() {
         const readyTimer = setTimeout(() => {
             chrome.runtime.sendMessage(
                 { type: 'panel-ready', route: window.location.hash },
-                (response) => {
+                () => {
                     if (chrome.runtime.lastError) {
                         console.warn('Failed to send panel-ready:', chrome.runtime.lastError)
                     }
@@ -64,7 +64,7 @@ function App() {
 
     // ========== 导航消息监听 ==========
     useEffect(() => {
-        const navigateHandler = (message: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+        const navigateHandler = (message: Record<string, unknown>, _sender: chrome.runtime.MessageSender, sendResponse: (response: Record<string, unknown>) => void) => {
             if (message?.type === 'panel-navigate' && message?.route !== undefined) {
                 const currentHash = window.location.hash
                 const newHash = message.route ? `#${message.route}` : '#'
@@ -85,7 +85,7 @@ function App() {
 
     // ========== close-popup 消息监听（保留兼容） ==========
     useEffect(() => {
-        const closeHandler = (message: any, _sender: chrome.runtime.MessageSender, sendResponse: (response: any) => void) => {
+        const closeHandler = (message: Record<string, unknown>, _sender: chrome.runtime.MessageSender, sendResponse: (response: Record<string, unknown>) => void) => {
             if (message?.type === 'close-popup') {
                 // Side Panel 模式下不关闭，改为导航回首页
                 window.location.hash = '#'

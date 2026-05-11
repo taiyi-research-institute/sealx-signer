@@ -108,10 +108,10 @@ export default function Login() {
     return (
         <div className="login-container w-full flex ">
             <div className='w-full min-h-[780px] flex flex-col mx-auto relative'>
-                <div className='sealx-logo w-full mt-[120px] '>
+                <div className='sealx-logo w-full mt-[7.5rem] '>
                     <img className='m-auto w-[190px] h-[184px]' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
-                <div className='mx-auto px-[24px] w-full flex mt-[91.57px] mb-[24px]'>
+                <div className='mx-auto px-[1.5rem] w-full flex mt-[5.7231rem] mb-[1.5rem]'>
                     <Password
                         key="password-input"
                         password={password}
@@ -121,13 +121,13 @@ export default function Login() {
                         readonly={attempt === 0}
                     />
                 </div>
-                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]'}>
+                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>
                     {
                         attempt === 0 ? (`Too many incorrect attempts. Your account is locked for ${maxLockTime} minutes. ${countdown} left.`) :
                             (`You have ${attempt} attempt${attempt !== 1 ? 's' : ''} remaining. `)
                     }
                 </div>
-                <div className=' text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
+                <div className=' text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
                     What you see is what you sign
                 </div>
             </div>

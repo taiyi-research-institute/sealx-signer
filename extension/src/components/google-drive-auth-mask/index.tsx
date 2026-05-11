@@ -41,16 +41,16 @@ const GoogleDriveAuthMask: React.FC<GoogleDriveAuthMaskProps> = ({
     }
 
     return (
-        <div className={`absolute top-0 left-0 h-full w-full flex items-center justify-center z-50 px-[24px] bg-[#000]/50 ${className}`}>
+        <div className={`absolute top-0 left-0 h-full w-full flex items-center justify-center z-50 px-[1.5rem] bg-[#000]/50 ${className}`}>
             <div
-                className="bg-[#fff] border border-[#000]/[0.1] rounded-[12px] p-[24px] w-full relative"
+                className="bg-[#fff] border border-[#000]/[0.1] rounded-[12px] p-[1.5rem] w-full relative"
                 style={{ maxWidth }}
             >
                 <div className="flex flex-col items-center">
                     {/* Google Drive icon or loading spinner */}
-                    <div className="w-[60px] h-[60px] mb-[24px] flex items-center justify-center">
+                    <div className="w-[60px] h-[60px] mb-[1.5rem] flex items-center justify-center">
                         <div
-                            className="w-[48px] h-[48px] rounded-full border-4 border-[#000]/[10%]"
+                            className="w-[48px] h-[48px] rounded-full border-4 border-[#000]/10"
                             style={{
                                 borderTopColor: spinnerColor,
                                 animation: 'spin 1s linear infinite'
@@ -58,15 +58,15 @@ const GoogleDriveAuthMask: React.FC<GoogleDriveAuthMaskProps> = ({
                         ></div>
                     </div>
 
-                    <div className="text-[24px] font-[500] mb-[16px] text-center">
+                    <div className="text-[1.5rem] font-[500] mb-[1rem] text-center">
                         {title}
                     </div>
 
-                    <div className="text-[16px] font-[500] mb-[24px] text-[#000]/[60%] text-center">
+                    <div className="text-[1rem] font-[500] mb-[1.5rem] text-[#000]/60 text-center">
                         {description}
                     </div>
 
-                    <div className="text-[14px] text-[#000]/[40%] text-center">
+                    <div className="text-[0.875rem] text-[#000]/40 text-center">
                         {footerText}
                     </div>
                 </div>

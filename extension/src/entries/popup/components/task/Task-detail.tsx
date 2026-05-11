@@ -26,7 +26,7 @@ interface TaskDetailState {
 export const TaskDetail = memo(() => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { request } = useRequestContext();
+    useRequestContext();
     const [signing, setSigning] = useState(false);
 
     // Get task data from navigation state
@@ -121,17 +121,17 @@ export const TaskDetail = memo(() => {
     return (
         <div className="w-full h-full flex flex-col bg-[#F5F5F5]">
             {/* Header with back button and progress */}
-            <div className="w-full bg-[#fff] px-[24px] pt-[16px] pb-[16px] flex items-center justify-between border-b border-[rgba(0,0,0,0.1)]">
+            <div className="w-full bg-[#fff] px-[1.5rem] pt-[1rem] pb-[1rem] flex items-center justify-between border-b border-[rgba(0,0,0,0.1)]">
                 <div className="flex items-center">
                     <button
                         onClick={() => navigate('/task-home', { replace: true })}
-                        className="mr-[16px] cursor-pointer"
+                        className="mr-[1rem] cursor-pointer"
                     >
                         <ArrowLeft className="w-[24px] text-[#fff] h-[24px]" />
                     </button>
-                    <span className="font-[500] text-[21px] leading-[25px]">Task Details</span>
+                    <span className="font-[500] text-[1.3125rem] leading-[1.5625]">Task Details</span>
                 </div>
-                <div className="font-[500] text-[19px] leading-[22px] text-[rgba(0,0,0,0.6)]">
+                <div className="font-[500] text-[1.1875rem] leading-[1.375] text-[rgba(0,0,0,0.6)]">
                     {currentIndex + 1} / {totalSubTasks}
                 </div>
             </div>
@@ -145,7 +145,7 @@ export const TaskDetail = memo(() => {
             </div>
 
             {/* Task content */}
-            <div ref={scrollContainerRef} className="flex-1 overflow-auto px-[24px] py-[24px]">
+            <div ref={scrollContainerRef} className="flex-1 overflow-auto px-[1.5rem] py-[1.5rem]">
                 {currentSubTask && (
                     <SignTaskRender
                         signContent={currentSubTask.signContent}
@@ -164,8 +164,8 @@ export const TaskDetail = memo(() => {
 
             {/* Info about remaining tasks */}
             {!isLastSubTask && (
-                <div className="w-full px-[24px] pb-[16px] pt-[8px] bg-[#fff] border-t border-[rgba(0,0,0,0.1)]">
-                    <div className="text-center font-[500] text-[17px] leading-[20px] text-[rgba(0,0,0,0.6)]">
+                <div className="w-full px-[1.5rem] pb-[1rem] pt-[0.5rem] bg-[#fff] border-t border-[rgba(0,0,0,0.1)]">
+                    <div className="text-center font-[500] text-[1.0625rem] leading-[1.25] text-[rgba(0,0,0,0.6)]">
                         {totalSubTasks - currentIndex - 1} more {totalSubTasks - currentIndex - 1 === 1 ? 'task' : 'tasks'} remaining
                     </div>
                 </div>
@@ -173,10 +173,10 @@ export const TaskDetail = memo(() => {
 
             {/* Loading overlay */}
             {/* {signing && (
-                <div className="w-full h-full bg-[#000]/[70%] absolute left-0 top-0 flex items-center justify-center">
+                <div className="w-full h-full bg-[#000]/70 absolute left-0 top-0 flex items-center justify-center">
                     <div className="flex flex-col items-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                        <div className="text-[#fff] text-[32px] font-[500]">Signing...</div>
+                        <div className="text-[#fff] text-[2rem] font-[500]">Signing...</div>
                     </div>
                 </div>
             )} */}

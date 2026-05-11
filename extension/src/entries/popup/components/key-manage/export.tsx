@@ -130,7 +130,7 @@ export const KeyExport = () => {
                 setError(`Error selecting directory: ${errorMessage}`)
             }
         }
-    }, [])
+    }, [setError])
     // 处理PIN码输入和导出
     const handleExportWithPin = useCallback(async (userPin: string) => {
         // 优化验证：确保PIN码最小6位
@@ -261,17 +261,17 @@ export const KeyExport = () => {
 
         setShowPinModal(true)
     }, [directoryHandle, setError, exportMethod, googleDrive, googleDriveStatus, tpPin, confirmPin, validateTpPin, validateConfirmPin, validateMatch])
-    return <div className=" key-manage px-[24px] py-[24px] w-full h-fit flex flex-col">
+    return <div className=" key-manage px-[1.5rem] py-[1.5rem] w-full h-fit flex flex-col">
         <div className="w-full rounded-[20px] bg-[#fff] flex-1">
-            <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-[#fff]">
+            <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[1.5rem] pt-[1.375rem] pb-[1.25rem] font-[500] text-[1.625rem] leading-[2] text-[#fff]">
                 Export Signature Key
             </div>
-            <div className="w-full px-[24px] pt-[24px]">
-                <div className='  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+            <div className="w-full px-[1.5rem] pt-[1.5rem]">
+                <div className='  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
                         Where we save the encrypted backup?
                     </div>
-                    <div className='w-full mt-[16px]'>
+                    <div className='w-full mt-[1rem]'>
                         <Radio
                             selected={exportMethod}
                             items={[
@@ -284,23 +284,23 @@ export const KeyExport = () => {
 
                     {exportMethod === 'local' ? (
                         <>
-                            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%] mt-[24px]'>
+                            <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60 mt-[1.5rem]'>
                                 Choose where to save your encrypted backup
                             </div>
-                            <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] flex items-center'>
+                            <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125] flex items-center'>
                                 <input
                                     id="directory-input"
                                     onClick={onSelectDir}
                                     value={directoryPath}
                                     readOnly
                                     placeholder="Select export directory"
-                                    className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border-[#000]/[10%] border cursor-pointer"
+                                    className="w-2/3 text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border-[#000]/10 border cursor-pointer"
                                     aria-label="Export directory path"
                                 />
                                 <Button
                                     variant="primary"
                                     onClick={onSelectDir}
-                                    className="!px-[24px] !pb-[8px] !pt-[6px] !text-[20px] ml-[12px]"
+                                    className="px-[1.5rem]! pb-[0.5rem]! pt-[0.375rem]! text-[1.25rem]! ml-[0.75rem]"
                                 >
                                     Select
                                 </Button>
@@ -308,11 +308,11 @@ export const KeyExport = () => {
                         </>
                     ) : (<></>)}
                 </div>
-                <div className=' mt-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className=' mt-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
                         Recovery Password
                     </div>
-                    <div className=' w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className=' w-full flex mt-[1rem] items-center wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         <div className="flex-1 relative">
                             <input
                                 type={closeEye ? "password" : "text"}
@@ -330,16 +330,16 @@ export const KeyExport = () => {
                                 }}
                                 onBlur={handleTpPinBlur}
                                 placeholder="Enter recovery password"
-                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${tpPinError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border ${tpPinError ? 'border-[#ff0000]' : 'border-[#000]/10'}`}
                                 aria-label="Recovery password"
                             />
                             {tpPinError && (
-                                <div className="text-[#ff0000] text-[14px] mt-1">
+                                <div className="text-[#ff0000] text-[0.875rem] mt-1">
                                     {tpPinError}
                                 </div>
                             )}
                         </div>
-                        <div className="ml-[24px] cursor-pointer">
+                        <div className="ml-[1.5rem] cursor-pointer">
                             {closeEye ? <CloseEye onClick={() => {
                                 setCloseEye(false)
                             }}></CloseEye> : <OpenEye onClick={() => {
@@ -349,7 +349,7 @@ export const KeyExport = () => {
                     </div>
 
                     {/* Password Confirmation Field */}
-                    <div className=' w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
+                    <div className=' w-full flex mt-[1rem] items-center wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                         <div className="flex-1 relative">
                             <input
                                 type={closeEyeConfirm ? "password" : "text"}
@@ -367,16 +367,16 @@ export const KeyExport = () => {
                                 }}
                                 onBlur={handleConfirmPinBlur}
                                 placeholder="Confirm recovery password"
-                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-[#000]/10'}`}
                                 aria-label="Confirm recovery password"
                             />
                             {(confirmPinError || matchError) && (
-                                <div className="text-[#ff0000] text-[14px] mt-1">
+                                <div className="text-[#ff0000] text-[0.875rem] mt-1">
                                     {confirmPinError || matchError}
                                 </div>
                             )}
                         </div>
-                        <div className="ml-[24px] cursor-pointer">
+                        <div className="ml-[1.5rem] cursor-pointer">
                             {closeEyeConfirm ? <CloseEye onClick={() => {
                                 setCloseEyeConfirm(false)
                             }}></CloseEye> : <OpenEye onClick={() => {
@@ -385,18 +385,18 @@ export const KeyExport = () => {
                         </div>
                     </div>
 
-                    <div className=" relative text-[#E99E42] pl-[40px] mt-[12px] text-[16px] font-[500] leading-[24px] flex text-left">
-                        <Warning className=' absolute left-[0px] top-[6px] mr-[13.25px] text-[#E99E42] w-[24px] h-[24px]' />
+                    <div className=" relative text-[#E99E42] pl-[2.5rem] mt-[0.75rem] text-[1rem] font-[500] leading-[1.5] flex text-left">
+                        <Warning className=' absolute left-[0px] top-[6px] mr-[0.8281rem] text-[#E99E42] w-[24px] h-[24px]' />
                         Please enter a recovery password (minimum 6 characters). This password will be used to encrypt your signature key backup. Make sure to save it securely.
                     </div>
                 </div>
 
-                <div className='font-[500] text-[19px] text-left mt-[24px] bg-[#00be78]/10 mb-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
+                <div className='font-[500] text-[1.1875rem] text-left mt-[1.5rem] bg-[#00be78]/10 mb-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
                     After exporting the key file, please securely back up both the file and its password. Both are required to recover the key in case of emergency.
                 </div>
             </div>
         </div>
-        <div className='w-full mt-[32px] flex gap-x-[24px] justify-between '>
+        <div className='w-full mt-[2rem] flex gap-x-[1.5rem] justify-between '>
             <Button
                 variant="secondary"
                 onClick={() => navigate(-1)}

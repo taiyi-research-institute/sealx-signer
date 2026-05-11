@@ -27,7 +27,7 @@ interface RadioProps<T> extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCh
  */
 const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
     return (
-        <div {...props} className={`flex flex-col gap-[24px] ${props.className ?? ''}`}>
+        <div {...props} className={`flex flex-col gap-[1.5rem] ${props.className ?? ''}`}>
             {items.map((item, index) => {
                 // Normalize item to handle both string and RadioItem cases
                 // Handle both string and RadioItem cases with proper typing
@@ -41,7 +41,7 @@ const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
                 return (
                     <div
                         key={index}
-                        className="flex items-center gap-x-[6px] cursor-pointer"
+                        className="flex items-center gap-x-[0.375rem] cursor-pointer"
                         onClick={() => {
                             if (onChange) {
                                 onChange(normalizedItem.value);
@@ -55,7 +55,7 @@ const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
                             )}
                         </div>
                         {/* Label */}
-                        <span className={`text-[16px] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-[#000]/[60%]'}`}>
+                        <span className={`text-[1rem] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-[#000]/60'}`}>
                             {normalizedItem.label}
                         </span>
                     </div>

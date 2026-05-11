@@ -315,7 +315,7 @@ export const Password = ({ onChange, readonly = false, errorIndex = -1, password
                     onBlur={() => onBlur(index)}
                     aria-readonly={readonly}
                     data-char=""
-                    className={`password bg-[#000]/[5%] flex items-center justify-center text-4xl ${errorIndex !== -1 && index <= errorIndex ? ' error' : ''
+                    className={`password bg-[#000]/5 flex items-center justify-center text-4xl ${errorIndex !== -1 && index <= errorIndex ? ' error' : ''
                         }`}
                     suppressContentEditableWarning
                 >
