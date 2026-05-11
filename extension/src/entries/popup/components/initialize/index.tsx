@@ -185,7 +185,7 @@ export default function Initialize() {
         };
     }, [errorIndex, initError]);
     return (
-        <div className='login-container w-full '>
+        <div className='login-container w-full bg-sealx-gradient'>
             <div className='w-full h-full mx-auto relative'>
                 <div className='sealx-logo w-full pt-[120px] font-[500] text-[17px]'>
                     <img
@@ -200,12 +200,12 @@ export default function Initialize() {
                             <div className='flex flex-col items-center w-full'>
                                 {/* Progress bar */}
                                 <div className='w-full text-[16px] max-w-[300px] mb-4'>
-                                    <div className='text-[#00BE78] text-[14px] text-center mt-2'>
+                                    <div className='text-brand text-[14px] text-center mt-2'>
                                         {Math.round(initProgress)}%
                                     </div>
-                                    <div className='w-full h-[8px] bg-[#000]/[10%] rounded-full overflow-hidden'>
+                                    <div className='w-full h-[8px] bg-neutral-950/[10%] rounded-full overflow-hidden'>
                                         <div
-                                            className='h-full  bg-[#00BE78] transition-all duration-100 ease-linear'
+                                            className='h-full  bg-brand transition-all duration-100 ease-linear'
                                             style={{
                                                 width: `${initProgress}%`,
                                             }}
@@ -214,7 +214,7 @@ export default function Initialize() {
                                 </div>
 
                                 {/* Loading text with fade animation */}
-                                <div className='text-[#000]/[80%] text-[18px] font-[500] animate-pulse'>
+                                <div className='text-text-primary text-[18px] font-[500] animate-pulse'>
                                     Initializing...
                                 </div>
                             </div>
@@ -240,8 +240,8 @@ export default function Initialize() {
                 <div
                     className={
                         (errorIndex > -1 || initError
-                            ? 'text-[#F0231E] '
-                            : 'text-[#000]/[60%] ') +
+                            ? 'text-text-error '
+                            : 'text-text-secondary ') +
                         ' text-center w-full px-[24px] text-[21px] leading-[28px]'
                     }>
                     {initError
@@ -254,7 +254,7 @@ export default function Initialize() {
                                     : 'Re-enter the new 6-character PIN.'
                                 : 'Set your 6-character PIN. It must include a mix of numbers (0-9), uppercase letters(A-Z), and lowercase letters (a-z).'}
                 </div>
-                <div className=' text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
+                <div className=' text-text-tertiary text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>
                     What you see is what you sign
                 </div>
             </div>

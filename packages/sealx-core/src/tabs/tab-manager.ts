@@ -45,7 +45,6 @@ export class TabManager implements ITabManager {
                 if (age < 30000 && stored.currentTab) {
                     this.currentTab = stored.currentTab;
                     this.tabs = stored.tabs || [];
-                    console.log('TabManager: initialized from storage, tabId:', this.currentTab.id);
                     return;
                 }
             }
@@ -92,7 +91,6 @@ export class TabManager implements ITabManager {
                 if (tab.active && tab.url?.startsWith('chrome-extension://')) {
                     this.currentTab = tab;
                     this.persistToStorage();
-                    console.log('TabManager: current tab updated to', tab.id, tab.url);
                 }
             } catch (error) {
                 console.error('TabManager: failed to get tab', tabInfo.tabId, error);

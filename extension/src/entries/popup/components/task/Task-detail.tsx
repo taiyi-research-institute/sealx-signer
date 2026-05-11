@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, memo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { SignContent } from 'sealx-core';
 import { SignTaskRender } from './task-render.js';
-import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import messager from '@src/core/messager';
 import { SealxTopic } from 'sealx-message';
 import { MessageChannel } from 'sealx-message';
@@ -26,7 +25,6 @@ interface TaskDetailState {
 export const TaskDetail = memo(() => {
     const location = useLocation();
     const navigate = useNavigate();
-    const { request } = useRequestContext();
     const [signing, setSigning] = useState(false);
 
     // Get task data from navigation state
@@ -119,27 +117,27 @@ export const TaskDetail = memo(() => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col bg-[#F5F5F5]">
+        <div className="w-full h-full flex flex-col bg-neutral-100">
             {/* Header with back button and progress */}
-            <div className="w-full bg-[#fff] px-[24px] pt-[16px] pb-[16px] flex items-center justify-between border-b border-[rgba(0,0,0,0.1)]">
+            <div className="w-full bg-surface px-[24px] pt-[16px] pb-[16px] flex items-center justify-between border-b border-border">
                 <div className="flex items-center">
                     <button
                         onClick={() => navigate('/task-home', { replace: true })}
                         className="mr-[16px] cursor-pointer"
                     >
-                        <ArrowLeft className="w-[24px] text-[#fff] h-[24px]" />
+                        <ArrowLeft className="w-[24px] text-surface h-[24px]" />
                     </button>
                     <span className="font-[500] text-[21px] leading-[25px]">Task Details</span>
                 </div>
-                <div className="font-[500] text-[19px] leading-[22px] text-[rgba(0,0,0,0.6)]">
+                <div className="font-[500] text-[19px] leading-[22px] text-text-secondary">
                     {currentIndex + 1} / {totalSubTasks}
                 </div>
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-[4px] bg-[rgba(0,0,0,0.1)]">
+            <div className="w-full h-[4px] bg-border">
                 <div
-                    className="h-full bg-[#000] transition-all duration-300"
+                    className="h-full bg-neutral-950 transition-all duration-300"
                     style={{ width: `${((currentIndex + 1) / totalSubTasks) * 100}%` }}
                 />
             </div>
@@ -164,8 +162,8 @@ export const TaskDetail = memo(() => {
 
             {/* Info about remaining tasks */}
             {!isLastSubTask && (
-                <div className="w-full px-[24px] pb-[16px] pt-[8px] bg-[#fff] border-t border-[rgba(0,0,0,0.1)]">
-                    <div className="text-center font-[500] text-[17px] leading-[20px] text-[rgba(0,0,0,0.6)]">
+                <div className="w-full px-[24px] pb-[16px] pt-[8px] bg-surface border-t border-border">
+                    <div className="text-center font-[500] text-[17px] leading-[20px] text-text-secondary">
                         {totalSubTasks - currentIndex - 1} more {totalSubTasks - currentIndex - 1 === 1 ? 'task' : 'tasks'} remaining
                     </div>
                 </div>
@@ -173,10 +171,10 @@ export const TaskDetail = memo(() => {
 
             {/* Loading overlay */}
             {/* {signing && (
-                <div className="w-full h-full bg-[#000]/[70%] absolute left-0 top-0 flex items-center justify-center">
+                <div className="w-full h-full bg-neutral-950/[70%] absolute left-0 top-0 flex items-center justify-center">
                     <div className="flex flex-col items-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                        <div className="text-[#fff] text-[32px] font-[500]">Signing...</div>
+                        <div className="text-surface text-[32px] font-[500]">Signing...</div>
                     </div>
                 </div>
             )} */}

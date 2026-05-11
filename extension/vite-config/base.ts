@@ -12,8 +12,6 @@ import svgr from 'vite-plugin-svgr';
 
 
 const isDev = process.env.__DEV__ === 'true';
-console.log('Vite build __DEV__:', process.env);
-console.log(`Building extension in ${isDev ? 'development' : 'production'} mode.`);
 // set this flag to true, if you want localization support
 const localize = false;
 
@@ -43,7 +41,10 @@ export default defineConfig({
     plugins: [
         svgr(),
         tailwindcss(),
-        tsconfigPaths(),
+        tsconfigPaths({
+            projects: [resolve(__dirname, '../tsconfig.app.json')],
+            ignoreConfigErrors: true
+        }),
         react(),
         stripDevIcons(isDev),
         crxI18n({ localize, src: '../src/locales' }),
@@ -52,6 +53,13 @@ export default defineConfig({
     resolve: {
         extensions: ['.ts', '.js', '.d.ts', '.tsx'],
         alias: {
+            'sealx-core': path.resolve(__dirname, '../../packages/sealx-core/src'),
+            'sealx-message': path.resolve(__dirname, '../../packages/sealx-message/src'),
+            'sealx-sdk': path.resolve(__dirname, '../../packages/sealx-sdk/src'),
+            'crypto-js': path.resolve(__dirname, '../node_modules', 'crypto-js'),
+            ethers: path.resolve(__dirname, '../node_modules', 'ethers'),
+            lodash: path.resolve(__dirname, '../node_modules', 'lodash'),
+            'webextension-polyfill': path.resolve(__dirname, '../node_modules', 'webextension-polyfill'),
             buffer: path.resolve(__dirname, 'node_modules', 'buffer')
         },
     },

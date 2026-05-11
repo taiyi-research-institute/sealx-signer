@@ -7,13 +7,13 @@ export const KeyManage = () => {
     const navigate = useSealXNavigate()
     const { address } = useGlobalContext()
     return <div className=" px-[24px] pt-[24px] w-full h-full flex flex-col ">
-        <div className="w-full rounded-[20px] bg-[#fff] flex-1">
-            <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-[#fff]">
+        <div className="w-full rounded-[20px] bg-surface flex-1">
+            <div className="w-full bg-neutral-950 rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-surface">
                 Key Mgmt
             </div>
             <div className="w-full px-[24px] pt-[24px]">
-                <div className=' w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className=' w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <AddressCardIcon className='mr-[11px]'></AddressCardIcon>Pubkey
                         <div className=" flex-1 text-right">
                             <Button

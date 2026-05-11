@@ -45,7 +45,7 @@ export interface PrivateKeyStoreRecord {
 export type SealxBaseInfo = {
     version: string;
     address: string;
-    pks: Record<string, string>
+    pks?: Record<string, string>
     updateTime: number
     installedTime: number;
     sessionTimeout?: number

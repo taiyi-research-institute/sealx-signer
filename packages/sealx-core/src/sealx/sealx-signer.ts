@@ -46,7 +46,6 @@ export class SealxSigner {
          * Initializes a new SealxSigner instance.
          * Automatically calls initialize() to set up the plugin state.
          */
-        console.log("SealxSigner initialized");
         this.initialize();
     }
 
@@ -59,7 +58,6 @@ export class SealxSigner {
          */
         this.account = account;
         await this.storageWrapper.setItem('account', account)
-        console.log("SealxSigner account initialized:", this.account);
     }
 
     async initializeSession(session: SealxSession) {
@@ -96,10 +94,8 @@ export class SealxSigner {
         const isActive = document.body.getAttribute('data-sealx-signer-active') === 'true';
         if (isActive && !this.active) {
             this.active = true;
-            console.log("SealxSigner plugin activated via mutation observer");
         } else if (!isActive && this.active) {
             this.active = false;
-            console.log("SealxSigner plugin closed via mutation observer");
         }
     }
     /**
@@ -135,7 +131,6 @@ export class SealxSigner {
         if (!this.installed) {
             this.installed = true;
             this.storageWrapper.setItem('installed', true);
-            console.log("SealxSigner installed");
         } else {
             console.warn("SealxSigner is already installed.");
         }
@@ -149,7 +144,6 @@ export class SealxSigner {
         if (!this.active) {
             this.active = true;
             document.body.setAttribute('data-sealx-signer-active', 'true');
-            console.log("SealxSigner plugin activated");
         } else {
             //console.warn("SealxSigner plugin is already activated.");
         }
@@ -165,7 +159,6 @@ export class SealxSigner {
             this.session = null
             this.storageWrapper.removeItem('session')
             document.body.setAttribute('data-sealx-signer-active', 'false');
-            console.log("SealxSigner plugin deactivated");
         } else {
             console.warn("SealxSigner plugin is already deactivated.");
         }

@@ -1,12 +1,18 @@
 /* Popup window dimensions for chrome.action.openPopup */
 
 body {
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: transparent;
 }
 
-body[popup-mode='action']{
+body[popup-mode='action'] {
     background-color: transparent;
     border-radius: 12px;
+}
+
+body[popup-mode='window'],
+body[popup-mode='tab'],
+body[popup-mode='sidepanel'] {
+    background-color: #ffffff;
 }
 
 #root {
@@ -22,6 +28,7 @@ body[popup-mode='action']{
     box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
     display: flex;
     position: relative;
+    background-color: #ffffff;
     /* background-color: black; */
 }
 

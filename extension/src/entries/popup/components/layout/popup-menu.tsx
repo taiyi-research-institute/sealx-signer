@@ -21,22 +21,20 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
     const shouldOpenInNewTab = !isPopupTypeLoading && isActionPopup && !isSidePanel && chrome?.tabs?.create
 
     return <div {...props} ref={ref}>
-        <div onClick={handleItemClick(() => {
+        <button onClick={handleItemClick(() => {
             navigate('/reset-pin')
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Reset Pin</div>
-        <div onClick={handleItemClick(() => {
+        })} className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none">Reset Pin</button>
+        <button onClick={handleItemClick(() => {
             if (shouldOpenInNewTab) {
-                console.log('Opening key-manage in new tab (action popup detected)')
                 chrome.tabs.create({
                     url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
                 })
             } else {
-                console.log('Navigating to key-manage normally')
                 navigate('/key-manage')
             }
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Key Management</div>
-        <div onClick={handleItemClick(() => {
+        })} className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none">Key Management</button>
+        <button onClick={handleItemClick(() => {
             navigate('/set-screen-timer')
-        })} className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left">Set Screen Off Time</div>
+        })} className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none">Set Screen Off Time</button>
     </div>
 })

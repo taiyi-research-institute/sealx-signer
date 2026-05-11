@@ -12,7 +12,7 @@ export type GlobalContextType = {
     setAttempt: React.Dispatch<React.SetStateAction<number>>
     setAddress: React.Dispatch<React.SetStateAction<string>>
     refreshAddress: () => Promise<void>
-    sendToIframe: (message: Record<string, unknown>) => Promise<any>
+    sendToIframe: (message: Record<string, unknown>) => Promise<unknown>
 };
 
 export const GlobalContext = createContext<GlobalContextType>({} as GlobalContextType);

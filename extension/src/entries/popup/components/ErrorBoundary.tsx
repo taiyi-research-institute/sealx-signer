@@ -35,7 +35,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             // 先重置状态，尝试恢复 React 树
                             this.setState({ hasError: false, error: null })
                         }}
-                        className="px-6 py-2 bg-[#00BE78] text-white rounded-lg hover:bg-[#00A366] transition-colors"
+                        className="px-6 py-2 bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors"
                     >
                         Retry
                     </button>

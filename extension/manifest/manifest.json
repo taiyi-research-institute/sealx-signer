@@ -23,12 +23,7 @@
         "pages": ["src/entries/sandbox/index.html"]
     },
     "content_security_policy": {
-        "script-src": [
-            "'self'",
-            "'nonce-sealx-scope'",
-            "chrome-extension://7b4e152d-ba45-4f20-b2e8-21ec7b332326/"
-        ],
-        "object-src": "'self'"
+        "extension_pages": "script-src 'self'; object-src 'self'"
     },
     "permissions": [
         "activeTab",

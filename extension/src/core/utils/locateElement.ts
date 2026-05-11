@@ -22,7 +22,6 @@ export const handleLocateElement = async (event: React.MouseEvent<HTMLElement>):
 
     // 如果没有 data-key 属性，则不处理
     if (!dataKey) {
-        console.log('[LocateElement] No data-key attribute found');
         return;
     }
 
@@ -32,8 +31,6 @@ export const handleLocateElement = async (event: React.MouseEvent<HTMLElement>):
     // 将数组下标如 #1, #2 或 item1, item2 替换为 [*]，便于业务系统匹配
     // 匹配 #数字 或 item数字 格式
     const normalizedKey = dataKey.replace(/(#\d+|item\d+)/g, '[*]');
-
-    console.log('[LocateElement] Locating element:', { key: normalizedKey, value, originalKey: dataKey });
 
     try {
         // 使用 Messager 发送定位消息到 Content Script
@@ -46,8 +43,6 @@ export const handleLocateElement = async (event: React.MouseEvent<HTMLElement>):
 
         // 发送消息到 INPAGE（业务系统页面）
         messager.send(payload, SealxTopic.LOCATE_ELEMENT, MessageChannel.INPAGE);
-
-        console.log('[LocateElement] Message sent via Messager');
     } catch (error) {
         console.warn('[LocateElement] Failed to send message:', error);
     }

@@ -16,7 +16,6 @@ export const checkSealxSignerActive = (messager: Messager) => {
                 const res: SealxResponse<boolean> = await messager.send({ time: Date.now() }, SealxTopic.CHECK_ACTIVED)
 
                 if (res.payload) {
-                    console.log("SealxSigner is active");
                     // If active, schedule next check
                     checkSealxSignerActive(messager);
                 } else {

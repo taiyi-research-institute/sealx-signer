@@ -9,7 +9,7 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
-import { TabManager } from 'sealx-core';
+import { clearSessionPrivateKey } from '@src/core/background';
 // import { MessageChannel } from 'sealx-message';
 // import { usePopupType } from '@src/hooks/usePopupType';
 
@@ -292,6 +292,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             // Clear session if invalid
             if (currentSession) {
 
+                clearSessionPrivateKey(currentSession.host ?? '', currentSession.userId ?? '')
                 setSession(null);
             }
             // Redirect to login if not already there
@@ -341,6 +342,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     useEffect(() => {
         // Clear expired session
         if (session && session.expire <= Date.now()) {
+            clearSessionPrivateKey(session.host ?? '', session.userId ?? '')
             setSession(null);
         }
 
@@ -370,11 +372,11 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
 
 const Loading: React.FC = () => {
     return (
-        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#000]/10 backdrop-blur-sm'>
+        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-neutral-950/10 backdrop-blur-sm'>
             <div className='relative flex flex-col items-center justify-center p-[32px]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
                 {/* Spinner */}
                 <div
-                    className='w-[64px] h-[64px] mb-[24px] border-4 border-[#fff]/20   rounded-full animate-spin'
+                    className='w-[64px] h-[64px] mb-[24px] border-4 border-surface/20   rounded-full animate-spin'
                     style={{
                         borderTopColor: '#00be78',
                         animation: 'spin 1s linear infinite',

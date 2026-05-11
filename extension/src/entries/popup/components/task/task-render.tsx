@@ -3,7 +3,6 @@ import type React from 'react';
 import { useCallback, useEffect, useMemo, useState, memo } from 'react';
 import {
     convertToISOFormat,
-    TabManager,
     type SignContent,
     type SignLayoutContext,
     type SignLayoutRender,
@@ -21,8 +20,7 @@ import type { SealxRequest } from 'sealx-message';
 import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
 import Button from '@src/components/button';
-import { useSessionStore } from '@src/core/state/index.js';
-import { generateDataKey } from '@src/core/utils/dataKey';
+import { useErrorStore, useSessionStore } from '@src/core/state/index.js';
 import { handleLocateElement } from '@src/core/utils/locateElement';
 // import moment from 'moment';
 
@@ -113,7 +111,7 @@ export const DefaultTemplateRender = memo(({
                 template: templates[props.command] ?? '',
             });
             if (type === 'rendered') {
-                setSafeHtml(output);
+                setSafeHtml(DOMPurify.sanitize(output));
                 // 可以在这里更新 UI 或执行后续逻辑
             }
             if (type === 'error') {
@@ -126,7 +124,6 @@ export const DefaultTemplateRender = memo(({
         if (context && templates[props.command]) onRendered()
     }, [context, onRendered, props.command]);
     if (context && templates[props.command]) {
-        // Sanitize and render the template with context
         return <div dangerouslySetInnerHTML={{ __html: safeHtml }}></div>;
     }
     if (props.signContent instanceof Array) {
@@ -138,9 +135,9 @@ export const DefaultTemplateRender = memo(({
         // 从 keysMapStr 映射获取顶层 originKey
         const mapping = keyMap?.[key];
         const originKey = mapping?.originKey || key;
-        console.log('Origin Key:', originKey, key, mapping, keyMap);
+        // Origin key mapping for element location
         return (
-            <div className='w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px] mt-[24px]'>
+            <div className='w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px] mt-[24px]'>
                 <OrigionMessageRender
                     origionKey={originKey}
                     displayKey={key}
@@ -162,7 +159,7 @@ export const OrigionMessageRender = memo(({
     parentKeys = [] }: {
     origionKey: string;
         displayKey?: string;
-        keyMap?: Record<string, any>;
+        keyMap?: Record<string, unknown>;
     context?: SignLayoutContext | null
     value: unknown;
         parentKeys?: string[];
@@ -194,7 +191,7 @@ export const OrigionMessageRender = memo(({
         const arrayChildrenMap = finalMapping?.children;
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                     {keyForDisplay}
                 </div>
                 <div className='w-full mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px] gap-y-[8px]'>
@@ -234,10 +231,10 @@ export const OrigionMessageRender = memo(({
         const childrenMap = finalMapping?.children;
         return (
             <>
-                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                     {keyForDisplay}
                 </div>
-                <div className='w-full border-t border-[rgba(0,0,0,0.2)]'></div>
+                <div className='w-full border-t border border-black/20'></div>
                 <div className='w-full pl-[12px] mt-[16px] flex flex-col text-left font-[500] text-[24px] leading-[29px]'>
                     {keys.map((key1) => {
                         return (
@@ -263,7 +260,7 @@ export const OrigionMessageRender = memo(({
     const fullDataKey = [...parentKeys, originKey].filter(Boolean).join('.');
     return (
         <>
-            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                 {keyForDisplay}
             </div>
             <div
@@ -308,6 +305,19 @@ export const OutsideTemplateRender = memo(({
 const onRejected = (props: SignTaskRenderProps) => {
     props.onSign(props.taskId, '');
 };
+
+const handleApprovalFailure = (props: SignTaskRenderProps, error: unknown) => {
+    console.error('Approval failed:', error)
+    props.setSigning?.(false)
+    useErrorStore.getState().setError(error instanceof Error ? error : 'Approval failed')
+}
+
+const getSigningFailureMessage = (res: unknown) => {
+    if (!res || typeof res !== 'object') return 'Signing failed. Please try again.'
+    const result = res as { error?: string; errorCode?: string }
+    return result.error || result.errorCode || 'Signing failed. Please try again.'
+}
+
 /**
  * Handles the signing operation when user clicks "Sign to Approve"
  * - Logs the signing content and task ID for debugging
@@ -320,7 +330,6 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
     }
     props.setSigning?.(true)
     try {
-        //console.log('-------- request tab --------', TabManager.getInstance().currentTab, request.header)
         const signatures = [] as { taskId: string, signature: string }[];
         if (props.signContent instanceof Array) {
             for (const signContent of props.signContent) {
@@ -329,7 +338,10 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
                     request.header.host,
                     signContent.signContent
                 ) as { signature: string } | null;
-                if (res) signatures.push({
+                if (!res?.signature) {
+                    throw new Error(getSigningFailureMessage(res))
+                }
+                signatures.push({
                     taskId: signContent.taskId,
                     signature: res.signature
                 })
@@ -345,16 +357,17 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
                 request.header.host,
                 props.signContent
             ) as { signature: string } | null;
-            if (res) {
-                props.onSign(props.taskId, res.signature);
-                return {
-                    signatures,
-                    taskId: props.taskId
-                }
+            if (!res?.signature) {
+                throw new Error(getSigningFailureMessage(res))
+            }
+            props.onSign(props.taskId, res.signature);
+            return {
+                signatures,
+                taskId: props.taskId
             }
         }
-    } catch (e) {
-        console.debug('onApproval error:', e)
+    } catch (error) {
+        handleApprovalFailure(props, error)
     }
 };
 
@@ -366,7 +379,6 @@ const onApproval = async (props: SignTaskRenderProps, request: SealxRequest) => 
 export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     const navigate = useNavigate();
     const { sendToIframe } = useGlobalContext()
-    //console.log('SignTaskRender props:', props);
     /**
      * Parses the raw sign content into a renderable format
      * - Uses memoization to avoid unnecessary re-parsing
@@ -403,7 +415,6 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
         });
         if (type === 'contentParsed') {
             setLayoutRender(output);
-            console.log('--------- parsed context ----', output)
         }
 
         if (type === 'error') {
@@ -514,8 +525,8 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
 
     return (
         <div {...props}>
-            <div className='cmd-info-container w-full rounded-[20px] bg-[#fff]'>
-                <div className='cmd-title-wrapper flex text-left  w-full rounded-t-[20px] bg-[50px] text-[#fff] bg-[#000] px-[24px] pt-[22px] pb-[20px]'>
+            <div className='cmd-info-container w-full rounded-[20px] bg-surface'>
+                <div className='cmd-title-wrapper flex text-left  w-full rounded-t-[20px] bg-[50px] text-surface bg-neutral-950 px-[24px] pt-[22px] pb-[20px]'>
                     <span className='font-[500] text-[26px] leading-[32px]'>
                         {primaryType}
                     </span>
@@ -627,8 +638,8 @@ export const TreasuryUnitTask = memo((
     return (
         <div className='w-full flex flex-col gap-y-[24px]'>
             <div className='flex  w-full gap-x-[24px]'>
-                <div className='cmd-name  w-1/2  rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='cmd-name  w-1/2  rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <CheckBox className='mr-[11px]'></CheckBox>
                         {commandLabel}
                     </div>
@@ -641,8 +652,8 @@ export const TreasuryUnitTask = memo((
                         {command}
                     </div>
                 </div>
-                <div className='cmd-name w-1/2 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='cmd-name w-1/2 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <Calendar className='mr-[11px]'></Calendar>
                         {validTimeLabel}
                     </div>
@@ -657,8 +668,8 @@ export const TreasuryUnitTask = memo((
                 </div>
             </div>
             <div className='flex justify-between w-full gap-x-[24px]'>
-                <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='cmd-name flex-1 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <Vault className='mr-[11px]'></Vault>
                         {vaultCodeLabel}
                     </div>

@@ -149,7 +149,6 @@ export default class PanelManager {
         // 3. 如果面板已打开且正在处理其他 tab 的请求，入队等待
         if (this.isPanelOpen && this.isProcessing && this.processingTabId !== targetTabId) {
             this.requestQueue.push({ route, tabId: targetTabId })
-            console.log(`PanelManager: request from tab ${targetTabId} queued (${this.requestQueue.length} in queue)`)
             return
         }
 
@@ -178,7 +177,7 @@ export default class PanelManager {
             // 7. 打开面板
             try {
                 await chrome.sidePanel.open({ tabId: targetTabId })
-            } catch (err) {
+            } catch {
                 // open 失败时降级为导航消息（面板可能已在其他上下文中打开）
                 await this.navigateToRoute(route)
                 return

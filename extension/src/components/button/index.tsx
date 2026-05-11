@@ -35,17 +35,17 @@ const Button = ({
 
     // Padding styles based on variant
     const paddingStyles = variant === 'primary'
-        ? 'pl-[57.77px] pr-[58.23px]'
-        : 'pl-[52.77px] pr-[53.23px]'
+        ? 'px-14'
+        : 'px-12'
 
     // Variant-specific styles
     const variantStyles = {
         primary: disabled
-            ? 'bg-gray-400 text-[#fff] !border-inherit hover:!border-inherit   bg-[#000]/60 cursor-not-allowed'
-            : 'bg-[#000] text-[#fff] border-[#000] hover:!border-[#000] hover:scale-105 cursor-pointer',
+            ? 'bg-neutral-950/50 text-surface border-transparent cursor-not-allowed'
+            : 'bg-neutral-950 text-surface border-neutral-950 hover:!border-neutral-950 hover:scale-105 cursor-pointer',
         secondary: disabled
-            ? 'bg-transparent text-[#000]/60 border-[rgba(0,0,0,0.3)] cursor-not-allowed'
-            : 'bg-transparent text-[#000] border-[rgba(0,0,0,0.06)] hover:border-[#00be78]/30 hover:bg-[#00be78]/10 hover:scale-105 cursor-pointer'
+            ? 'bg-transparent text-text-secondary border-black/30 cursor-not-allowed'
+            : 'bg-transparent text-text-primary border border-light hover:border-brand/30 hover:bg-brand/10 hover:scale-105 cursor-pointer'
     }
 
     // Width styles - primary buttons have fixed width, secondary buttons adjust to content

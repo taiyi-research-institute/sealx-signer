@@ -1,7 +1,7 @@
 const template = `<div
-    class="cmd-name w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-name w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]">
+        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
         <svg
             width="24px"
             height="24px"
@@ -46,9 +46,9 @@ const template = `<div
     </div>
 </div>
 <div
-    class="cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]">
+        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
         <svg
             width="24px"
             height="24px"
@@ -92,9 +92,9 @@ const template = `<div
     </div>
 </div>
 <div
-    class="cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]">
+        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
         <svg
             width="24px"
             height="24px"
@@ -137,9 +137,9 @@ const template = `<div
     </div>
 </div>
 <div
-    class="cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]">
+        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
         <svg
             width="24px"
             height="24px"
@@ -178,7 +178,7 @@ const template = `<div
         ><%=guardians.label%>
         <div class="flex-1 flex justify-end">
             <div
-                class="rounded-[18px] text-[19px] flex items-center bg-[#00BE78]/[10%] text-[#00BE78] pl-[17.88px] pt-[6px] pb-[5px] pr-[22px] font-[500] leading-[26px]">
+                class="rounded-[18px] text-[19px] flex items-center bg-brand/[10%] text-brand pl-[17.88px] pt-[6px] pb-[5px] pr-[22px] font-[500] leading-[26px]">
                 <svg
                     width="20px"
                     height="20px"
@@ -230,11 +230,11 @@ const template = `<div
         <%for (let i = 0; i < guardians.value.length; i++) {%>
         <div class="guardian-member w-full flex items-center">
             <div
-                class="w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[16px]">
+                class="w-[24px] h-[24px] rounded-full flex justify-center items-center bg-black/6 mr-[16px]">
                 <%=guardians.value[i].label%>
             </div>
             <div
-                class="flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-[rgba(0,0,0,0.06)] py-[8px]">
+                class="flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-black/6 py-[8px]">
                 <svg
                     width="24px"
                     height="24px"

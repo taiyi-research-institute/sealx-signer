@@ -80,7 +80,6 @@ export class GoogleDrive {
                         reject(new Error("No token received from Chrome identity API"));
                     } else {
                         this.token = token.token ? token.token : token as string;
-                        console.log(`OAuth token initialized (interactive: ${interactive})`);
                         resolve();
                     }
                 });
@@ -129,7 +128,6 @@ export class GoogleDrive {
 
                 // 如果 token 过期，尝试刷新
                 if (response.status === 401 && attempt < retries - 1) {
-                    console.log("Token expired, attempting to refresh...");
                     await this.refreshToken();
                     // 更新 Authorization header
                     const token = await this.ensureToken();
@@ -167,9 +165,7 @@ export class GoogleDrive {
 
         try {
             // 移除缓存的 token 以强制刷新
-            chrome.identity?.removeCachedAuthToken({ token: this.token }, () => {
-                console.log("Cached token removed for refresh");
-            });
+            chrome.identity?.removeCachedAuthToken({ token: this.token });
 
             // 重新获取 token，默认使用交互式以触发重新授权
             this.token = '';
@@ -213,7 +209,6 @@ export class GoogleDrive {
         if (searchResult.files && searchResult.files.length > 0) {
             // 返回第一个找到的文件夹
             const folderId = searchResult.files[0].id;
-            console.log(`Found existing folder: ${this.folder} (${folderId})`);
             return folderId;
         }
 
@@ -235,7 +230,6 @@ export class GoogleDrive {
         }
 
         const folderData = await createResponse.json();
-        console.log(`Created new folder: ${this.folder} (${folderData.id})`);
         return folderData.id;
     }
 
@@ -286,8 +280,6 @@ export class GoogleDrive {
 
                         if (!deleteResponse.ok) {
                             console.warn(`Failed to delete existing file ${file.id}: ${deleteResponse.statusText}`);
-                        } else {
-                            console.log(`Deleted existing file: ${file.name} (${file.id})`);
                         }
                     } catch (error) {
                         console.warn(`Error deleting file ${file.id}:`, error);
@@ -339,17 +331,15 @@ export class GoogleDrive {
         }
 
         const result = await response.json();
-        console.log('File uploaded successfully:', result.id);
         return result.id;
     }
 
     /**
      * 撤销 OAuth token，使其失效
      * @returns {Promise<void>}
-     */
+        */
     async revokeToken(): Promise<void> {
         if (!this.token) {
-            console.log('No token to revoke');
             return;
         }
 
@@ -365,7 +355,6 @@ export class GoogleDrive {
             );
 
             if (revokeResponse.ok) {
-                console.log('Token revoked successfully');
                 this.token = '';
             } else {
                 console.error('Failed to revoke token:', revokeResponse.statusText);
@@ -394,13 +383,11 @@ export class GoogleDrive {
 
             // 200-299 状态码表示 token 有效
             if (response.ok) {
-                console.log('Token is valid');
                 return true;
             }
 
             // 401 表示 token 过期或无效
             if (response.status === 401) {
-                console.log('Token is invalid or expired');
                 return false;
             }
 
@@ -420,7 +407,6 @@ export class GoogleDrive {
     async reauthorize(): Promise<void> {
         try {
             await this.refreshToken(true);
-            console.log('Reauthorization completed');
         } catch (error) {
             console.error('Failed to reauthorize:', error);
             throw error;
@@ -435,9 +421,7 @@ export class GoogleDrive {
         try {
             await this.revokeToken();
             if (this.token) {
-                chrome.identity?.removeCachedAuthToken({ token: this.token }, () => {
-                    console.log('Cached token removed');
-                });
+                chrome.identity?.removeCachedAuthToken({ token: this.token });
             }
         } catch (error) {
             console.error('Error clearing auth:', error);
@@ -502,7 +486,6 @@ export class GoogleDrive {
         }
 
         const content = await response.text();
-        console.log(`File ${id} read successfully, length: ${content.length} characters`);
         return content;
     }
 }

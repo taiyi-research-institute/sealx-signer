@@ -162,10 +162,17 @@ export const sign = async (userId: string, host: string, signContent: Eip712Stru
     return await sendMessage({ userId, host, signContent }, SealxTopic.SIGN)
 }
 
+export const clearSessionPrivateKey = async (host: string = '', userId: string = '') => {
+    await chrome.runtime.sendMessage({
+        type: 'sealx-clear-session-private-key',
+        host,
+        userId
+    })
+}
+
 export const closeWindow = async () => {
     try {
-        const result = await sendMessage(null, SealxTopic.CLOSE)
-        console.log('[closeWindow] sendMessage result:', result)
+        await sendMessage(null, SealxTopic.CLOSE)
     } catch (error) {
         console.error('[closeWindow] sendMessage error:', error)
     }

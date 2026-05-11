@@ -144,7 +144,7 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
     // Determine message box classes based on mode
     const messageBoxClasses = mode === 'top'
         ? `w-full ${typeStyles.bg} ${typeStyles.border} border-0 rounded-none shadow-md overflow-hidden`
-        : `mx-auto max-w-[320px] h-fit ${typeStyles.bg} ${typeStyles.border} border-[0.1px] rounded-[16px] shadow-lg overflow-hidden`;
+        : `mx-auto max-w-[320px] h-fit ${typeStyles.bg} ${typeStyles.border} border rounded-[16px] shadow-lg overflow-hidden`;
 
     return (
         <div
@@ -170,7 +170,7 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
 
                         {showCloseButton && (
                             <div className='flex flex-col justify-start'>
-                                <div
+                                <button
                                     onClick={() => {
                                         setIsExiting(true);
                                         setTimeout(() => {
@@ -178,11 +178,11 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
                                             setIsExiting(false);
                                         }, 300);
                                     }}
-                                    className={`ml-[12px] flex-shrink-0 rounded-full cursor-pointer border ${typeStyles.border} ${typeStyles.text} bg-[#fff] hover:scale-105  hover:bg-[#fff]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-all duration-200`}
+                                    className={`ml-[12px] w-[44px] h-[44px] flex items-center justify-center flex-shrink-0 rounded-full cursor-pointer border ${typeStyles.border} ${typeStyles.text} bg-surface hover:scale-105 hover:bg-surface/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-all duration-200`}
                                     aria-label="Dismiss message"
                                 >
                                     <CloseIcon className="w-[14px] h-[14px]" />
-                                </div>
+                                </button>
                             </div>
 
                         )}

@@ -75,18 +75,11 @@ export class GoogleDriveBackup extends BackupBase {
         // Call base class method to encrypt and store locally
         await super.backupData(data, pin);
 
-        // Additional logic to upload to Google Drive can be added here
-        // For now, we just log the action
-        console.log('Data backed up locally. Implement Google Drive upload here.');
+        // Additional logic to upload to Google Drive can be added here.
     }
 
     // Override restoreData to download from Google Drive
     async restoreData(): Promise<string> {
-        // Logic to download from Google Drive can be added here
-        // For now, we just log the action and call base class method
-        console.log('Implement Google Drive download here.');
-
-        // Call base class method to restore from local storage
         throw new Error('Restore from Google Drive not implemented yet.');
     }
 }

@@ -41,7 +41,7 @@ const Switch = <T,>({ selected, items, onChange, ...props }: SwitchProps<T>) => 
                 return (
                     <span
                         key={index}
-                        className={`${isSelected ? 'switch-selected bg-[#fff]' : ''} switch-item flex-1 px-[13.5px] pt-[4px] pb-[5px] rounded-[17px] cursor-pointer`}
+                        className={`${isSelected ? 'switch-selected bg-surface' : ''} switch-item flex-1 px-[13.5px] pt-[4px] pb-[5px] rounded-[17px] cursor-pointer`}
                         onClick={() => {
                             if (onChange) {
                                 onChange(normalizedItem.value);

@@ -41,16 +41,16 @@ const GoogleDriveAuthMask: React.FC<GoogleDriveAuthMaskProps> = ({
     }
 
     return (
-        <div className={`absolute top-0 left-0 h-full w-full flex items-center justify-center z-50 px-[24px] bg-[#000]/50 ${className}`}>
+        <div className={`absolute top-0 left-0 h-full w-full flex items-center justify-center z-50 px-[24px] bg-neutral-950/50 ${className}`}>
             <div
-                className="bg-[#fff] border border-[#000]/[0.1] rounded-[12px] p-[24px] w-full relative"
+                className="bg-surface border border-neutral-950/[0.1] rounded-[12px] p-[24px] w-full relative"
                 style={{ maxWidth }}
             >
                 <div className="flex flex-col items-center">
                     {/* Google Drive icon or loading spinner */}
                     <div className="w-[60px] h-[60px] mb-[24px] flex items-center justify-center">
                         <div
-                            className="w-[48px] h-[48px] rounded-full border-4 border-[#000]/[10%]"
+                            className="w-[48px] h-[48px] rounded-full border-4 border-neutral-950/[10%]"
                             style={{
                                 borderTopColor: spinnerColor,
                                 animation: 'spin 1s linear infinite'
@@ -62,7 +62,7 @@ const GoogleDriveAuthMask: React.FC<GoogleDriveAuthMaskProps> = ({
                         {title}
                     </div>
 
-                    <div className="text-[16px] font-[500] mb-[24px] text-[#000]/[60%] text-center">
+                    <div className="text-[16px] font-[500] mb-[24px] text-text-secondary text-center">
                         {description}
                     </div>
 

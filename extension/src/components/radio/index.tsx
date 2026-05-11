@@ -49,13 +49,13 @@ const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
                         }}
                     >
                         {/* Radio button circle */}
-                        <div className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center mr-3 ${isSelected ? 'border-[#00be78]' : 'border-[rgba(0,0,0,0.2)]'}`}>
+                        <div className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center mr-3 ${isSelected ? 'border-[#00be78]' : 'border border-black/20'}`}>
                             {isSelected && (
                                 <div className="w-[10px] h-[10px] rounded-full bg-[#00be78]"></div>
                             )}
                         </div>
                         {/* Label */}
-                        <span className={`text-[16px] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-[#000]/[60%]'}`}>
+                        <span className={`text-[16px] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-text-secondary'}`}>
                             {normalizedItem.label}
                         </span>
                     </div>

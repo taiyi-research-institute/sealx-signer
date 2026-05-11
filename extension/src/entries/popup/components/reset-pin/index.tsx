@@ -2,7 +2,7 @@
 import './styles.css';
 import { Password } from '../password';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { checkPin, resetSealxPin } from '@src/core/background';
+import { checkPin, clearSessionPrivateKey, resetSealxPin } from '@src/core/background';
 import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
 // import { localStorageWrapper } from 'sealx-core';
@@ -18,6 +18,7 @@ export default function ResetPin() {
     const [errorIndex, setErrorIndex] = useState<number>(-1);
     const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
     const [oldPasswordPass, setOldPasswordPass] = useState<number>(0)
+    const [loading, setLoading] = useState(false)
     const navigate = useSealXNavigate()
     const { setAddress } = useGlobalContext()
     const { attempt, setAttempt, lockTime, setLockTime, maxAttempt, maxLockTime } = useGlobalContext()
@@ -78,17 +79,15 @@ export default function ResetPin() {
     const handlePasswordChange = useCallback(async (value: string) => {
         setPassword(value);
         if (oldPasswordPass !== 1 && value.length === 6) {
+            setLoading(true)
             const res = await checkPin(value)
-            console.log('--------- check pin -----', res)
+            setLoading(false)
             if (res) {
-                //
-                // old = value
                 setOld(value)
                 setOldPasswordPass(1)
                 setPassword('')
                 setAttempt(maxAttempt)
             } else {
-                //
                 setOldPasswordPass(2)
                 const t = attempt - 1
                 setAttempt(t)
@@ -98,6 +97,7 @@ export default function ResetPin() {
                     const expire = now + maxLockTime * 60 * 1000
                     await lockLogin(expire)
                     setLockTime(expire);
+                    await clearSessionPrivateKey()
                     logout()
                 }
             }
@@ -114,12 +114,11 @@ export default function ResetPin() {
             setTimeout(() => setShowConfirmPassword(false), 200);
         }
 
-        // 判断PIN完成初始化
         if (value === password) {
+            setLoading(true)
             const res = await resetSealxPin(address, old, value)
-            console.log(res)
+            setLoading(false)
             if (res) {
-                // 自动登录
                 navigate('/', { replace: true })
                 setAddress(res)
             }
@@ -127,7 +126,7 @@ export default function ResetPin() {
     }, [confirmPassword, password, address, old, navigate, setAddress])
 
     return (
-        <div className="login-container ">
+        <div className="login-container bg-sealx-gradient">
             <div className='w-full min-h-full mx-auto relative'>
                 <div className='sealx-logo w-full pt-[80px] font-[500] text-[17px]'>
                     <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
@@ -137,7 +136,7 @@ export default function ResetPin() {
                         !showConfirmPassword ? (
                             <Password
                                 key="password-input"
-                                readonly={attempt === 0}
+                                readonly={attempt === 0 || loading}
                                 password={password}
                                 className='w-full password-input-wrapper'
                                 onChange={handlePasswordChange}
@@ -149,15 +148,21 @@ export default function ResetPin() {
                                 password={confirmPassword}
                                 className='w-full password-confirm-input-wrapper'
                                 errorIndex={errorIndex}
+                                readonly={loading}
                                 onChange={handleConfirmPassword}
                             />
                         )
                     }
                 </div>
-                <div className={(showError ? 'text-[#F0231E] ' : 'text-[#000]/[60%] ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]'}>
+                {loading && (
+                    <div className='flex justify-center mt-[16px]'>
+                        <div className='w-[24px] h-[24px] border-2 border-brand border-t-transparent rounded-full animate-spin'></div>
+                    </div>
+                )}
+                <div className={(showError ? 'text-text-error ' : 'text-text-secondary ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]' + (loading ? ' invisible' : '')}>
                     {tip}
                 </div>
-                <div className=' text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px]  w-full text-center'>Sign What You See</div>
+                <div className=' text-text-tertiary text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>Sign What You See</div>
             </div>
         </div>
     );

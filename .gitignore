@@ -133,3 +133,4 @@ packages/*/.rollup.cache/
 # Temporary files
 *.tmp
 *.temp
+.gstack/

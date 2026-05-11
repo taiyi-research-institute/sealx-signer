@@ -45,7 +45,7 @@ const NoPendingTasks = () => {
 const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
     if (timeout) {
         return (
-            <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+            <div className='absolute inset-0 bg-neutral-950/[80%] flex items-center justify-center'>
                 <div className="flex flex-col items-center">
                     <div className="text-[#ff4d4f] text-[20px] font-[500] mb-4">Signing Timeout</div>
                     <button
@@ -59,7 +59,7 @@ const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; prog
         )
     }
     return (
-        <div className='absolute inset-0 bg-[#000]/[80%] flex items-center justify-center'>
+        <div className='absolute inset-0 bg-neutral-950/[80%] flex items-center justify-center'>
             <div className="flex flex-col items-center">
                 <div className="animate-spin rounded-full h-16 w-16 border-[3px] border-white/30 border-t-white mb-4"></div>
                 {progress >= 75 ? (
@@ -120,8 +120,8 @@ export const TaskHome = () => {
             try {
                 reply?.(state)
                 messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-            } catch (e) {
-                console.debug(e, '--------------- 00000 ---------')
+            } catch {
+                // Reply target may already be closed; signing state fallback handles timeout.
             }
 
             // 20s fallback timeout: show timeout hint if no SIGN_RESPONSE arrives
@@ -228,8 +228,8 @@ export const TaskHome = () => {
             })
             try {
                 request.reply?.(request.payload as never)
-            } catch (e) {
-                console.debug(e, '----------- 11111 ------------')
+            } catch {
+                // Reply target may already be closed.
             }
 
         }
@@ -268,8 +268,9 @@ export const TaskHome = () => {
 
     // Cleanup on unmount
     useEffect(() => {
+        const originTabIdMap = originTabIdMapRef.current
         return () => {
-            originTabIdMapRef.current.clear()
+            originTabIdMap.clear()
             if (signTimeoutRef.current) {
                 clearTimeout(signTimeoutRef.current)
             }
@@ -289,7 +290,6 @@ export const TaskHome = () => {
                 date: date.format('YYYY-MM-DD')
             }
         }), 'days')
-        console.log('Tasks:', tasks)
         return tasks
     }, [list])
 
@@ -337,14 +337,19 @@ export const TaskHome = () => {
         {/* <button onClick={onTest}>Test</button> */}
         <div className="w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
             <div className='w-full px-[26.25px] mt-[24px] flex items-center relative'>
-                <FilterMenu onClick={() => {
-                    setShowPopupMenu(true)
-                }} className='mr-[8px]'></FilterMenu>
+                <button
+                    type="button"
+                    onClick={() => setShowPopupMenu(true)}
+                    aria-label="Filter tasks"
+                    className="mr-[8px] cursor-pointer bg-transparent border-none p-0"
+                >
+                    <FilterMenu aria-hidden="true" />
+                </button>
                 <span className='font-[500] leading-[25px] text-[21px]'>Total {total}</span>
                 {showPopupMenu ? <PopupCategory category={category} onChange={(c: string) => {
                     setCategory(c)
                     setShowPopupMenu(false)
-                }} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] let-[12px] top-[30px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupCategory> : ('')}
+                }} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] left-[12px] top-[30px] rounded-[8px]  w-[242px] bg-surface popup-menu'></PopupCategory> : ('')}
             </div>
             {total === 0 ? (
                 <NoPendingTasks />
@@ -370,29 +375,29 @@ export const TaskHome = () => {
         </div>
         <div id='template-factory' ref={templateFactory} className=' hidden'>
             <script id="initBoardTemplate" type="text/template">
-                <div className='cmd-name w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%=command.label%>'}</div>
+                <div className='cmd-name w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><CheckBox className='mr-[11px]'></CheckBox>{'<%=command.label%>'}</div>
                     <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                         {'<%=command.value%>'}
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>{'<%=valid_until_time.label%>'}</div>
+                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Calendar className='mr-[11px]'></Calendar>{'<%=valid_until_time.label%>'}</div>
                     <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                         {'<%=valid_until_time.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Vault className='mr-[11px]'></Vault>{'<%=vault_code.label%>'}</div>
+                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Vault className='mr-[11px]'></Vault>{'<%=vault_code.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
                         {'<%=vault_code.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <Guardians className='mr-[11px]'></Guardians>{'<%=guardians.label%>'}
                         <div className='flex-1 flex justify-end'>
-                            <div className=' rounded-[18px] text-[19px] flex items-center bg-[#00BE78]/[10%] text-[#00BE78] pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
+                            <div className=' rounded-[18px] text-[19px] flex items-center bg-brand/[10%] text-brand pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
                                 <Protected className='mr-[7.88px]'></Protected>
                                 <span>{'<%=threshold.label%>'}  {'<%=threshold.value%>'}</span>
                             </div>
@@ -401,8 +406,8 @@ export const TaskHome = () => {
                     <div className='w-full mt-[16px]'>
                         {'<%for (let i = 0; i < guardians.value.length; i++) {%>'}
                         <div className='guardian-member w-full flex items-center'>
-                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[16px]'>{'<%=guardians.value[i].label%>'}</div>
-                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-[rgba(0,0,0,0.06)] py-[8px]'>
+                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-black/6 mr-[16px]'>{'<%=guardians.value[i].label%>'}</div>
+                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-black/6 py-[8px]'>
                                 <Avatar1 className='mr-[12.75px]'></Avatar1>
                                 <span className='text-[15px] font-[500] leading-[21px] text-[#000]'>{'<%=guardians.value[i].value%>'}</span>
                             </div>
@@ -413,36 +418,36 @@ export const TaskHome = () => {
             </script>
             <div data-command="initAuthorizer" className='cmd-content-body w-full p-[24px]'>
                 <div className='flex justify-between'>
-                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
+                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
                         <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                             {'<%command.value%>'}
                         </div>
                     </div>
-                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AccountIcon className='mr-[11px]'></AccountIcon>{'<%account_group_code.label%>'}</div>
+                    <div className='cmd-name flex-1 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><AccountIcon className='mr-[11px]'></AccountIcon>{'<%account_group_code.label%>'}</div>
                         <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                             {'account_group_code.value'}
                         </div>
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>{'<%valid_until_time.label%>'}</div>
+                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Calendar className='mr-[11px]'></Calendar>{'<%valid_until_time.label%>'}</div>
                     <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                         {'<%valid_until_time.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Vault className='mr-[11px]'></Vault>{'<%vault_code.label%>'}</div>
+                <div className='cmd-vault-id mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Vault className='mr-[11px]'></Vault>{'<%vault_code.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
                         {'<%vault_code.value%>'}
                     </div>
                 </div>
-                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='cmd-vault-guardians mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         <Guardians className='mr-[11px]'></Guardians>{'<%guardians.label%>'}
                         <div className='flex-1 flex justify-end'>
-                            <div className=' rounded-[18px] text-[19px] flex items-center bg-[#00BE78]/[10%] text-[#00BE78] pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
+                            <div className=' rounded-[18px] text-[19px] flex items-center bg-brand/[10%] text-brand pl-[17.88px] pt-[6px] pb-[5px] pr-[22px]  font-[500] leading-[26px]'>
                                 <Protected className='mr-[7.88px]'></Protected>
                                 <span>{'<%threshold.label%>'}  {'<%threshold.value%>'}</span>
                             </div>
@@ -451,8 +456,8 @@ export const TaskHome = () => {
                     <div className='w-full mt-[16px]'>
                         {'<%for (let i = 0; i < guardians.value.length; i++){%>'}
                         <div className='guardian-member w-full flex items-center'>
-                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[16px]'>{'<%guardians.value[i].label%>'}</div>
-                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-[rgba(0,0,0,0.06)] py-[8px]'>
+                            <div className='w-[24px] h-[24px] rounded-full flex justify-center items-center bg-black/6 mr-[16px]'>{'<%guardians.value[i].label%>'}</div>
+                            <div className='flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-black/6 py-[8px]'>
                                 <Avatar1 className='mr-[12.75px]'></Avatar1>
                                 <span className='text-[15px] font-[500] leading-[21px] text-[#000]'>{'<%guardians.value[i].value%>'}</span>
                             </div>
@@ -463,47 +468,47 @@ export const TaskHome = () => {
             </div>
             <div data-command="transfer" className='cmd-content-body w-full p-[24px]'>
                 <div className='flex justify-between'>
-                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
+                    <div className='cmd-name flex-1 mr-[24px] rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><CheckBox className='mr-[11px]'></CheckBox>{'<%command.label%>'}</div>
                         <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                             {'<%command.value%>'}
                         </div>
                     </div>
-                    <div className='cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Link className='mr-[11px]'></Link>{'<%network.label%>'}</div>
+                    <div className='cmd-name flex-1 rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Link className='mr-[11px]'></Link>{'<%network.label%>'}</div>
                         <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
                             {'<%network.value%>'}
                         </div>
                     </div>
                 </div>
-                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><Calendar className='mr-[11px]'></Calendar>指令有效时间</div>
+                <div className='cmd-expire-time mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><Calendar className='mr-[11px]'></Calendar>{'<%valid_until_time.label%>'}</div>
                     <div className='w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]'>
-                        2025-06-20 10:02:30 UTC+8.5
+                        {'<%valid_until_time.value%>'}
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><CoinIcon className='mr-[11px]'></CoinIcon>币种</div>
+                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><CoinIcon className='mr-[11px]'></CoinIcon>{'<%coin_type.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        0xe09c3f6dfbb9ce994eafa9e84327dd52b06eb09aadc824e36d325d4f87cc5b82::remi::REMI
+                        {'<%coin_type.value%>'}
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>源地址</div>
+                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>{'<%from_address.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        304b7de5-19eb-475c-a653-b60b09aa8bd2
+                        {'<%from_address.value%>'}
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><TagIcon className='mr-[11px]'></TagIcon>数额</div>
+                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><TagIcon className='mr-[11px]'></TagIcon>{'<%amount.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        100,000
+                        {'<%amount.value%>'}
                     </div>
                 </div>
-                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>目标地址</div>
+                <div className='cmd-coin-type mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'><AddressCardIcon className='mr-[11px]'></AddressCardIcon>{'<%to_address.label%>'}</div>
                     <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
-                        304b7de5-19eb-475c-a653-b60b09aa8bd2
+                        {'<%to_address.value%>'}
                     </div>
                 </div>
             </div>

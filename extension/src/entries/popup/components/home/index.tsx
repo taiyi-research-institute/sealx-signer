@@ -21,8 +21,6 @@ const Home: React.FC = () => {
 
     const handleSettingsOption = (option: string) => {
         setShowSettingsMenu(false);
-        console.log('Settings option selected:', option);
-        // Handle different settings options here
         switch (option) {
             case 'reset-pin':
                 navigate('/reset-pin');
@@ -30,12 +28,10 @@ const Home: React.FC = () => {
             case 'key-manage':
                 // Side Panel 模式下不需要新 tab 打开
                 if (!isPopupTypeLoading && isActionPopup && !isSidePanel && chrome?.tabs?.create) {
-                    console.log('Opening key-manage in new tab (action popup detected)');
                     chrome.tabs.create({
                         url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
                     });
                 } else {
-                    console.log('Navigating to key-manage normally');
                     navigate('/key-manage');
                 }
                 break;
@@ -53,37 +49,41 @@ const Home: React.FC = () => {
     };
 
     return (
-        <div className='home-container flex w-full flex-col h-fit overflow-auto'>
+        <div className='home-container flex w-full flex-col h-fit overflow-auto bg-sealx-gradient'>
             <div className='w-full flex flex-col h-fit py-[24px] mx-auto relative'>
                 {/* Header with Settings Button */}
                 <div className='w-full px-[26.25px]  flex items-center justify-end relative'>
-                    <FilterMenu
+                    <button
+                        type="button"
                         onClick={handleSettingsClick}
-                        className='cursor-pointer hover:opacity-80 transition-opacity'
-                    />
+                        aria-label="Settings"
+                        className="cursor-pointer hover:opacity-80 transition-opacity bg-transparent border-none p-0"
+                    >
+                        <FilterMenu aria-hidden="true" />
+                    </button>
                     {showSettingsMenu && (
                         <div
                             ref={settingsMenuRef}
-                            className='absolute z-[999999] px-[12px] right-[12px] top-[30px] rounded-[8px] w-fit bg-[#fff] shadow-lg border border-[#000]/[10%]'
+                            className='absolute z-[999999] px-[12px] right-[12px] top-[30px] rounded-[8px] w-fit bg-surface shadow-lg border border-neutral-950/[10%]'
                         >
-                            <div
+                            <button
                                 onClick={() => handleSettingsOption('reset-pin')}
-                                className="pt-[18px] px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
+                                className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none"
                             >
                                 Reset PIN
-                            </div>
-                            <div
+                            </button>
+                            <button
                                 onClick={() => handleSettingsOption('key-manage')}
-                                className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
+                                className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none"
                             >
                                 Key Management
-                            </div>
-                            <div
+                            </button>
+                            <button
                                 onClick={() => handleSettingsOption('set-screen-timer')}
-                                className="pt-[18px]  px-[24px] cursor-pointer hover:bg-[#00BE78]/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left"
+                                className="w-full pt-[18px] px-[24px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-left bg-transparent border-none"
                             >
                                 Set Screen Off Time
-                            </div>
+                            </button>
                         </div>
                     )}
                 </div>
@@ -105,14 +105,14 @@ const Home: React.FC = () => {
                         </h1> */}
 
                     {/* Address Display */}
-                    <div className='mb-[24px] p-[16px] bg-[#000]/[5%] rounded-[12px] border border-[#000]/[10%]'>
-                        <div className='text-[14px] text-[#000]/[60%] mb-[4px]'>Current Signer Address</div>
+                    <div className='mb-[24px] p-[16px] bg-neutral-950/[5%] rounded-[12px] border border-neutral-950/[10%]'>
+                        <div className='text-[14px] text-text-secondary mb-[4px]'>Current Signer Address</div>
                         <div className='text-[16px] font-mono font-[500] text-[#000]'>
                             {formatAddress(address)}
                         </div>
                     </div>
 
-                    <div className='space-y-[16px] text-left text-[18px] text-[#000]/[80%] leading-relaxed'>
+                    <div className='space-y-[16px] text-left text-[18px] text-text-primary leading-relaxed'>
                         <p>
                             A "What You See Is What You Sign" EIP712 structure data signing plugin
                             that provides secure and transparent digital signatures for blockchain transactions.
@@ -125,29 +125,29 @@ const Home: React.FC = () => {
 
                     {/* Feature Highlights */}
                     <div className='mt-[32px] grid grid-cols-1 gap-[16px] max-w-[400px] mx-auto'>
-                        <div className='flex items-center gap-x-[12px] p-[12px] bg-[#000]/[5%] rounded-[12px]'>
-                            <div className='w-[24px] h-[24px] bg-[#00BE78] rounded-full flex items-center justify-center'>
-                                <span className='text-[#fff] text-sm'>✓</span>
+                        <div className='flex items-center gap-x-[12px] p-[12px] bg-neutral-950/[5%] rounded-[12px]'>
+                            <div className='w-[24px] h-[24px] bg-brand rounded-full flex items-center justify-center'>
+                                <span className='text-surface text-sm'>✓</span>
                             </div>
-                            <span className='text-[16px] text-[#000]/[80%]'>
+                            <span className='text-[16px] text-text-primary'>
                                 Secure Digital Signatures
                             </span>
                         </div>
 
-                        <div className='flex items-center gap-x-[12px] p-[12px] bg-[#000]/[5%] rounded-[12px]'>
-                            <div className='w-[24px] h-[24px] bg-[#00BE78] rounded-full flex items-center justify-center'>
-                                <span className='text-[#fff] text-sm'>✓</span>
+                        <div className='flex items-center gap-x-[12px] p-[12px] bg-neutral-950/[5%] rounded-[12px]'>
+                            <div className='w-[24px] h-[24px] bg-brand rounded-full flex items-center justify-center'>
+                                <span className='text-surface text-sm'>✓</span>
                             </div>
-                            <span className='text-[16px] text-[#000]/[80%]'>
+                            <span className='text-[16px] text-text-primary'>
                                 Browser Integration
                             </span>
                         </div>
 
-                        <div className='flex items-center gap-x-[12px] p-[12px] bg-[#000]/[5%] rounded-[12px]'>
-                            <div className='w-[24px] h-[24px] bg-[#00BE78] rounded-full flex items-center justify-center'>
-                                <span className='text-[#fff] text-sm'>✓</span>
+                        <div className='flex items-center gap-x-[12px] p-[12px] bg-neutral-950/[5%] rounded-[12px]'>
+                            <div className='w-[24px] h-[24px] bg-brand rounded-full flex items-center justify-center'>
+                                <span className='text-surface text-sm'>✓</span>
                             </div>
-                            <span className='text-[16px] text-[#000]/[80%]'>
+                            <span className='text-[16px] text-text-primary'>
                                 Enterprise Security
                             </span>
                         </div>
@@ -157,13 +157,13 @@ const Home: React.FC = () => {
                     {/* <div className='mt-8 flex flex-col sm:flex-row gap-4 justify-center'>
                             <button
                                 onClick={handleGetStarted}
-                                className='px-8 py-3 bg-[#00BE78] text-white rounded-lg font-[500] text-[16px] hover:bg-[#00A366] transition-colors duration-200 shadow-sm'
+                                className='px-8 py-3 bg-brand text-white rounded-lg font-[500] text-[16px] hover:bg-brand-dark transition-colors duration-200 shadow-sm'
                             >
                                 Get Started
                             </button>
                             <button
                                 onClick={handleLearnMore}
-                                className='px-8 py-3 bg-transparent border border-[#000]/[20%] text-[#000]/[80%] rounded-lg font-[500] text-[16px] hover:bg-[#000]/[5%] transition-colors duration-200'
+                                className='px-8 py-3 bg-transparent border border-neutral-950/[20%] text-text-primary rounded-lg font-[500] text-[16px] hover:bg-neutral-950/[5%] transition-colors duration-200'
                             >
                                 Learn More
                             </button>
@@ -172,7 +172,7 @@ const Home: React.FC = () => {
                 </div>
 
                 {/* Footer */}
-                {/* <div className='text-[#000]/[36%] text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>
+                {/* <div className='text-text-tertiary text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>
                     Sign What You See
                 </div> */}
             </div>

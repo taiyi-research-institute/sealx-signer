@@ -1,11 +1,36 @@
 import { MessageChannel, MessagerManager, SealxTopic, type SealxRequest } from "sealx-message";
 import PanelManager from "./panel-manager";
-import { addUser, generateSession, getAddressByPin, getSealxInfo, getUser, initializeSealx, initializeSealxInfo, installDB, pkHex, resetSealxPin, setSealxSessionTimeout } from "./state";
+import {
+    addUser,
+    clearAllSessionRuntimeState,
+    clearSessionRuntimeState,
+    generateSession,
+    getAddressByPin,
+    getSealxInfo,
+    getSessionPrivateKey,
+    getUser,
+    initializeSealx,
+    initializeSealxInfo,
+    installDB,
+    pkHex,
+    resetSealxPin,
+    runWithSigningCapability,
+    setSealxSessionTimeout
+} from "./state";
 import { decodeSession, decodeSessionPrivateKey, sessionKey } from "@src/core/utils/helper";
 import { sessionStore } from "@src/core/state";
 import { TabManager, type Eip712Struct } from "sealx-core";
-import { signTypeContent } from "./utils/crypto";
 import { useRequestStore } from "@src/core/state/request";
+import { createMemorySigningProvider } from "./signing-providers";
+import { signingFailure, SigningError } from "./signing-errors";
+
+type PanelRoute = Parameters<typeof PanelManager.openPanel>[0]
+
+interface PanelRuntimeMessage {
+    type?: string
+    host?: string
+    userId?: string
+}
 
 /**
  * Current version of the IndexedDB database schema
@@ -20,10 +45,15 @@ PanelManager.init()
  * Handles extension installation and startup
  */
 chrome.runtime.onInstalled.addListener((details) => {
-    installDB('sealx', ['base-info', 'sealx-pk', 'user'], DB_VERSION).then(() => {
+    installDB('sealx', ['base-info', 'sealx-pk', 'user'], DB_VERSION).then((ok) => {
+        if (!ok) {
+            console.error('Failed to initialize SealX database')
+            return
+        }
         initializeSealxInfo()
     })
     sessionStore.getState().clearAllSession()
+    clearAllSessionRuntimeState()
     if (details.reason === 'install') {
         chrome.tabs.create({
             url: chrome.runtime.getURL('src/entries/popup/index.html#/login')
@@ -31,37 +61,24 @@ chrome.runtime.onInstalled.addListener((details) => {
             PanelManager.openPanel('login')
         })
     }
-    chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
+    chrome.alarms.create('checkSealx', { periodInMinutes: 1 })
 })
 
 chrome.runtime.onStartup.addListener(() => {
-    chrome.alarms.create('checkSealx', { periodInMinutes: 0.1 })
+    chrome.alarms.create('checkSealx', { periodInMinutes: 1 })
 })
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    // 当标签页激活时，尝试发送消息到content脚本，如果失败则刷新页面注入脚本
     try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
-
-        // 只对有效的网页URL进行处理
         if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
-            // 首先尝试发送消息到content脚本，检查是否已加载
+            // Check if content script is loaded without reloading the page
             await chrome.tabs.sendMessage(activeInfo.tabId, {
                 type: 'CHECK_CONTENT_SCRIPT_LOADED'
-            }).catch(async error => {
-                // 如果发送消息失败，说明content脚本未加载，需要刷新页面注入脚本
-                console.debug('Content script not loaded, refreshing tab to inject script:', error.message);
-
-                // 刷新标签页以确保content脚本被正确注入
-                await chrome.tabs.reload(activeInfo.tabId).catch(reloadError => {
-                    console.debug('Tab reload failed:', reloadError.message);
-                });
-
-                console.log('Tab refreshed to inject content script:', tab.id, tab.url);
+            }).catch(() => {
+                // Content script not loaded yet — it will load via manifest content_scripts
+                // without forcing a page reload that would destroy user state
             });
-
-            // 如果发送消息成功，content脚本已加载
-            console.log('Content script already loaded for tab:', tab.id, tab.url);
         }
     } catch (error) {
         console.error('Failed to handle tab activation:', error);
@@ -82,15 +99,20 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
     if (!user) {
         user = await addUser(userId, host)
     }
-    console.log('CONNECT user:', user, request, state.session)
     state.setHost(host)
     state.setUserId(userId)
     state.setSession(state.session) // Refresh session based on updated host/userId
-    if (state.session && state.session.expire > (Date.now() + 10000) && state.session.userId == userId && state.session.userId) {
+    // Session is still valid for this user/host
+    if (
+        state.session &&
+        state.session.expire > (Date.now() + 10000) &&
+        state.session.userId === userId &&
+        state.session.host === host &&
+        getSessionPrivateKey(host, userId)
+    ) {
         return { session: state.session, account: user }
     } else {
-        console.log('CONNECT need login:', request, state.session, state.session ? state.session.expire > (Date.now() + 10000) : false)
-        state.setSession(null)
+        clearSessionFor(host, userId)
         const setRequest = useRequestStore.getState().setRequest
         setRequest(request)
         // 打开 side panel 登录页
@@ -103,13 +125,7 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         }
 
         try {
-            state.setSession({
-                sessionId: "",
-                address: "",
-                expire: 0
-            })
             const res = await messager.send({ userId, host, title }, SealxTopic.CONNECT, MessageChannel.POPUP)
-            const user1 = await getUser(userId, host)
             // 直接返回 res.payload
             return res.payload
         } catch (error) {
@@ -145,7 +161,7 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
     }
     // 打开 side panel（替代 PopupManager.popupWindow）
     if (request.topic !== SealxTopic.SIGN_RESPONSE) {
-        await PanelManager.openPanel(route as any, request.header.tabId)
+        await PanelManager.openPanel(route as PanelRoute, request.header.tabId)
         // 等待面板就绪
         const ready = await PanelManager.waitForReady(5_000)
         if (!ready) {
@@ -156,9 +172,20 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
 
 // ========== 统一 panel-* 消息处理 ==========
 // 处理面板队列处理和关闭通知
-chrome.runtime.onMessage.addListener((message: any, _sender, _sendResponse) => {
+chrome.runtime.onMessage.addListener((message: PanelRuntimeMessage, _sender) => {
     if (message?.type === 'panel-process-queue') {
         PanelManager.processNextInQueue()
+        return true
+    }
+    if (message?.type === 'sealx-clear-session-private-key') {
+        const host = typeof message.host === 'string' ? message.host : ''
+        const userId = typeof message.userId === 'string' ? message.userId : ''
+        if (host || userId) {
+            clearSessionFor(host, userId)
+        } else {
+            sessionStore.getState().clearAllSession()
+            clearAllSessionRuntimeState()
+        }
         return true
     }
     if (message?.type === 'panel-closing') {
@@ -188,6 +215,8 @@ messager.on(SealxTopic.BIND_PK, async (request: SealxRequest<{ pk: string, userI
 
 messager.on(SealxTopic.RESET_PIN, async (request: SealxRequest<{ address: string, old: string, pin: string }>) => {
     const res = await resetSealxPin(request.payload.address, request.payload.old, request.payload.pin)
+    sessionStore.getState().clearAllSession()
+    clearAllSessionRuntimeState()
     return res?.address
 })
 
@@ -251,6 +280,10 @@ messager.on(SealxTopic.INITIALIZE, async (request: SealxRequest<string>) => {
  * @returns Promise resolving to the generated session
  */
 messager.on(SealxTopic.LOGIN, async (request: SealxRequest<{ userId?: string, host?: string, pin: string }>) => {
+    const isPinValid = await checkPin(request.payload.pin)
+    if (!isPinValid) {
+        throw new Error('PIN code error')
+    }
     if (request.payload.host && request.payload.userId) {
         await addUser(request.payload.userId, request.payload.host)
     }
@@ -271,14 +304,14 @@ messager.on(SealxTopic.IMPORT_KEY, async (request: SealxRequest<{
     const session = await decodeSession(request.payload.tpPin, request.payload.ecSession)
     const privateKey: string | null = await decodeSessionPrivateKey(session)
     if (privateKey) {
-        console.log('----- private key -----', privateKey)
         const res = await initializeSealx(request.payload.pin, privateKey)
-        console.log('--------- import result ---', res)
         if (!res) {
             throw new Error('Import key failed')
         }
+        cachedAddress = res.address
         const state = sessionStore.getState()
         state.clearAllSession()
+        clearAllSessionRuntimeState()
         return res.address
     }
     throw new Error('Import key failed')
@@ -343,6 +376,7 @@ const checkSessionExpire = async (userId: string = '', host: string = '') => {
     // If session is expired, remove it from the session map
     if (isExpired) {
         delete state.sessionMap[key]
+        clearSessionRuntimeState(host, userId, session.capabilityId)
 
         // If this is the current session, clear it
         if (state.session && state.session.sessionId === session.sessionId) {
@@ -353,19 +387,35 @@ const checkSessionExpire = async (userId: string = '', host: string = '') => {
     return isExpired
 }
 
-let address: string = ''
+const clearSessionFor = (host: string = '', userId: string = '') => {
+    const state = sessionStore.getState()
+    const key = sessionKey(host, userId)
+    delete state.sessionMap[key]
+    const capabilityId = state.session?.host === host && state.session?.userId === userId
+        ? state.session.capabilityId
+        : undefined
+    clearSessionRuntimeState(host, userId, capabilityId)
+    if (
+        state.session &&
+        state.session.host === host &&
+        state.session.userId === userId
+    ) {
+        state.setSession(null)
+    }
+}
+
+let cachedAddress: string = ''
 /**
- * Checks if extension has been initialized (stub implementation)
- * @returns Promise resolving to boolean (currently always false)
+ * Checks if extension has been initialized
+ * @returns Promise resolving to the wallet address if initialized, empty string otherwise
  */
 const checkInitialed = async () => {
-    if (address) {
-        return address
+    if (cachedAddress) {
+        return cachedAddress
     }
-    getSealxInfo().then((res) => {
-        address = res?.address ?? ''
-    })
-    return ''
+    const res = await getSealxInfo()
+    cachedAddress = res?.address ?? ''
+    return cachedAddress
 }
 
 /**
@@ -375,18 +425,79 @@ const checkInitialed = async () => {
  */
 const initialize = async (pin: string) => {
     const res = await initializeSealx(pin)
+    cachedAddress = res.address
     return res.address
 }
 
+const STORAGE_KEY_PIN_ATTEMPTS = 'pinAttemptMap'
+const pinAttemptMap = new Map<string, { failCount: number; lockUntil: number }>()
+const MAX_PIN_ATTEMPTS = 5
+const PIN_LOCK_DURATION = 30 * 60 * 1000 // 30 minutes
+
+const pinAttemptsReady = chrome.storage.session.get(STORAGE_KEY_PIN_ATTEMPTS)
+    .then((result) => {
+        if (result[STORAGE_KEY_PIN_ATTEMPTS]) {
+            const stored = result[STORAGE_KEY_PIN_ATTEMPTS] as Record<string, { failCount: number; lockUntil: number }>
+            for (const [k, v] of Object.entries(stored)) {
+                pinAttemptMap.set(k, v)
+            }
+        }
+    })
+    .catch((error) => {
+        console.warn('Failed to restore PIN attempt state:', error)
+    })
+
+const persistPinAttempts = async () => {
+    const obj: Record<string, { failCount: number; lockUntil: number }> = {}
+    for (const [k, v] of pinAttemptMap) {
+        obj[k] = v
+    }
+    try {
+        await chrome.storage.session.set({ [STORAGE_KEY_PIN_ATTEMPTS]: obj })
+    } catch (error) {
+        console.warn('Failed to persist PIN attempt state:', error)
+        throw error
+    }
+}
+
 /**
- * Validates a PIN against a wallet address
+ * Validates a PIN against a wallet address with rate limiting
+ * Locks account after MAX_PIN_ATTEMPTS consecutive failures.
+ * Lock state persists across service worker restarts via chrome.storage.session.
  * @param pin - PIN to validate
- * @param address - Wallet address to check against
  * @returns Promise resolving to boolean indicating if PIN is valid
  */
 const checkPin = async (pin: string) => {
+    await pinAttemptsReady
+
+    const info = await getSealxInfo()
+    const addr = info?.address ?? ''
+
+    if (addr) {
+        const record = pinAttemptMap.get(addr)
+        if (record && record.lockUntil > Date.now()) {
+            const remaining = Math.ceil((record.lockUntil - Date.now()) / 60000)
+            throw new Error(`Account locked for ${remaining} minutes due to too many incorrect PIN attempts`)
+        }
+    }
+
     const address = await getAddressByPin(pin)
-    return address ? true : false
+    const isValid = !!address
+
+    if (!isValid && addr) {
+        const current = pinAttemptMap.get(addr) || { failCount: 0, lockUntil: 0 }
+        current.failCount++
+        if (current.failCount >= MAX_PIN_ATTEMPTS) {
+            current.lockUntil = Date.now() + PIN_LOCK_DURATION
+        }
+        pinAttemptMap.set(addr, current)
+        await persistPinAttempts()
+    } else if (isValid && addr) {
+        pinAttemptMap.delete(addr)
+        await persistPinAttempts()
+    }
+
+    return isValid
 }
 
 
@@ -395,19 +506,38 @@ messager.on(SealxTopic.SIGN, async (request: SealxRequest<{ host: string, userId
     state.setHost(request.payload.host)
     state.setUserId(request.payload.userId)
     const session = state.session
-    console.log('-------- sign handle ----', request, session, state)
-    if (session) {
-        const info = await getSealxInfo()
-        if (info?.pks) {
-            session.pk = info.pks[session.pk] ?? session.pk
-        }
-        const pk = await decodeSessionPrivateKey(session)
-        // const record = await getPrivateKey
-        if (pk) {
-            //
-            return await signTypeContent(request.payload.signContent, pk)
-        }
+    if (!session) {
+        return signingFailure(new SigningError('SESSION_EXPIRED', 'Session expired. Please unlock SealX again.'))
     }
-    return null
+    const now = Date.now()
+    const requestHost = request.payload.host ?? ''
+    const requestUserId = request.payload.userId ?? ''
+    if (session.expire <= now || session.host !== requestHost || session.userId !== requestUserId) {
+        clearSessionFor(session.host ?? '', session.userId ?? '')
+        return signingFailure(new SigningError('SESSION_EXPIRED', 'Session expired. Please unlock SealX again.'))
+    }
+    const pk = getSessionPrivateKey(requestHost, requestUserId)
+    const signingProvider = createMemorySigningProvider(pk)
+    if (!signingProvider) {
+        clearSessionFor(requestHost, requestUserId)
+        return signingFailure(new SigningError('MEMORY_KEY_MISSING', 'Session key is no longer available. Please unlock SealX again.'))
+    }
+    if (!session.capabilityId) {
+        clearSessionFor(requestHost, requestUserId)
+        return signingFailure(new SigningError('CAPABILITY_MISSING', 'Signing authorization is missing. Please unlock SealX again.'))
+    }
+    try {
+        return await runWithSigningCapability(
+            session.capabilityId,
+            session,
+            request.payload.signContent,
+            () => signingProvider.signTypedData(request.payload.signContent)
+        ) ?? null
+    } catch (error) {
+        if (!(error instanceof SigningError && ['AMOUNT_LIMIT_EXCEEDED', 'USAGE_LIMIT_REACHED', 'POLICY_MISMATCH', 'CAPABILITY_BUSY'].includes(error.code))) {
+            clearSessionFor(requestHost, requestUserId)
+        }
+        return signingFailure(error)
+    }
 }, MessageChannel.POPUP)
 //

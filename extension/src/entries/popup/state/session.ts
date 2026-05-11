@@ -1,4 +1,3 @@
-import { sessionStore } from "@src/core/state/session"
 import { localStorageWrapper } from "sealx-core"
 
 export const loginUserId = async (host: string, userId?: string) => {

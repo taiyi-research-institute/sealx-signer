@@ -4,9 +4,8 @@ import { PinPopup } from "./PinPopup"
 import './password.css'
 import CloseEye from '@assets/svg/close-eye.svg?react'
 import OpenEye from '@assets/svg/open-eye.svg?react'
-import CopyBtn from '@assets/svg/copy.svg?react'
 import Warning from '@assets/svg/warning.svg?react'
-import { importKey, verifyTempCode } from "@src/core/background"
+import { clearSessionPrivateKey, importKey, verifyTempCode } from "@src/core/background"
 import { useErrorStore, useSuccessStore } from "@src/core/state"
 import { useGlobalContext } from "@src/hooks/useGlobalContext"
 import { useRequestContext } from "@src/hooks/useRequestContextHook"
@@ -187,6 +186,7 @@ export const KeyImport = () => {
                 setSuccess('Import successful')
                 setShowPinModal(false)
                 navigate('/login')
+                await clearSessionPrivateKey()
                 setSession(null)
                 // Give user time to see success message
             }
@@ -210,14 +210,14 @@ export const KeyImport = () => {
 
     return (
         <div className="px-[24px]  py-[24px] w-full h-fit flex flex-col">
-            <div className="w-full rounded-[20px] bg-[#fff] flex-1">
-                <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-[#fff]">
+            <div className="w-full rounded-[20px] bg-surface flex-1">
+                <div className="w-full bg-neutral-950 rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-surface">
                     Import Signature Key
                 </div>
                 <div className="w-full px-[24px] pt-[24px]">
                     {/* Import Source Selection */}
-                    <div className='w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                    <div className='w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                             How would you like to import your backup?
                         </div>
                         <div className='w-full mt-[16px]'>
@@ -233,7 +233,7 @@ export const KeyImport = () => {
 
                         {importMethod === 'local' ? (
                             <>
-                                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%] mt-[24px]'>
+                                <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary mt-[24px]'>
                                     Select your encrypted backup file
                                 </div>
                                 <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] flex items-center'>
@@ -243,7 +243,7 @@ export const KeyImport = () => {
                                         value={ecSession ? file : ''}
                                         readOnly
                                         placeholder="Select import file"
-                                        className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border-[#000]/[10%] border cursor-pointer"
+                                        className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-surface/[90%] border-neutral-950/[10%] border cursor-pointer"
                                         aria-label="Import file path"
                                     />
                                     <Button
@@ -259,8 +259,8 @@ export const KeyImport = () => {
                     </div>
 
                     {/* Temporary Code Input */}
-                    <div className='mt-[24px] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                    <div className='mt-[24px] w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                        <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                             Recovery Password
                         </div>
                         <div className='w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
@@ -270,7 +270,7 @@ export const KeyImport = () => {
                                     value={tpPin}
                                     onChange={(e) => setTpPin(e.target.value)}
                                     placeholder="Enter recovery password"
-                                    className="w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border-[#000]/[10%] border"
+                                    className="w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-surface/[90%] border-neutral-950/[10%] border"
                                     aria-label="Recovery password"
                                 />
                             </div>
@@ -290,7 +290,7 @@ export const KeyImport = () => {
 
                     {/* Information Box */}
 
-                    <div className='font-[500] text-[19px] text-left mt-[24px] bg-[#00be78]/10 mb-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='font-[500] text-[19px] text-left mt-[24px] bg-brand/10 mb-[24px]  w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
                         After importing the key file, you will need to enter your login PIN to complete the import process. Make sure you have both the backup file and recovery password ready.
                     </div>
                 </div>
@@ -331,7 +331,7 @@ export const KeyImport = () => {
 
             {/* Verification Mask/Overlay */}
             {isVerifying && (
-                <div className="fixed inset-0 top-[0px] left-[0px] w-full h-full bg-[#fff]/60 flex items-center justify-center z-50">
+                <div className="fixed inset-0 top-[0px] left-[0px] w-full h-full bg-surface/60 flex items-center justify-center z-50">
                     <div className="bg-white rounded-[20px] p-[32px] flex flex-col items-center">
                         <div className="w-[48px] h-[48px] border-4 border-[#00be78] border-t-transparent rounded-full mb-[16px]" style={{
                             animation: 'spin 1s linear infinite'

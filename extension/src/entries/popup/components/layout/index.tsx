@@ -20,12 +20,22 @@ export default function Layout() {
 
 
     return (
-        <div className="app-layout w-full h-full flex flex-col bg-[#f2f2f2]">
-            <header className="app-header bg-[#fff] flex flex-col  justify-center relative">
-                <div className='flex  justify-center items-center leading-[20px] mt-[24px] font-[500] text-[18px]'><Link className="w-[18px] h-[18px] text-[#00BE78] mr-[8.5px]"></Link>{title}</div>
-                <div className='flex  justify-center leading-[29px] text-[24px] mt-[17px] mb-[16px] font-[500]'>{address?.substring?.(0, 8)}...{address?.substring?.(address?.length - 6, address?.length)}</div>
-                <MenuIcon onClick={() => setShowPopupMenu(!showPopupMenu)} className=" cursor-pointer w-[24px] h-[24px] absolute right-[32px] top-[41px]"></MenuIcon>
-                {showPopupMenu ? <PopupMenu closeMenu={closeMenu} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] right-[12px] top-[100px] rounded-[8px] px-[12px]  w-fit bg-[#fff] popup-menu'></PopupMenu> : ('')}
+        <div className="app-layout w-full h-full flex flex-col bg-neutral-100">
+            <header className="app-header bg-surface flex flex-col  justify-center relative">
+                <div className='flex  justify-center items-center leading-[20px] mt-[24px] font-[500] text-[18px]'><Link className="w-[18px] h-[18px] text-brand mr-[8.5px]"></Link>{title}</div>
+                <div className='flex  justify-center leading-[29px] text-[24px] mt-[17px] mb-[16px] font-[500]'>
+                    {address && address.length >= 14
+                        ? `${address.substring(0, 8)}...${address.substring(address.length - 6)}`
+                        : address || 'Not initialized'}
+                </div>
+                <button
+                    onClick={() => setShowPopupMenu(!showPopupMenu)}
+                    className="cursor-pointer w-[44px] h-[44px] flex items-center justify-center absolute right-[20px] top-[29px] bg-transparent border-none"
+                    aria-label="Menu"
+                >
+                    <MenuIcon className="w-[24px] h-[24px]"/>
+                </button>
+                {showPopupMenu ? <PopupMenu closeMenu={closeMenu} ref={popupMenuRef} className=' py-[12px] absolute z-[999999] right-[12px] top-[100px] rounded-[8px] px-[12px]  w-fit bg-surface popup-menu'></PopupMenu> : ('')}
             </header>
             <main className="app-main flex-1 w-full m-auto overflow-y-auto">
                 <Outlet />

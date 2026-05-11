@@ -130,7 +130,7 @@ export const KeyExport = () => {
                 setError(`Error selecting directory: ${errorMessage}`)
             }
         }
-    }, [])
+    }, [setError])
     // 处理PIN码输入和导出
     const handleExportWithPin = useCallback(async (userPin: string) => {
         // 优化验证：确保PIN码最小6位
@@ -152,7 +152,8 @@ export const KeyExport = () => {
             // 2. 创建新的session对象，包含pk字段
             const updatedSession = {
                 ...session!,
-                pk: encryptedPk
+                pk: encryptedPk,
+                pkKdf: 'sha256-v1' as const
             }
 
             // 3. 使用临时密码加密更新后的session
@@ -187,7 +188,7 @@ export const KeyExport = () => {
                 setGoogleDriveStatus('uploading')
                 try {
                     const fileId = await googleDrive.uploadFile('sealx.key', encoded)
-                    console.log('File uploaded to Google Drive with ID:', fileId)
+                    void fileId
                     setSuccess('Export successful. Key file has been uploaded to Google Drive as "sealx.key".')
                 } catch (err) {
                     console.error('Google Drive upload failed:', err)
@@ -220,8 +221,6 @@ export const KeyExport = () => {
     }, [directoryHandle, session, tpPin, navigate, setError, setSuccess, exportMethod, googleDrive, googleDriveStatus])
 
     const onSubmit = useCallback(async () => {
-        console.log('Export method selected:', exportMethod)
-
         // Validate all fields
         const isTpPinValid = validateTpPin(tpPin)
         const isConfirmPinValid = validateConfirmPin(confirmPin)
@@ -262,13 +261,13 @@ export const KeyExport = () => {
         setShowPinModal(true)
     }, [directoryHandle, setError, exportMethod, googleDrive, googleDriveStatus, tpPin, confirmPin, validateTpPin, validateConfirmPin, validateMatch])
     return <div className=" key-manage px-[24px] py-[24px] w-full h-fit flex flex-col">
-        <div className="w-full rounded-[20px] bg-[#fff] flex-1">
-            <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-[#fff]">
+        <div className="w-full rounded-[20px] bg-surface flex-1">
+            <div className="w-full bg-neutral-950 rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-surface">
                 Export Signature Key
             </div>
             <div className="w-full px-[24px] pt-[24px]">
-                <div className='  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className='  w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         Where we save the encrypted backup?
                     </div>
                     <div className='w-full mt-[16px]'>
@@ -284,7 +283,7 @@ export const KeyExport = () => {
 
                     {exportMethod === 'local' ? (
                         <>
-                            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%] mt-[24px]'>
+                            <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary mt-[24px]'>
                                 Choose where to save your encrypted backup
                             </div>
                             <div className='w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px] flex items-center'>
@@ -294,7 +293,7 @@ export const KeyExport = () => {
                                     value={directoryPath}
                                     readOnly
                                     placeholder="Select export directory"
-                                    className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border-[#000]/[10%] border cursor-pointer"
+                                    className="w-2/3 text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-surface/[90%] border-neutral-950/[10%] border cursor-pointer"
                                     aria-label="Export directory path"
                                 />
                                 <Button
@@ -308,8 +307,8 @@ export const KeyExport = () => {
                         </>
                     ) : (<></>)}
                 </div>
-                <div className=' mt-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
-                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-[#000]/[60%]'>
+                <div className=' mt-[24px]  w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
+                    <div className='title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary'>
                         Recovery Password
                     </div>
                     <div className=' w-full flex mt-[16px] items-center break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]'>
@@ -330,7 +329,7 @@ export const KeyExport = () => {
                                 }}
                                 onBlur={handleTpPinBlur}
                                 placeholder="Enter recovery password"
-                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${tpPinError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-surface/[90%] border ${tpPinError ? 'border-[#ff0000]' : 'border-neutral-950/[10%]'}`}
                                 aria-label="Recovery password"
                             />
                             {tpPinError && (
@@ -367,7 +366,7 @@ export const KeyExport = () => {
                                 }}
                                 onBlur={handleConfirmPinBlur}
                                 placeholder="Confirm recovery password"
-                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-[#fff]/[90%] border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-[#000]/[10%]'}`}
+                                className={`w-full text-[16px] px-[12px] pt-[8px] focus:!border-0 pb-[9px] rounded-[12px] bg-surface/[90%] border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-neutral-950/[10%]'}`}
                                 aria-label="Confirm recovery password"
                             />
                             {(confirmPinError || matchError) && (
@@ -391,7 +390,7 @@ export const KeyExport = () => {
                     </div>
                 </div>
 
-                <div className='font-[500] text-[19px] text-left mt-[24px] bg-[#00be78]/10 mb-[24px]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[24px] pt-[17px] pb-[16px]'>
+                <div className='font-[500] text-[19px] text-left mt-[24px] bg-brand/10 mb-[24px]  w-full rounded-[12px] border border border-black/20 px-[24px] pt-[17px] pb-[16px]'>
                     After exporting the key file, please securely back up both the file and its password. Both are required to recover the key in case of emergency.
                 </div>
             </div>
