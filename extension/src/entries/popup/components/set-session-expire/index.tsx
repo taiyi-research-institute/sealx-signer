@@ -55,12 +55,12 @@ export const SetSessionExpire = () => {
                 <div className="w-full text-left text-text-secondary text-[19px] font-[500] leading-[26px]">
                     Choose how long your screen stays on during periods of inactivity before turning off.
                 </div>
-                <div className=" w-full px-[44px] pt-[35px] pb-[56px]">
+                <div className=" w-full px-[2.75rem] pt-[2.1875rem] pb-[3.5rem]">
                     {TimerItem}
                 </div>
             </div>
         </div>
-        <div className='w-full mt-[32px] flex justify-between gap-x-[24px] mb-[32px]'>
+        <div className='w-full mt-[2rem] flex justify-between gap-x-[1.5rem] mb-[2rem]'>
             <Button
                 variant="secondary"
                 onClick={() => navigate(-1)}

@@ -138,13 +138,13 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
     const containerClasses = mode === 'top'
         ? ` absolute top-0 left-0 right-0 z-[9999] flex w-full justify-center transform transition-all duration-300 ease-out ${visible && !isExiting ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
         } ${className}`
-        : `absolute top-0 left-0 right-0 z-[9999] flex w-full h-full justify-center pt-[80px] transform transition-all duration-300 ease-out ${visible && !isExiting ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
+        : `absolute top-0 left-0 right-0 z-[9999] flex w-full h-full justify-center pt-[5rem] transform transition-all duration-300 ease-out ${visible && !isExiting ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'
         } ${className}`;
 
     // Determine message box classes based on mode
     const messageBoxClasses = mode === 'top'
         ? `w-full ${typeStyles.bg} ${typeStyles.border} border-0 rounded-none shadow-md overflow-hidden`
-        : `mx-auto max-w-[320px] h-fit ${typeStyles.bg} ${typeStyles.border} border rounded-[16px] shadow-lg overflow-hidden`;
+        : `mx-auto max-w-[320px] h-fit ${typeStyles.bg} ${typeStyles.border} border-[0.1px] rounded-[16px] shadow-lg overflow-hidden`;
 
     return (
         <div
@@ -155,14 +155,14 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
             <div
                 className={messageBoxClasses}
             >
-                <div className="px-[24px] py-[16px] ">
+                <div className="px-[1.5rem] py-[1rem] ">
                     <div className="flex   flex-1">
                         <div className='flex flex-1 justify-center'>
-                            <div className={`flex-shrink-0 ${typeStyles.text} mr-[12px]`}>
+                            <div className={`flex-shrink-0 ${typeStyles.text} mr-[0.75rem]`}>
                                 {typeStyles.icon}
                             </div>
                             <div className="flex-1">
-                                <p className={`text-[16px] font-medium ${typeStyles.text}`}>
+                                <p className={`text-[1rem] font-medium ${typeStyles.text}`}>
                                     {message}
                                 </p>
                             </div>
@@ -170,7 +170,7 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
 
                         {showCloseButton && (
                             <div className='flex flex-col justify-start'>
-                                <button
+                                <div
                                     onClick={() => {
                                         setIsExiting(true);
                                         setTimeout(() => {
@@ -178,11 +178,11 @@ const GlobalMessage: React.FC<GlobalMessageProps> = ({
                                             setIsExiting(false);
                                         }, 300);
                                     }}
-                                    className={`ml-[12px] w-[44px] h-[44px] flex items-center justify-center flex-shrink-0 rounded-full cursor-pointer border ${typeStyles.border} ${typeStyles.text} bg-surface hover:scale-105 hover:bg-surface/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-all duration-200`}
+                                    className={`ml-[0.75rem] flex-shrink-0 rounded-full cursor-pointer border ${typeStyles.border} ${typeStyles.text} bg-[#fff] hover:scale-105  hover:bg-[#fff]/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-current transition-all duration-200`}
                                     aria-label="Dismiss message"
                                 >
                                     <CloseIcon className="w-[14px] h-[14px]" />
-                                </button>
+                                </div>
                             </div>
 
                         )}

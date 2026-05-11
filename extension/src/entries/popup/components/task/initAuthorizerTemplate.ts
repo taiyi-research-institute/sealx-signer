@@ -1,16 +1,16 @@
 const template: string = `
 <div class="flex justify-between">
     <div
-        class="cmd-name flex-1 rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
+        class="cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]">
         <div
-            class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
+            class="title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60">
             <svg
                 width="24px"
                 height="24px"
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
                 xmlns:xlink="http://www.w3.org/1999/xlink"
-                class="mr-[11px]">
+                class="mr-[0.6875rem]">
                 <title>ic2-23</title>
                 <g
                     id="\u7B7E\u540D\u566806-18"
@@ -42,21 +42,21 @@ const template: string = `
             ><%=command.label%>
         </div>
         <div
-            class="w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]">
+            class="w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]">
             <%=command.value%>
         </div>
     </div>
     <!-- <div
-        class="cmd-name flex-1 rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
+        class="cmd-name flex-1 rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]">
         <div
-            class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
+            class="title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60">
             <svg
                 width="24px"
                 height="24px"
                 viewBox="0 0 24 24"
                 xmlns="http://www.w3.org/2000/svg"
                 xmlns:xlink="http://www.w3.org/1999/xlink"
-                class="mr-[11px]">
+                class="mr-[0.6875rem]">
                 <title>ic2-14</title>
                 <g
                     id="\u7B7E\u540D\u566806-18"
@@ -88,22 +88,22 @@ const template: string = `
             >&lt;%account_group_code.label%&gt;
         </div>
         <div
-            class="w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]">
+            class="w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]">
             account_group_code.value
         </div>
     </div> -->
 </div>
 <div
-    class="cmd-expire-time mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-expire-time mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
+        class="title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60">
         <svg
             width="24px"
             height="24px"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
-            class="mr-[11px]">
+            class="mr-[0.6875rem]">
             <title>ic2-22</title>
             <g
                 id="\u7B7E\u540D\u566806-18"
@@ -135,21 +135,21 @@ const template: string = `
         ><%=valid_until_time.label%>
     </div>
     <div
-        class="w-full mt-[16px] flex text-left font-[500] text-[24px] leading-[29px]">
+        class="w-full mt-[1rem] flex text-left font-[500] text-[1.5rem] leading-[1.8125]">
         <%=valid_until_time.value%>
     </div>
 </div>
 <div
-    class="cmd-vault-id mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-vault-id mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
+        class="title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60">
         <svg
             width="24px"
             height="24px"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
-            class="mr-[11px]">
+            class="mr-[0.6875rem]">
             <title>ic2-21</title>
             <g
                 id="\u7B7E\u540D\u566806-18"
@@ -180,21 +180,21 @@ const template: string = `
         ><%=vault_code.label%>
     </div>
     <div
-        class="w-full mt-[16px] break-words hyphens-auto text-left font-[500] text-[24px] leading-[29px]">
+        class="w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]">
         <%=vault_code.value%>
     </div>
 </div>
 <div
-    class="cmd-vault-guardians mt-[24px] w-full rounded-[12px] border-[0.5px] border border-black/20 px-[24px] pt-[17px] pb-[16px]">
+    class="cmd-vault-guardians mt-[1.5rem] w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]">
     <div
-        class="title flex w-full items-center text-left font-[500] text-[19px] text-text-secondary">
+        class="title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60">
         <svg
             width="24px"
             height="24px"
             viewBox="0 0 24 24"
             xmlns="http://www.w3.org/2000/svg"
             xmlns:xlink="http://www.w3.org/1999/xlink"
-            class="mr-[11px]">
+            class="mr-[0.6875rem]">
             <title>ic2-20</title>
             <g
                 id="\u7B7E\u540D\u566806-18"
@@ -226,14 +226,14 @@ const template: string = `
         ><%=guardians.label%>
         <div class="flex-1 flex justify-end">
             <div
-                class="rounded-[18px] text-[19px] flex items-center bg-brand/[10%] text-brand pl-[17.88px] pt-[6px] pb-[5px] pr-[22px] font-[500] leading-[26px]">
+                class="rounded-[18px] text-[1.1875rem] flex items-center bg-[#00BE78]/10 text-[#00BE78] pl-[1.1175rem] pt-[0.375rem] pb-[0.3125rem] pr-[1.375rem] font-[500] leading-[1.625]">
                 <svg
                     width="20px"
                     height="20px"
                     viewBox="0 0 20 20"
                     xmlns="http://www.w3.org/2000/svg"
                     xmlns:xlink="http://www.w3.org/1999/xlink"
-                    class="mr-[7.88px]">
+                    class="mr-[0.4925rem]">
                     <title>ic2-12</title>
                     <g
                         id="\u7B7E\u540D\u566806-18"
@@ -274,22 +274,22 @@ const template: string = `
             </div>
         </div>
     </div>
-    <div class="w-full mt-[16px]">
+    <div class="w-full mt-[1rem]">
         <%for (let i = 0; i < guardians.value.length; i++){%>
         <div class="guardian-member w-full flex items-center">
             <div
-                class="w-[24px] h-[24px] rounded-full flex justify-center items-center bg-black/6 mr-[16px]">
+                class="w-[24px] h-[24px] rounded-full flex justify-center items-center bg-[rgba(0,0,0,0.06)] mr-[1rem]">
                 <%=guardians.value[i].label%>
             </div>
             <div
-                class="flex-1 rounded-[8px] flex pl-[13.13px] pr-[10px] bg-black/6 py-[8px]">
+                class="flex-1 rounded-[8px] flex pl-[0.8206rem] pr-[0.625rem] bg-[rgba(0,0,0,0.06)] py-[0.5rem]">
                 <svg
                     width="24px"
                     height="24px"
                     viewBox="0 0 24 24"
                     xmlns="http://www.w3.org/2000/svg"
                     xmlns:xlink="http://www.w3.org/1999/xlink"
-                    class="mr-[12.75px]">
+                    class="mr-[0.7969rem]">
                     <title>ic2-2</title>
                     <defs>
                         <circle
@@ -344,7 +344,7 @@ const template: string = `
                             </g>
                         </g>
                     </g></svg
-                ><span class="text-[15px] font-[500] leading-[21px] text-[#000]"
+                ><span class="text-[0.9375rem] font-[500] leading-[1.3125] text-[#000]"
                     ><%=guardians.value[i].value%></span
                 >
             </div>

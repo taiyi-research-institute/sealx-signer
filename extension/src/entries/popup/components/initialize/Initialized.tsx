@@ -26,18 +26,18 @@ export function Initialized() {
     };
 
     return (
-        <div className="login-container w-full flex flex-col bg-sealx-gradient">
+        <div className="login-container w-full flex flex-col">
             <div className='w-full h-full flex flex-col mx-auto relative'>
-                <div className='sealx-logo w-full mt-[120px] font-[500] text-[17px]'>
+                <div className='sealx-logo w-full mt-[7.5rem] font-[500] text-[1.0625rem]'>
                     <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
 
-                <div className='mx-auto px-[41px] mt-[91.57px] mb-[48px] text-center'>
-                    <div className='text-[32px] font-bold text-[#000] mb-8'>
+                <div className='mx-auto px-[2.5625rem] mt-[5.7231rem] mb-[3rem] text-center'>
+                    <div className='text-[2rem] font-bold text-[#000] mb-8'>
                         Initialization Completed
                     </div>
 
-                    <div className='text-[18px] text-text-secondary leading-[32px] mb-12'>
+                    <div className='text-[1.125rem] text-[#000]/60 leading-[2] mb-12'>
                         {isPageInitiated
                             ? 'Your SealX Signer has been successfully initialized. You can now return to the page to continue.'
                             : 'Your SealX Signer has been successfully initialized. You can now start using all features.'
@@ -53,7 +53,7 @@ export function Initialized() {
                     </Button>
                 </div>
 
-                <div className='text-text-tertiary text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>
+                <div className='text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen absolute bottom-[32px] w-full text-center'>
                     What you see is what you sign
                 </div>
             </div>

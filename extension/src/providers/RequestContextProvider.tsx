@@ -9,7 +9,6 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
-import { clearSessionPrivateKey } from '@src/core/background';
 // import { MessageChannel } from 'sealx-message';
 // import { usePopupType } from '@src/hooks/usePopupType';
 
@@ -95,8 +94,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                             pk: currentSession.pk
                         }
                     });
+                    return null;  // Valid session — stay on current route
                 }
-                return null;
+                // F3: Session invalid — redirect to login
+                return '/login';
             }
 
             // If session invalid, redirect to login
@@ -267,8 +268,22 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             return;
         }
 
-        // Check for cached request data
-        const storeRequest = useRequestStore.getState().request;
+        // F2: 等待 useRequestStore hydration 完成（Zustand persist 从 chrome.storage.local 回灌）
+        // background 的 setRequest() 通过 chrome.storage.local 同步到 panel，
+        // 但异步写入可能有延迟。先 rehydrate，再轮询重试。
+        if (!useRequestStore.persist.hasHydrated()) {
+            await useRequestStore.persist.rehydrate();
+        }
+
+        // Check for cached request data with polling retry
+        // (handles race: background wrote to storage but async propagation hasn't completed)
+        let storeRequest = useRequestStore.getState().request;
+        for (let attempt = 0; attempt < 3 && !storeRequest; attempt++) {
+            if (attempt > 0) {
+                await new Promise(r => setTimeout(r, 100));
+            }
+            storeRequest = useRequestStore.getState().request;
+        }
         if (storeRequest) {
             // Restore request with reply function binding
             if (storeRequest.once) {
@@ -292,7 +307,6 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             // Clear session if invalid
             if (currentSession) {
 
-                clearSessionPrivateKey(currentSession.host ?? '', currentSession.userId ?? '')
                 setSession(null);
             }
             // Redirect to login if not already there
@@ -342,7 +356,6 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     useEffect(() => {
         // Clear expired session
         if (session && session.expire <= Date.now()) {
-            clearSessionPrivateKey(session.host ?? '', session.userId ?? '')
             setSession(null);
         }
 
@@ -372,23 +385,23 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
 
 const Loading: React.FC = () => {
     return (
-        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-neutral-950/10 backdrop-blur-sm'>
-            <div className='relative flex flex-col items-center justify-center p-[32px]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
+        <div className='fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#000]/10 backdrop-blur-sm'>
+            <div className='relative flex flex-col items-center justify-center p-[2rem]  rounded-2xl shadow-2xl min-w-[200px] min-h-[200px]'>
                 {/* Spinner */}
                 <div
-                    className='w-[64px] h-[64px] mb-[24px] border-4 border-surface/20   rounded-full animate-spin'
+                    className='w-[64px] h-[64px] mb-[1.5rem] border-4 border-[#fff]/20   rounded-full animate-spin'
                     style={{
                         borderTopColor: '#00be78',
                         animation: 'spin 1s linear infinite',
                     }}></div>
 
                 {/* Loading text */}
-                <div className='text-[24px] font-medium text-gray-800'>
+                <div className='text-[1.5rem] font-medium text-gray-800'>
                     Loading...
                 </div>
 
                 {/* Optional subtle pulsing background */}
-                <div className='absolute inset-0 -z-10 rounded-2xl bg-gradient-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
+                <div className='absolute inset-0 -z-10 rounded-2xl bg-linear-to-br from-[#00be78]/[80] to-transparent animate-pulse'></div>
             </div>
         </div>
     );

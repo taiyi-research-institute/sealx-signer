@@ -1,27 +1,35 @@
+// import { useNavigate } from 'react-router-dom';
 import './styles.css';
 import { Password } from '../password';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { clearSessionPrivateKey, login } from '@src/core/background';
+import { login } from '@src/core/background';
+// import { localStorageWrapper } from 'sealx-core';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
 import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { lockLogin } from '../../state/session';
 import { SealxTopic } from 'sealx-message';
 import type { ReplyFunc } from 'sealx-message';
+// import { useErrorStore } from '@src/core/state';
+// import messager from '@src/core/messager';
+// import { useSessionStore } from '@src/core/state';
+// import { useSessionStore } from '@src/core/state/session';
 
 export default function Login() {
     const navigate = useSealXNavigate()
     const [password, setPassword] = useState<string>('');
-    const [countdown, setCountdown] = useState<string>('');
-    const [loggingIn, setLoggingIn] = useState(false);
+    const [countdown, setCountdown] = useState<string>(''); // Store formatted countdown
     const { userId } = useRequestContext()
     // const setError = useErrorStore.use.setError()
     const { attempt, setAttempt, lockTime, setLockTime, maxAttempt, maxLockTime } = useGlobalContext()
+    // const setSession = useSessionStore.use.setSession()
     const { setSession, activeTabHost, request } = useRequestContext()
     const reply = useRef<ReplyFunc>(null)
+    // useEffect(() => setError('Test error 5342523453453425234 4352345345 3453245345234 4352345234 345324523 34543534 345234534 popup!!!!!'), [setError])
     useEffect(() => {
         if (request.topic === SealxTopic.LOGIN || request.topic === SealxTopic.CONNECT) {
             reply.current = request.reply ?? null
+            // alert(reply.current ? 'settup reply' : 'skip')
         }
     }, [request.topic, request.reply])
 
@@ -55,10 +63,10 @@ export default function Login() {
     const handlePasswordChange = useCallback(async (value: string) => {
         setPassword(value);
         if (value.length >= 6) {
-            setLoggingIn(true)
             try {
                 const res = await login(value, userId, activeTabHost)
                 if (res) {
+                    // console.log(res)
                     setSession(res)
                     reply.current?.({
                         session: res, account: {
@@ -77,11 +85,9 @@ export default function Login() {
                     // alert(request.topic)
                 } else {
                     setPassword('')
-                    setLoggingIn(false)
                 }
             } catch (e) {
                 setPassword('')
-                setLoggingIn(false)
                 reply.current?.({ error: e })
                 const t = attempt - 1
                 setAttempt(t)
@@ -90,7 +96,6 @@ export default function Login() {
                     const expire = now + maxLockTime * 60 * 1000
                     await lockLogin(expire)
                     setLockTime(expire);
-                    await clearSessionPrivateKey(activeTabHost, userId)
                     setSession(null)
                 }
             }
@@ -98,33 +103,28 @@ export default function Login() {
     }, [userId, activeTabHost, setSession, request.topic, navigate, attempt, setAttempt, maxLockTime, setLockTime])
 
     return (
-        <div className="login-container w-full flex bg-sealx-gradient">
+        <div className="login-container w-full flex ">
             <div className='w-full min-h-[780px] flex flex-col mx-auto relative'>
-                <div className='sealx-logo w-full mt-[120px] '>
+                <div className='sealx-logo w-full mt-[7.5rem] '>
                     <img className='m-auto w-[190px] h-[184px]' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
-                <div className='mx-auto px-[24px] w-full flex mt-[91.57px] mb-[24px]'>
+                <div className='mx-auto px-[1.5rem] w-full flex mt-[5.7231rem] mb-[1.5rem]'>
                     <Password
                         key="password-input"
                         password={password}
                         className='w-full password-input-wrapper'
                         onChange={handlePasswordChange}
                         autoFocus
-                        readonly={attempt === 0 || loggingIn}
+                        readonly={attempt === 0}
                     />
                 </div>
-                {loggingIn && (
-                    <div className='flex justify-center mt-[16px]'>
-                        <div className='w-[24px] h-[24px] border-2 border-brand border-t-transparent rounded-full animate-spin'></div>
-                    </div>
-                )}
-                <div className={(attempt === 0 ? 'text-text-error ' : 'text-text-secondary ') + ' text-center w-full px-[24px] text-[21px] leading-[28px]' + (loggingIn ? ' invisible' : '')}>
+                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>
                     {
                         attempt === 0 ? (`Too many incorrect attempts. Your account is locked for ${maxLockTime} minutes. ${countdown} left.`) :
                             (`You have ${attempt} attempt${attempt !== 1 ? 's' : ''} remaining. `)
                     }
                 </div>
-                <div className=' text-text-tertiary text-[25px] leading-[40px] font-nanum-pen absolute bottom-[32px] w-full text-center'>
+                <div className=' text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
                     What you see is what you sign
                 </div>
             </div>

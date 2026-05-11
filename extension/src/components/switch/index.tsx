@@ -27,7 +27,7 @@ interface SwitchProps<T> extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onC
  */
 const Switch = <T,>({ selected, items, onChange, ...props }: SwitchProps<T>) => {
     return (
-        <div {...props} className={`flex justify-between p-[3px] ${props.className ?? ''}`}>
+        <div {...props} className={`flex justify-between p-[0.1875rem] ${props.className ?? ''}`}>
             {items.map((item, index) => {
                 // Normalize item to handle both string and SwitchItem cases
                 // Handle both string and SwitchItem cases with proper typing
@@ -41,7 +41,7 @@ const Switch = <T,>({ selected, items, onChange, ...props }: SwitchProps<T>) => 
                 return (
                     <span
                         key={index}
-                        className={`${isSelected ? 'switch-selected bg-surface' : ''} switch-item flex-1 px-[13.5px] pt-[4px] pb-[5px] rounded-[17px] cursor-pointer`}
+                        className={`${isSelected ? 'switch-selected bg-[#fff]' : ''} switch-item flex-1 px-[0.8438rem] pt-[0.25rem] pb-[0.3125rem] rounded-[17px] cursor-pointer`}
                         onClick={() => {
                             if (onChange) {
                                 onChange(normalizedItem.value);

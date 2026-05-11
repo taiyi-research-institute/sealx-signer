@@ -64,7 +64,7 @@ function App() {
 
     // ========== 导航消息监听 ==========
     useEffect(() => {
-        const navigateHandler = (message: { type?: string; route?: string }, _sender: chrome.runtime.MessageSender, sendResponse: (response: { ok: boolean }) => void) => {
+        const navigateHandler = (message: Record<string, unknown>, _sender: chrome.runtime.MessageSender, sendResponse: (response: Record<string, unknown>) => void) => {
             if (message?.type === 'panel-navigate' && message?.route !== undefined) {
                 const currentHash = window.location.hash
                 const newHash = message.route ? `#${message.route}` : '#'
@@ -85,7 +85,7 @@ function App() {
 
     // ========== close-popup 消息监听（保留兼容） ==========
     useEffect(() => {
-        const closeHandler = (message: { type?: string }, _sender: chrome.runtime.MessageSender, sendResponse: (response: { navigated: boolean }) => void) => {
+        const closeHandler = (message: Record<string, unknown>, _sender: chrome.runtime.MessageSender, sendResponse: (response: Record<string, unknown>) => void) => {
             if (message?.type === 'close-popup') {
                 // Side Panel 模式下不关闭，改为导航回首页
                 window.location.hash = '#'

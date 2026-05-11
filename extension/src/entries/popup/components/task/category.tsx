@@ -10,14 +10,17 @@ export const PopupCategory = React.forwardRef<HTMLDivElement, PopupCategoryProps
     // const navigate = useSealXNavigate()
     const { onChange, category, ...otherProps } = props;
     return <div {...otherProps} ref={ref}>
-        <button onClick={() => {
+        <div onClick={() => {
+            // navigate('/reset-pin')
             onChange?.('')
-        }} className={"w-full pt-[18px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center bg-transparent border-none" + (category ? '' : ' bg-brand/[6%]')}>Total 1000</button>
-        <button onClick={() => {
+        }} className={"pt-[1.125rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-center" + (category ? '' : ' bg-[#00BE78]/6')}>Total 1000</div>
+        <div onClick={() => {
+            // navigate('/key-manage')
             onChange?.('transaction')
-        }} className={"w-full pt-[18px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center bg-transparent border-none" + (category === 'transaction' ? ' bg-brand/[6%]' : '')}>Transaction</button>
-        <button onClick={() => {
+        }} className={"pt-[1.125rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-center" + (category === 'transaction' ? ' bg-[#00BE78]/6' : '')}>Transaction</div>
+        <div onClick={() => {
+            // navigate('/set-screen-timer')
             onChange?.('management')
-        }} className={"w-full pt-[18px] cursor-pointer hover:bg-brand/[6%] text-[#000] text-[21px] font-[500] leading-[25px] pb-[17px] text-center bg-transparent border-none" + (category === 'management' ? ' bg-brand/[6%]' : '')}>Management</button>
+        }} className={"pt-[1.125rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-center" + (category === 'management' ? ' bg-[#00BE78]/6' : '')}>Management</div>
     </div >
 })

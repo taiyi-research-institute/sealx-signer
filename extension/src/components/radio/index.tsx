@@ -27,7 +27,7 @@ interface RadioProps<T> extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCh
  */
 const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
     return (
-        <div {...props} className={`flex flex-col gap-[24px] ${props.className ?? ''}`}>
+        <div {...props} className={`flex flex-col gap-[1.5rem] ${props.className ?? ''}`}>
             {items.map((item, index) => {
                 // Normalize item to handle both string and RadioItem cases
                 // Handle both string and RadioItem cases with proper typing
@@ -41,7 +41,7 @@ const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
                 return (
                     <div
                         key={index}
-                        className="flex items-center gap-x-[6px] cursor-pointer"
+                        className="flex items-center gap-x-[0.375rem] cursor-pointer"
                         onClick={() => {
                             if (onChange) {
                                 onChange(normalizedItem.value);
@@ -49,13 +49,13 @@ const Radio = <T,>({ selected, items, onChange, ...props }: RadioProps<T>) => {
                         }}
                     >
                         {/* Radio button circle */}
-                        <div className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center mr-3 ${isSelected ? 'border-[#00be78]' : 'border border-black/20'}`}>
+                        <div className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center mr-3 ${isSelected ? 'border-[#00be78]' : 'border-[rgba(0,0,0,0.2)]'}`}>
                             {isSelected && (
                                 <div className="w-[10px] h-[10px] rounded-full bg-[#00be78]"></div>
                             )}
                         </div>
                         {/* Label */}
-                        <span className={`text-[16px] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-text-secondary'}`}>
+                        <span className={`text-[1rem] font-[500] ${isSelected ? 'text-[#00be78]' : 'text-[#000]/60'}`}>
                             {normalizedItem.label}
                         </span>
                     </div>

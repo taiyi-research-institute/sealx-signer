@@ -3,6 +3,7 @@ export * from 'sealx-core';
 import { MessageHandle } from 'sealx-message';
 export * from 'sealx-message';
 
+declare const setupSealxActions: () => void;
 /**
  * Checks if SealX browser extension is installed and active
  *
@@ -398,5 +399,5 @@ declare const registerLocatableKeys: (keys: string[]) => void;
  */
 declare const onLocateElement: (locateCallback?: LocateElementCallback) => (() => void);
 
-export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, signBySealx };
+export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx };
 export type { LocateElementCallback };

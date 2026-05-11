@@ -39,6 +39,7 @@
         "@tailwindcss/postcss": "^4.1.10",
         "@tailwindcss/vite": "^4.1.10",
         "@types/chrome": "^0.0.326",
+        "@types/lodash": "^4.17.24",
         "@types/node": "^24.0.4",
         "@types/react": "^19.1.8",
         "@types/react-dom": "^19.1.6",

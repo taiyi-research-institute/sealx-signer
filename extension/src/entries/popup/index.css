@@ -66,6 +66,14 @@ button:focus-visible {
         background-color: #f9f9f9;
     }
 }
+/* Side Panel 响应式适配 — 全局 UI 尺寸请用 rem，换算基准 1rem = 16px
+   Responsive adaptation for Side Panel — use rem for all UI sizes, baseline 1rem = 16px */
+html {
+  --scale-factor: 1;
+  font-size: 100%;
+}
 
-/* ========== Side Panel 响应式适配 ========== */
-/* 通过 body[popup-mode="sidepanel"] 选择器覆盖 Tailwind 硬编码类 */
+html:has(body[popup-mode='sidepanel']) {
+  --scale-factor: 0.8167;
+  font-size: calc(100% * var(--scale-factor));
+}

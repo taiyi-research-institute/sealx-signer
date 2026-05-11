@@ -33,6 +33,40 @@ const signature = await signBySealx({
 });
 ```
 
+### Side Panel Gesture Relay
+
+**`sealx-component`** is an HTML boolean attribute that enables buttons to trigger signing operations from within Chrome's Side Panel mode.
+
+**Why?** In Chrome Side Panel mode, `signBySealx()` internally calls `sidePanel.open()` to open the side panel — this step requires a real user click (browser gesture verification). If you invoke `signBySealx()` purely via JavaScript, the browser will refuse to open the side panel. Adding the `sealx-component` attribute to your button lets the SDK automatically bridge the click event, ensuring the sign request carries a valid user gesture.
+
+**How?** Just add the `sealx-component` attribute to your existing sign button:
+
+```html
+<button sealx-component onclick="handleSign()">Sign</button>
+```
+
+> The `sealx-component` attribute only enables gesture relay — it does not dictate how you bind the click handler. You can use `onclick`, `addEventListener`, or framework-specific event binding (React `onClick`, Vue `@click`, etc.).
+
+The SDK handles the rest automatically:
+- Scans all elements with the `sealx-component` attribute on page load and attaches gesture bridge markers
+- Uses MutationObserver to continuously watch for dynamically added elements (e.g. from React/Vue render)
+- No manual initialization required
+
+```typescript
+import { signBySealx } from 'sealx-sdk';
+
+// Signing must be triggered by a user click on a sealx-component button
+async function handleSign() {
+  const signature = await signBySealx({
+    taskId: 'doc-456',
+    data: 'document content',
+  });
+  console.log('Signing complete:', signature);
+}
+```
+
+> **Note:** The attribute name must be exactly `sealx-component`. It is a boolean attribute — do NOT assign a value. Writing `<button sealx-component="true">` is misleading, and `<button sealx-component="false">` will still activate it because any non-empty value makes the attribute present. Always use `<button sealx-component>`.
+
 ## Browser Extension Integration
 
 The SealX browser extension must be installed for this SDK to work.
@@ -67,6 +101,7 @@ The SealX browser extension must be installed for this SDK to work.
 - `checkSealxActive(callback)` - Monitor activation status
 - `registerLocatableKeys(keys)` - Register locatable keys
 - `onLocateElement(callback?)` - Listen for element location requests
+- `setupSealxActions()` - Scan and bridge sealx-component elements for gesture relay
 
 ### Types
 

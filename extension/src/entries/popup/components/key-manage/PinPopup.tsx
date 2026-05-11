@@ -76,12 +76,12 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
     }, [pin, isProcessing, handleSubmit])
 
     return (
-        <div className="absolute top-[0px] h-full w-full flex items-center justify-center z-50 left-[0px] px-[24px] bg-neutral-950/50">
-            <div className="bg-surface border border-neutral-950/[0.1] rounded-[12px] p-[24px] w-full relative">
+        <div className="absolute top-[0px] h-full w-full flex items-center justify-center z-50 left-[0px] px-[1.5rem] bg-[#000]/50">
+            <div className="bg-[#fff] border border-[#000]/10 rounded-[12px] p-[1.5rem] w-full relative">
                 {/* Close button in top right corner */}
                 <div
                     onClick={onClose}
-                    className="absolute right-[24px] top-[24px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer hover:bg-surface/5 rounded-full transition-colors"
+                    className="absolute right-[24px] top-[24px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer hover:bg-[#fff]/5 rounded-full transition-colors"
                     aria-label="Close"
                     role="button"
                     tabIndex={0}
@@ -109,36 +109,36 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
 
                 {/* Progress bar for export mask */}
                 {!isProcessing ? (<>
-                    <div className="text-[24px] font-[500] mb-[24px] text-center">
+                    <div className="text-[1.5rem] font-[500] mb-[1.5rem] text-center">
                     {title}
                 </div>
 
-                <div className="mb-[24px]">
-                    <div className="text-[16px] font-[500] mb-[12px] text-text-secondary">
+                    <div className="mb-[1.5rem]">
+                        <div className="text-[1rem] font-[500] mb-[0.75rem] text-[#000]/60">
                         {description}
                     </div>
                     <Password
                         password={pin}
                         onChange={setPin}
                         readonly={isProcessing}
-                        className="w-full gap-x-[12px]"
+                            className="w-full gap-x-[0.75rem]"
                     />
                 </div>
                 </>) : (
-                    <div className="mt-[32px]">
+                        <div className="mt-[2rem]">
                         <div className="flex flex-col items-center w-full">
-                            <div className="w-full text-[16px] max-w-[300px] mb-4">
-                                <div className="text-brand text-[14px] text-center mt-2">
+                                <div className="w-full text-[1rem] max-w-[300px] mb-4">
+                                    <div className="text-[#00BE78] text-[0.875rem] text-center mt-2">
                                     {Math.round(progress)}%
                                 </div>
-                                <div className="w-full h-[8px] bg-neutral-950/[10%] rounded-full overflow-hidden">
+                                    <div className="w-full h-[8px] bg-[#000]/10 rounded-full overflow-hidden">
                                     <div
-                                        className="h-full bg-brand transition-all duration-100 ease-linear"
+                                        className="h-full bg-[#00BE78] transition-all duration-100 ease-linear"
                                         style={{ width: `${progress}%` }}
                                     />
                                 </div>
                             </div>
-                            <div className="text-text-primary text-[18px] font-[500] animate-pulse">
+                                <div className="text-[#000]/80 text-[1.125rem] font-[500] animate-pulse">
                                 {processingText}
                             </div>
                         </div>
@@ -147,7 +147,7 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
 
                 {/* Instruction text */}
                 {!isProcessing && pin.length === 6 && (
-                    <div className="mt-[24px] text-brand text-[14px] text-center animate-pulse">
+                    <div className="mt-[1.5rem] text-[#00BE78] text-[0.875rem] text-center animate-pulse">
                         {instructionText}
                     </div>
                 )}
