@@ -12,8 +12,6 @@ import svgr from 'vite-plugin-svgr';
 
 
 const isDev = process.env.__DEV__ === 'true';
-console.log('Vite build __DEV__:', process.env);
-console.log(`Building extension in ${isDev ? 'development' : 'production'} mode.`);
 // set this flag to true, if you want localization support
 const localize = false;
 
@@ -43,7 +41,7 @@ export default defineConfig({
     plugins: [
         svgr(),
         tailwindcss(),
-        tsconfigPaths(),
+        tsconfigPaths({ ignoreConfigErrors: true }),
         react(),
         stripDevIcons(isDev),
         crxI18n({ localize, src: '../src/locales' }),
@@ -52,7 +50,13 @@ export default defineConfig({
     resolve: {
         extensions: ['.ts', '.js', '.d.ts', '.tsx'],
         alias: {
-            buffer: path.resolve(__dirname, 'node_modules', 'buffer')
+            'sealx-core': path.resolve(__dirname, '../../packages/sealx-core/src'),
+            'sealx-message': path.resolve(__dirname, '../../packages/sealx-message/src'),
+            'sealx-sdk': path.resolve(__dirname, '../../packages/sealx-sdk/src'),
+            buffer: path.resolve(__dirname, '../node_modules/buffer'),
+            'crypto-js': path.resolve(__dirname, '../node_modules/crypto-js'),
+            ethers: path.resolve(__dirname, '../node_modules/ethers'),
+            lodash: path.resolve(__dirname, '../node_modules/lodash'),
         },
     },
     define: {
@@ -62,7 +66,6 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                inpage: path.resolve(__dirname, '../src/entries/inpage/index.ts'),
                 popup: path.resolve(__dirname, '../src/entries/popup/index.html'),
                 sandbox: path.resolve(__dirname, '../src/entries/sandbox/index.html'),
                 web: path.resolve(__dirname, '../src/entries/web/index.html'),

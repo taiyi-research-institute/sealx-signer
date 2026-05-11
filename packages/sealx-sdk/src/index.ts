@@ -159,6 +159,10 @@ export const isSealxActive = async (): Promise<boolean> => {
 
     const isActive = (await checkSealx()) !== null;
     sealxSigner.active = isActive;
+    if (isActive && !sealxSigner.installed) {
+        sealxSigner.installed = true;
+        void sealxSigner.storageWrapper.setItem('installed', true);
+    }
 
     // Update cache
     sealxStatusCache = {
@@ -166,7 +170,7 @@ export const isSealxActive = async (): Promise<boolean> => {
         timestamp: now
     };
 
-    return sealxSigner?.installed && isActive;
+    return isActive;
 };
 
 /**

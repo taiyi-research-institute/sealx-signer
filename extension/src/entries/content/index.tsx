@@ -35,6 +35,11 @@ function waitForBody(callback: () => void) {
 }
 
 function initializeSealX() {
+    if (document.getElementById('sealXContainer')) {
+        injectScript('inpage.js');
+        return;
+    }
+
     // 创建 Shadow DOM host 元素
     const shadowHost = document.createElement('div');
     shadowHost.id = 'sealXContainer';

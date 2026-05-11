@@ -39,29 +39,10 @@ chrome.runtime.onStartup.addListener(() => {
 })
 
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    // 当标签页激活时，尝试发送消息到content脚本，如果失败则刷新页面注入脚本
     try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
-
-        // 只对有效的网页URL进行处理
         if (tab.url && (tab.url.startsWith('http://') || tab.url.startsWith('https://'))) {
-            // 首先尝试发送消息到content脚本，检查是否已加载
-            await chrome.tabs.sendMessage(activeInfo.tabId, {
-                type: 'CHECK_CONTENT_SCRIPT_LOADED'
-            }).catch(async error => {
-                // 如果发送消息失败，说明content脚本未加载，需要刷新页面注入脚本
-                console.debug('Content script not loaded, refreshing tab to inject script:', error.message);
-
-                // 刷新标签页以确保content脚本被正确注入
-                await chrome.tabs.reload(activeInfo.tabId).catch(reloadError => {
-                    console.debug('Tab reload failed:', reloadError.message);
-                });
-
-                console.log('Tab refreshed to inject content script:', tab.id, tab.url);
-            });
-
-            // 如果发送消息成功，content脚本已加载
-            console.log('Content script already loaded for tab:', tab.id, tab.url);
+            TabManager.getInstance().currentTab = tab;
         }
     } catch (error) {
         console.error('Failed to handle tab activation:', error);

@@ -6,6 +6,12 @@ import { MessageChannel, SealxTopic } from "../enums";
 import { MessageSend, SealxRequest } from "../contracts";
 import { SealxResponse } from "../contracts/response";
 
+const ignoreMissingReceiver = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist')) return;
+    console.warn('BackgroundMessager postMessage failed:', error);
+};
+
 /**
  * BackgroundMessager handles message communication for browser extension background scripts.
  * 
@@ -108,16 +114,14 @@ export default class BackgroundMessager extends MessagerBase {
             || message.receiver === MessageChannel.SIDEBAR
             || !message.header.tabId) {
             // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver);
         } else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            } catch (e) {
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
                 const tab = TabManager.getInstance().currentTab;
                 if (tab && tab.id) {
-                    chrome.tabs?.sendMessage(tab.id, message)
+                    chrome.tabs?.sendMessage(tab.id, message).catch(ignoreMissingReceiver)
                 }
-            }
+            });
             // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
         }
     }

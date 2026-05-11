@@ -115,6 +115,7 @@ jspm_packages/
 # Chrome extension build outputs
 extension/dist_chrome/
 extension/dist_inpage/
+extension/inpage.js
 extension/*.crx
 extension/*.zip
 extension/extension.pem

@@ -5,6 +5,12 @@ import { MessageChannel, SealxTopic } from "../enums";
 import { SealxRequest } from "../contracts";
 import { SealxResponse } from "../contracts/response";
 
+const ignoreMissingReceiver = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist')) return;
+    console.warn('ExtensionMessager postMessage failed:', error);
+};
+
 /**
  * ExtensionMessager handles message communication for browser extension UI components
  * 
@@ -88,13 +94,11 @@ export default class ExtensionMessager extends MessagerBase {
 
         // Send message to appropriate destination
         if (!message.header.tabId) {
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver);
         } else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            } catch (e) {
-                chrome.runtime?.sendMessage(message)
-            }
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
+                chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver)
+            });
         }
     }
 

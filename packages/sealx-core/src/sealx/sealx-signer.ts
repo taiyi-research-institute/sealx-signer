@@ -132,13 +132,11 @@ export class SealxSigner {
      * Can only be called once - subsequent calls will warn.
      */
     install(): void {
-        if (!this.installed) {
-            this.installed = true;
-            this.storageWrapper.setItem('installed', true);
-            console.log("SealxSigner installed");
-        } else {
-            console.warn("SealxSigner is already installed.");
-        }
+        if (this.installed) return;
+
+        this.installed = true;
+        this.storageWrapper.setItem('installed', true);
+        console.log("SealxSigner installed");
     }
 
     /**
