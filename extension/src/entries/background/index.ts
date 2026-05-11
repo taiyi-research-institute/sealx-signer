@@ -1,6 +1,6 @@
 import { MessageChannel, MessagerManager, SealxTopic, type SealxRequest } from "sealx-message";
 import PanelManager from "./panel-manager";
-import { addUser, generateSession, getAddressByPin, getSealxInfo, getUser, initializeSealx, initializeSealxInfo, installDB, pkHex, resetSealxPin, setSealxSessionTimeout } from "./state";
+import { addUser, clearAllCachedPrivateKeys, generateSession, getAddressByPin, getCachedPrivateKey, getSealxInfo, getUser, initializeSealx, initializeSealxInfo, installDB, pkHex, removeCachedPrivateKey, resetSealxPin, setSealxSessionTimeout } from "./state";
 import { decodeSession, decodeSessionPrivateKey, sessionKey } from "@src/core/utils/helper";
 import { sessionStore } from "@src/core/state";
 import { TabManager, type Eip712Struct } from "sealx-core";
@@ -16,6 +16,19 @@ const messager = MessagerManager.getMessager()
 PanelManager.setMessager(messager)
 PanelManager.init()
 
+// Wait for Zustand persist to rehydrate from chrome.storage.local,
+// then clear stale session. On SW restart the in-memory privateKeyCache is
+// always empty, so any persisted session refers to a non-existent key.
+// This only runs in the background Service Worker context.
+;(async () => {
+    try {
+        await (sessionStore as any).persist?.rehydrate?.()
+    } catch {
+        // rehydrate() may not exist in all Zustand versions — ignore
+    }
+    sessionStore.getState().setSession(null)
+})()
+
 /**
  * Handles extension installation and startup
  */
@@ -24,6 +37,7 @@ chrome.runtime.onInstalled.addListener((details) => {
         initializeSealxInfo()
     })
     sessionStore.getState().clearAllSession()
+    clearAllCachedPrivateKeys()
     if (details.reason === 'install') {
         chrome.tabs.create({
             url: chrome.runtime.getURL('src/entries/popup/index.html#/login')
@@ -151,6 +165,11 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
         } else {
             PanelManager.clearCurrentProcessingQueue()
         }
+        // Clear in-memory private key when panel closes
+        const state = sessionStore.getState()
+        if (state.session?.sessionId) {
+            removeCachedPrivateKey(state.session.sessionId)
+        }
         PanelManager.notifyPanelClosing()
         useRequestStore.getState().clearRequest()
         return true
@@ -256,7 +275,6 @@ messager.on(SealxTopic.IMPORT_KEY, async (request: SealxRequest<{
     const session = await decodeSession(request.payload.tpPin, request.payload.ecSession)
     const privateKey: string | null = await decodeSessionPrivateKey(session)
     if (privateKey) {
-        console.log('----- private key -----', privateKey)
         const res = await initializeSealx(request.payload.pin, privateKey)
         console.log('--------- import result ---', res)
         if (!res) {
@@ -329,6 +347,11 @@ const checkSessionExpire = async (userId: string = '', host: string = '') => {
     if (isExpired) {
         delete state.sessionMap[key]
 
+        // Clean up in-memory private key
+        if (session.sessionId) {
+            removeCachedPrivateKey(session.sessionId)
+        }
+
         // If this is the current session, clear it
         if (state.session && state.session.sessionId === session.sessionId) {
             state.setSession(null)
@@ -382,14 +405,9 @@ messager.on(SealxTopic.SIGN, async (request: SealxRequest<{ host: string, userId
     const session = state.session
     console.log('-------- sign handle ----', request, session, state)
     if (session) {
-        const info = await getSealxInfo()
-        if (info?.pks) {
-            session.pk = info.pks[session.pk] ?? session.pk
-        }
-        const pk = await decodeSessionPrivateKey(session)
-        // const record = await getPrivateKey
+        // Get raw private key from in-memory cache (NOT from IndexedDB)
+        const pk = getCachedPrivateKey(session.pk || session.sessionId)
         if (pk) {
-            //
             return await signTypeContent(request.payload.signContent, pk)
         }
     }

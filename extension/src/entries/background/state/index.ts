@@ -10,6 +10,26 @@ syncStores()
 
 const privateKeyTable = () => dbStorageWrapper('sealx', 'sealx-pk');
 
+// In-memory private key cache — decrypted keys live only in Service Worker heap
+// Map<sessionId, rawPrivateKey>, cleared on session expiry / panel close / SW restart
+const privateKeyCache = new Map<string, string>()
+
+export const setCachedPrivateKey = (sessionId: string, privateKey: string) => {
+    privateKeyCache.set(sessionId, privateKey)
+}
+
+export const getCachedPrivateKey = (sessionId: string): string | undefined => {
+    return privateKeyCache.get(sessionId)
+}
+
+export const removeCachedPrivateKey = (sessionId: string) => {
+    privateKeyCache.delete(sessionId)
+}
+
+export const clearAllCachedPrivateKeys = () => {
+    privateKeyCache.clear()
+}
+
 /**
  * Initializes SealX by creating a new wallet and encrypting its private key
  * @param pin - User's PIN for encryption
@@ -250,19 +270,10 @@ export const generateSession = async (pin: string, host: string = '', userId: st
     }
     const setSession = sessionStore.getState().setSession
     const pk = await getPrivateKey(pin)
-    // // 存在风险问题，要上代码分析得到这里的信息，可能获得密钥
-    const k = CryptoJS.MD5(sessionId + host + userId + expire).toString()
-    const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
-    const pkHex = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
-    const info = await getSealxInfo()
-    const pkHash = CryptoJS.MD5(pkHex).toString()
-    if (info) {
-        info.pks = info.pks ? { ...info.pks } : {}
-        info.pks[pkHash] = pkHex
-        const res = await saveSealxInfo(info)
-        if (!res) {
-            throw new Error('save sealx info failed')
-        }
+
+    // Store raw private key in Service Worker memory only (NOT persisted to IndexedDB)
+    if (pk) {
+        setCachedPrivateKey(sessionId, pk)
     }
 
     const session: SealxSession = {
@@ -271,7 +282,7 @@ export const generateSession = async (pin: string, host: string = '', userId: st
         host,
         userId,
         sessionId,
-        pk: pkHash
+        pk: sessionId  // sessionId doubles as lookup key for the in-memory cache
     }
 
     setSession(session)
@@ -283,12 +294,17 @@ export const pkHex = async (pin: string, host: string = '', userId: string = '',
     if (!address) {
         throw new PinError()
     }
-    const pk = await getPrivateKey(pin)
-    // 存在风险问题，要上代码分析得到这里的信息，可能获得密钥
+    // Try in-memory cache first (set during generateSession)
+    let pk = getCachedPrivateKey(sessionId)
+    // Fall back to IndexedDB for export scenarios where session is not active
+    if (!pk) {
+        pk = await getPrivateKey(pin)
+    }
+    // Re-encrypt with session-specific parameters for the export (temporary code)
     const k = CryptoJS.MD5(sessionId + host + userId + expire).toString()
     const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
-    const pkHex = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
-    return pkHex
+    const pkHexStr = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
+    return pkHexStr
 }
 
 

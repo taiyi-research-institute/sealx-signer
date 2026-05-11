@@ -404,7 +404,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             setLoading(false);
         }
         initializedRef.current = true;
-    }, [pathname, navigate, setHost, setUserId, setSession]);
+    }, [pathname, navigate, finishLoading, setHost, setUserId, setSession]);
 
     /**
      * Setup messager listener - runs once on mount
@@ -479,9 +479,9 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     );
 };
 
-const Loading: React.FC<{ opaque?: boolean }> = ({ opaque }) => {
+const Loading: React.FC<{ opaque?: boolean }> = () => {
     return (
-        <div className={`fixed inset-0 z-50 flex w-full h-full items-center justify-center ${opaque ? 'bg-white' : 'bg-white/70 backdrop-blur-sm'}`}>
+        <div className={`fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#282828] backdrop-blur-sm`}>
             <div className='relative flex flex-col items-center justify-center p-[2rem] rounded-2xl shadow-2xl min-w-[200px] min-h-[200px] bg-white/80'>
                 {/* Progress bar loader */}
                 <div

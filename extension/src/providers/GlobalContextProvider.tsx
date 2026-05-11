@@ -52,7 +52,7 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
                 console.log('------------- iframe ready -------')
                 const msg = messageQueue.shift();
                 setMessageQueue(messageQueue)
-                iframe.contentWindow?.postMessage(msg, '*');
+                iframe.contentWindow?.postMessage(msg, window.location.origin);
             }
         });
     }, [messageQueue])
@@ -64,7 +64,7 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
             message['messageId'] = messageId
             if (messageQueueIframe && messageQueueReady) {
                 console.log('--------- send message 111 -----', message)
-                messageQueueIframe?.contentWindow?.postMessage(message, '*');
+                messageQueueIframe?.contentWindow?.postMessage(message, window.location.origin);
                 const messageHandler = (event: MessageEvent) => {
                     if (event.data && event.data.messageId === messageId) {
                         window.removeEventListener('message', messageHandler as EventListener);
