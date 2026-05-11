@@ -476,14 +476,11 @@ class SealxSigner {
      * Can only be called once - subsequent calls will warn.
      */
     install() {
-        if (!this.installed) {
-            this.installed = true;
-            this.storageWrapper.setItem('installed', true);
-            console.log("SealxSigner installed");
-        }
-        else {
-            console.warn("SealxSigner is already installed.");
-        }
+        if (this.installed)
+            return;
+        this.installed = true;
+        this.storageWrapper.setItem('installed', true);
+        console.log("SealxSigner installed");
     }
     /**
      * Activates the plugin UI by setting the DOM attribute.
@@ -501,15 +498,15 @@ class SealxSigner {
      * Updates internal state and logs the operation.
      */
     deactivate() {
-        if (this.active) {
-            this.active = false;
-            this.session = null;
-            this.storageWrapper.removeItem('session');
+        const wasActive = this.active;
+        this.active = false;
+        this.session = null;
+        this.storageWrapper.removeItem('session');
+        if (document.body.getAttribute('data-sealx-signer-active') !== 'false') {
             document.body.setAttribute('data-sealx-signer-active', 'false');
-            console.log("SealxSigner plugin deactivated");
         }
-        else {
-            console.warn("SealxSigner plugin is already deactivated.");
+        if (wasActive) {
+            console.log("SealxSigner plugin deactivated");
         }
     }
     autoCheckTimer;
@@ -540,9 +537,7 @@ class SealxProvider {
         if (!window.sealxSigner) {
             window.sealxSigner = new SealxSigner();
         }
-        else {
-            console.warn("SealxSigner is already registered.");
-        }
+        return window.sealxSigner;
     }
 }
 
@@ -839,6 +834,9 @@ const layoutRender = (template, context) => {
 class PinError extends Error {
 }
 
+class DataCorruptedError extends Error {
+}
+
 const pinGenerator = () => {
     const chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
     let result = '';
@@ -880,10 +878,29 @@ const encryptPrivateKey = async (privateKey, pin, slat) => {
 };
 // pin码解密私钥
 const decryptPrivateKey = async (pin, encodePrivateKey, iv, slat) => {
+    // Pre-decryption format validation: distinguish data corruption from wrong PIN
+    let encrypted;
+    let ivBytes;
+    try {
+        // Validate base64 format of ciphertext
+        encrypted = new Uint8Array(atob(encodePrivateKey).split('').map(c => c.charCodeAt(0)));
+    }
+    catch {
+        throw new DataCorruptedError('Invalid base64 encoding in encrypted data');
+    }
+    try {
+        // Validate base64 format of IV
+        ivBytes = new Uint8Array(atob(iv).split('').map(c => c.charCodeAt(0)));
+    }
+    catch {
+        throw new DataCorruptedError('Invalid base64 encoding in IV');
+    }
+    // Validate IV length (AES-GCM requires 12 bytes)
+    if (ivBytes.length !== 12) {
+        throw new DataCorruptedError(`Invalid IV length: expected 12 bytes, got ${ivBytes.length}`);
+    }
     try {
         const key = await deriveKeyFromPin(pin, slat);
-        const encrypted = new Uint8Array(new Uint8Array(atob(encodePrivateKey).split('').map(c => c.charCodeAt(0))));
-        const ivBytes = new Uint8Array(atob(iv).split('').map(c => c.charCodeAt(0)));
         const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivBytes }, key, encrypted);
         return new TextDecoder().decode(decrypted);
     }
@@ -909,6 +926,7 @@ function isNativeFullscreen() {
         doc.msFullscreenElement);
 }
 
+exports.DataCorruptedError = DataCorruptedError;
 exports.PinError = PinError;
 exports.SealxProvider = SealxProvider;
 exports.SealxSigner = SealxSigner;

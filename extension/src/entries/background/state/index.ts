@@ -1,4 +1,4 @@
-import { dbStorageWrapper, type SealxAccount, type SealxSession, PinError } from "sealx-core";
+import { dbStorageWrapper, type SealxAccount, type SealxSession, PinError, DataCorruptedError } from "sealx-core";
 import type { PrivateKeyStoreRecord, SealxBaseInfo } from "../models";
 import { createWallet } from "../utils/wallet";
 import { decodeEncryptedPrivateKey, encodePrivateKey, strToHex } from "../utils/crypto";
@@ -181,6 +181,10 @@ export const getPrivateKey = async (pin: string): Promise<string | null> => {
         recordPinSuccess()
         return pk
     } catch (walletError) {
+        // Data corruption is NOT a PIN failure — don't count against rate limiting
+        if (walletError instanceof DataCorruptedError) {
+            throw new Error(`Data corrupted: ${walletError.message}`);
+        }
         recordPinFailure()
         console.log('------- wallet error ------', walletError)
         throw new Error(`Invalid private key: ${walletError instanceof Error ? walletError.message : 'Unknown error'}`);

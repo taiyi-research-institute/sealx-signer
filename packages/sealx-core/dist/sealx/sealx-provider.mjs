@@ -5,9 +5,7 @@ class SealxProvider {
         if (!window.sealxSigner) {
             window.sealxSigner = new SealxSigner();
         }
-        else {
-            console.warn("SealxSigner is already registered.");
-        }
+        return window.sealxSigner;
     }
 }
 

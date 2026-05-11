@@ -6,4 +6,5 @@ export * from './utils';
 export * from './storage';
 export * from './sealx/sealx-interface';
 export { default as PinError } from './exceptions/PinError';
+export { default as DataCorruptedError } from './exceptions/DataCorruptedError';
 //# sourceMappingURL=index.d.ts.map
