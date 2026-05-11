@@ -158,14 +158,17 @@ export class SealxSigner {
      * Updates internal state and logs the operation.
      */
     deactivate(): void {
-        if (this.active) {
-            this.active = false;
-            this.session = null
-            this.storageWrapper.removeItem('session')
+        const wasActive = this.active;
+
+        this.active = false;
+        this.session = null
+        this.storageWrapper.removeItem('session')
+        if (document.body.getAttribute('data-sealx-signer-active') !== 'false') {
             document.body.setAttribute('data-sealx-signer-active', 'false');
+        }
+
+        if (wasActive) {
             console.log("SealxSigner plugin deactivated");
-        } else {
-            console.warn("SealxSigner plugin is already deactivated.");
         }
     }
     autoCheckTimer: any

@@ -9,6 +9,7 @@ import { SealxResponse } from "../contracts/response";
 const ignoreMissingReceiver = (error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);
     if (message.includes('Receiving end does not exist')) return;
+    if (message.includes('Extension context invalidated')) return;
     console.warn('BackgroundMessager postMessage failed:', error);
 };
 

@@ -3,6 +3,11 @@ import './style.css'
 import { SealX } from './SealX';
 
 function injectScript(file: string) {
+    if (document.documentElement.hasAttribute('data-sealx-inpage-injected')) {
+        return;
+    }
+    document.documentElement.setAttribute('data-sealx-inpage-injected', 'true');
+
     const script = document.createElement("script");
     script.src = chrome.runtime.getURL(file); // 如：inpage.js
     script.type = "text/javascript";
@@ -10,6 +15,8 @@ function injectScript(file: string) {
     (document.head || document.documentElement)?.appendChild(script);
     script.remove(); // 清理 DOM
 }
+
+injectScript('inpage.js');
 
 function waitForBody(callback: () => void) {
     // 如果body已经存在，直接执行回调
@@ -36,7 +43,6 @@ function waitForBody(callback: () => void) {
 
 function initializeSealX() {
     if (document.getElementById('sealXContainer')) {
-        injectScript('inpage.js');
         return;
     }
 
@@ -69,7 +75,6 @@ function initializeSealX() {
 
     const root = createRoot(rootContainer);
     root.render(<SealX />);
-    injectScript('inpage.js');
 }
 
 // ===== 手势中继：事件委托监听 SealX 操作组件 =====
