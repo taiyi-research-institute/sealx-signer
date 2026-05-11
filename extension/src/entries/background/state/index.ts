@@ -390,11 +390,13 @@ export const initializeSealxInfo = async (time?: number) => {
     const db = sealxTable()
     try {
         const version = chrome.runtime.getManifest().version
+        const existing = await db.getItem<SealxBaseInfo>(baseInfoKey)
         const info = {
+            ...existing,
             version,
-            installedTime: Date.now(),
-            address: '',
-            sessionTimeout: time ?? 5
+            installedTime: existing?.installedTime ?? Date.now(),
+            address: existing?.address ?? '',
+            sessionTimeout: time ?? existing?.sessionTimeout ?? 5
         } as SealxBaseInfo
         return await db.setItem(baseInfoKey, info)
     } finally {

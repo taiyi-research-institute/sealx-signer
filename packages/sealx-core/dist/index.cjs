@@ -476,14 +476,11 @@ class SealxSigner {
      * Can only be called once - subsequent calls will warn.
      */
     install() {
-        if (!this.installed) {
-            this.installed = true;
-            this.storageWrapper.setItem('installed', true);
-            console.log("SealxSigner installed");
-        }
-        else {
-            console.warn("SealxSigner is already installed.");
-        }
+        if (this.installed)
+            return;
+        this.installed = true;
+        this.storageWrapper.setItem('installed', true);
+        console.log("SealxSigner installed");
     }
     /**
      * Activates the plugin UI by setting the DOM attribute.
@@ -501,15 +498,15 @@ class SealxSigner {
      * Updates internal state and logs the operation.
      */
     deactivate() {
-        if (this.active) {
-            this.active = false;
-            this.session = null;
-            this.storageWrapper.removeItem('session');
+        const wasActive = this.active;
+        this.active = false;
+        this.session = null;
+        this.storageWrapper.removeItem('session');
+        if (document.body.getAttribute('data-sealx-signer-active') !== 'false') {
             document.body.setAttribute('data-sealx-signer-active', 'false');
-            console.log("SealxSigner plugin deactivated");
         }
-        else {
-            console.warn("SealxSigner plugin is already deactivated.");
+        if (wasActive) {
+            console.log("SealxSigner plugin deactivated");
         }
     }
     autoCheckTimer;
