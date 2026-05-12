@@ -1,3 +1,31 @@
+.password-container {
+    position: relative;
+    cursor: text;
+}
+
+.password-container:focus {
+    outline: none;
+}
+
+.password-container:focus-visible {
+    outline: none;
+}
+
+.password-capture-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    opacity: 0;
+    background: transparent;
+    color: transparent;
+    caret-color: transparent;
+    z-index: 1;
+}
+
 .password {
     outline: none;
     caret-color: var(--sx-brand);
@@ -17,17 +45,27 @@
     font-family: 'open-sans', sans-serif;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
     transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    pointer-events: none;
 }
 
-.password:focus {
+.password.active {
     border-color: var(--sx-brand);
     background-color: var(--sx-surface);
     box-shadow: 0 0 0 3px rgba(10, 160, 110, 0.14);
 }
 
-.password:focus-visible {
+.password-container:focus .password.active,
+.password-container:focus-visible .password.active,
+.password-container:focus-within .password.active {
     outline: 3px solid rgba(10, 160, 110, 0.24);
     outline-offset: 2px;
+}
+
+.password-mask-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: currentColor;
 }
 
 .password.error {
@@ -57,7 +95,8 @@ body[popup-mode='sidepanel'] .password::after {
     justify-content: center !important;
 }
 
-body[popup-mode='sidepanel'] .password:focus .password-caret {
+body[popup-mode='sidepanel'] .password-container:focus .password-caret,
+body[popup-mode='sidepanel'] .password-container:focus-within .password-caret {
     width: 3.16px !important;
     height: 30.38px !important;
 }

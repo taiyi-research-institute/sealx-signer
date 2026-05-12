@@ -149,7 +149,7 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
                 PanelManager.notifyPanelOpened('')
             }).catch((err: Error) => {
                 console.warn('open-side-panel: openPanelWithSource failed', err.message)
-                chrome.storage.session.remove('panelTriggerSource').catch(() => {})
+                chrome.storage.session.remove(['panelTriggerSource', 'panelTriggerSourceAt']).catch(() => {})
                 PanelManager.setBadge()
                 // Ensure default path + enabled (use PanelManager.panelPath, not hardcoded)
                 chrome.sidePanel.setOptions({
@@ -157,6 +157,13 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
                     enabled: true
                 })
             })
+        }
+        return true
+    }
+    if (message?.type === 'sealx-pin-relay-keydown') {
+        const key = typeof message.key === 'string' ? message.key : ''
+        if (/^[a-zA-Z0-9]$/.test(key) || key === 'Backspace') {
+            chrome.runtime.sendMessage({ type: 'sealx-pin-keydown', key }).catch(() => { })
         }
         return true
     }

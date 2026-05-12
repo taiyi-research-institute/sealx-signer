@@ -110,6 +110,13 @@ const getFieldSemanticClass = (key = '', originType: OrigionType | '' = '') => {
     return 'field-default';
 };
 
+const shouldPairFieldCards = (leftClass: string, rightClass: string) => {
+    if (leftClass === 'field-command') {
+        return rightClass === 'field-network' || rightClass === 'field-time';
+    }
+    return false;
+};
+
 /**
  * Renders content using the default template from template factory
  * @param props Component props
@@ -162,14 +169,14 @@ export const DefaultTemplateRender = memo(({
     }
     const messages = props.signContent.message;
     const keys = Object.keys(messages);
-    return keys.map((key) => {
+    const renderFieldCard = (key: string) => {
         // 从 keysMapStr 映射获取顶层 originKey
         const mapping = keyMap?.[key];
         const originKey = mapping?.originKey || key;
         const semanticClass = getFieldSemanticClass(originKey, mapping?.originType);
         // Origin key mapping for element location
         return (
-            <div className={`sx-field-card ${semanticClass}`}>
+            <div key={key} className={`sx-field-card ${semanticClass}`}>
                 <OrigionMessageRender
                     origionKey={originKey}
                     displayKey={key}
@@ -179,7 +186,29 @@ export const DefaultTemplateRender = memo(({
                     value={messages[key]}></OrigionMessageRender>
             </div>
         );
-    });
+    };
+    const renderedFields = [];
+    for (let index = 0; index < keys.length; index += 1) {
+        const key = keys[index];
+        const nextKey = keys[index + 1];
+        const currentMapping = keyMap?.[key];
+        const nextMapping = nextKey ? keyMap?.[nextKey] : undefined;
+        const currentClass = getFieldSemanticClass(currentMapping?.originKey || key, currentMapping?.originType);
+        const nextClass = nextKey ? getFieldSemanticClass(nextMapping?.originKey || nextKey, nextMapping?.originType) : '';
+
+        if (nextKey && shouldPairFieldCards(currentClass, nextClass)) {
+            renderedFields.push(
+                <div key={`${key}-${nextKey}`} className='sx-field-row'>
+                    {renderFieldCard(key)}
+                    {renderFieldCard(nextKey)}
+                </div>
+            );
+            index += 1;
+        } else {
+            renderedFields.push(renderFieldCard(key));
+        }
+    }
+    return renderedFields;
 });
 
 export const OrigionMessageRender = memo(({
@@ -240,8 +269,10 @@ export const OrigionMessageRender = memo(({
                         return (
                             <div
                                 key={index}
-                                className='flex flex-col gap-y-[8px]'
+                                className='sx-array-item'
                             >
+                                <span className='sx-array-index'>{index + 1}</span>
+                                <div className='sx-array-content'>
                                 <OrigionMessageRender
                                     origionKey={itemKey}
                                     displayKey={itemKey}
@@ -250,6 +281,7 @@ export const OrigionMessageRender = memo(({
                                     parentKeys={[...parentKeys, originKey]}
                                     value={item}
                                 />
+                                </div>
                             </div>
                         );
                     })}
@@ -328,9 +360,11 @@ export const OutsideTemplateRender = memo(({
     ...props
 }: OutsideTemplateRenderProps) => {
     const safeHtml = DOMPurify.sanitize(render);
+    const className = `sx-outside-template ${props.className ?? ''}`.trim();
     return (
         <div
             {...props}
+            className={className}
             dangerouslySetInnerHTML={{ __html: safeHtml }}
         />
     );
@@ -585,9 +619,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                             }></DefaultTemplateRender>
                     ))}
                 </div>
-            </div>
-
-            {!props.preViewUrl ? (<div className='sx-task-actions'>
+                {!props.preViewUrl ? (<div className='sx-task-actions'>
                 <Button
                     variant="secondary"
                     onClick={() => onRejected(props)}
@@ -611,14 +643,15 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 >
                     {props.confirmText ?? 'Sign to Approve'}
                 </Button>
-            </div>) : (<div className='sx-task-actions sx-task-actions-review'>
+                </div>) : (<div className='sx-task-actions sx-task-actions-review'>
                 <Button
                     variant="primary"
                     onClick={onReview}
                 >
                     Click to Review Details
                 </Button>
-            </div>)}
+                </div>)}
+            </div>
         </div>
     );
 });

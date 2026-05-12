@@ -1,4 +1,3 @@
-import FilterMenu from '@assets/svg/filter-menu.svg?react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CheckBox from '@assets/svg/check-board.svg?react'
 import Calendar from '@assets/svg/calendar.svg?react'
@@ -12,8 +11,6 @@ import CoinIcon from '@assets/svg/coin-icon.svg?react'
 import AddressCardIcon from '@assets/svg/address-card.svg?react'
 import TagIcon from '@assets/svg/tag.svg?react'
 import NoTasksIcon from '@assets/svg/no-tasks.svg?react'
-import { PopupCategory } from './category.js'
-import { useClickOutside } from '@src/hooks/useOutsideClick'
 import { useRequestContext } from '@src/hooks/useRequestContextHook'
 import { TabManager, type SealxSignTask } from 'sealx-core'
 import moment from 'moment'
@@ -86,11 +83,7 @@ const onReview = async (preViewUrl: string) => {
 }
 export const TaskHome = () => {
     const [total, setTotal] = useState<number>(0)
-    const [category, setCategory] = useState<string>('')
     const templateFactory = useRef<HTMLDivElement>(null)
-    const [showPopupMenu, setShowPopupMenu] = useState<boolean>(false)
-    const popupMenuRef = useRef<HTMLDivElement>(null);
-    useClickOutside(popupMenuRef, () => setShowPopupMenu(false));
     const { request } = useRequestContext()
     const [list, setList] = useState<Array<SealxSignTask>>([])
     const [signing, setSigning] = useState(false)
@@ -294,6 +287,29 @@ export const TaskHome = () => {
         return tasks
     }, [list])
 
+    const clearTaskAndCloseIfDone = useCallback((taskId: string) => {
+        setList(currentList => {
+            const task = currentList.find(a => a.taskId === taskId)
+            if (task?.preViewUrl && previewWindow) {
+                chrome.windows.remove(previewWindow.id!).then(() => {
+                    previewWindow = null
+                })
+            }
+
+            const items = currentList.filter(a => a.taskId !== taskId)
+            setTotal(items.length)
+            if (items.length === 0) {
+                setTimeout(() => {
+                    chrome.runtime.sendMessage({ type: 'panel-process-queue' })
+                    closeWindow()
+                }, 50)
+            } else {
+                chrome.runtime.sendMessage({ type: 'panel-process-queue' })
+            }
+            return items
+        })
+    }, [])
+
     // Note: signing state is managed by the SIGN/BATCH_SIGN request handler
     // This callback only sends the signature result
     const onSign = useCallback(async (taskId: string, signatures: { taskId: string, signature: string }[] | string | null) => {
@@ -333,35 +349,29 @@ export const TaskHome = () => {
             originTabIdMapRef.current.delete(taskId)
         }
         messager.send(signResponsePayload, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-    }, [list])
+        currentSigningTaskIdRef.current = null
+        setSigning(false)
+        setSignTimeout(false)
+        setSignProgress(0)
+        if (signTimeoutRef.current) {
+            clearTimeout(signTimeoutRef.current)
+            signTimeoutRef.current = null
+        }
+        clearTaskAndCloseIfDone(taskId)
+    }, [clearTaskAndCloseIfDone, list])
     return <>
         {/* <button onClick={onTest}>Test</button> */}
-        <div className="w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
-            <div className='w-full px-[1.6406rem] mt-[1.5rem] flex items-center relative'>
-                <FilterMenu onClick={() => {
-                    setShowPopupMenu(true)
-                }} className='mr-[0.5rem]'></FilterMenu>
-                <span className='font-[500] leading-[1.5625] text-[1.3125rem]'>Total {total}</span>
-                {showPopupMenu ? <PopupCategory category={category} onChange={(c: string) => {
-                    setCategory(c)
-                    setShowPopupMenu(false)
-                }} ref={popupMenuRef} className=' py-[0.75rem] absolute z-999999 let-[12px] top-[30px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupCategory> : ('')}
-            </div>
+        <div className="sx-signing-list-page w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
             {total === 0 ? (
                 <NoPendingTasks />
             ) : (
                     map(tasks, (t: unknown[], day: string | number) => {
-                        return (<div className={'task-container w-full pt-[1.4375rem] '}>
-                            <div className='w-full px-[1.5rem]'>
-                                <div className='w-full mb-[1rem] text-center text-[1.1875rem] leading-[1.375] font-[500] text-[rgba(0,0,0,0.40)]'>
-                                {
-                                    Number(day) === 0 ? 'Urgent' : `Within ${day} Days`
-                                }
-                            </div>
+                        return (<div key={day} className='task-container sx-task-container'>
+                            <div className='sx-task-list'>
                             {
                                     t.map((task: unknown) => {
                                     const taskProps = task as unknown as SignTaskRenderProps;
-                                    return <SignTaskRender {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
+                                    return <SignTaskRender key={taskProps.taskId} {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
                                 })
                             }
                         </div>

@@ -3,6 +3,10 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
 import { useSuccessStore } from "@src/core/state"
 import Button from "@src/components/button"
+import Clock from '@assets/svg/clock.svg?react'
+import './styles.css'
+
+const TIMER_OPTIONS = [1, 2, 5, 10, 15, 30]
 
 export const SetSessionExpire = () => {
     const [time, setTime] = useState<number>(0)
@@ -17,11 +21,11 @@ export const SetSessionExpire = () => {
         initTime()
     }, [initTime])
     const TimerItem = useMemo(() => {
-        return [1, 2, 5, 10, 15, 30].map((t, i) => {
+        return TIMER_OPTIONS.map((t) => {
             const isSelected = time === t
             return <label
                 key={t}
-                className={"w-full cursor-pointer flex items-center py-2" + (i > 0 ? ' pt-[31px]' : '')}
+                className={`screen-timer-option ${isSelected ? 'is-selected' : ''}`}
             >
                 <input
                     type="radio"
@@ -31,10 +35,14 @@ export const SetSessionExpire = () => {
                     onChange={() => setTime(t)}
                     className="sr-only"
                 />
-                <div className={`w-[44px] h-[44px] rounded-full flex items-center justify-center border-2 flex-shrink-0 transition-colors ${isSelected ? 'border-brand bg-brand/[10%]' : 'border border-black/20'}`}>
-                    {isSelected && <div className="w-[24px] h-[24px] rounded-full bg-brand" />}
+                <div className='screen-timer-option-top'>
+                    <span className='screen-timer-value'>{t}</span>
+                    <span className='screen-timer-unit'>min</span>
                 </div>
-                <span className="font-[500] pl-[24px] text-[24px] leading-[29px] text-text-primary">{t} min</span>
+                <div className='screen-timer-option-bottom'>
+                    <span>{t <= 2 ? 'Quick lock' : t >= 15 ? 'Long session' : 'Balanced'}</span>
+                    <span className='screen-timer-radio' aria-hidden='true'></span>
+                </div>
             </label>
         })
     }, [time])
@@ -46,21 +54,26 @@ export const SetSessionExpire = () => {
             navigate(-1)
         }
     }, [time, setSuccess, navigate])
-    return <div className=" px-[24px] pt-[24px] w-full ">
-        <div className="w-full rounded-[20px] bg-surface">
-            <div className="w-full bg-neutral-950 rounded-t-[20px] text-left px-[24px] pt-[22px] pb-[20px] font-[500] text-[26px] leading-[32px] text-surface">
-                Set Screen off Timer
-            </div>
-            <div className="w-full px-[24px] pt-[24px]">
-                <div className="w-full text-left text-text-secondary text-[19px] font-[500] leading-[26px]">
-                    Choose how long your screen stays on during periods of inactivity before turning off.
+    return <div className="screen-timer-page">
+        <section className="screen-timer-card">
+            <div className="screen-timer-header">
+                <div className="screen-timer-icon">
+                    <Clock />
                 </div>
-                <div className=" w-full px-[2.75rem] pt-[2.1875rem] pb-[3.5rem]">
-                    {TimerItem}
+                <div className="screen-timer-heading">
+                    <h1>Screen Timer</h1>
+                    <p>Lock SealX after inactivity</p>
                 </div>
             </div>
-        </div>
-        <div className='w-full mt-[2rem] flex justify-between gap-x-[1.5rem] mb-[2rem]'>
+            <div className="screen-timer-current">
+                <span>Current timeout</span>
+                <strong>{time || '-'} min</strong>
+            </div>
+            <div className="screen-timer-options">
+                {TimerItem}
+            </div>
+        </section>
+        <div className='screen-timer-actions'>
             <Button
                 variant="secondary"
                 onClick={() => navigate(-1)}
@@ -70,7 +83,8 @@ export const SetSessionExpire = () => {
             <Button
                 variant="primary"
                 onClick={onSubmit}
-                className="w-[346px]"
+                className="screen-timer-confirm"
+                disabled={!time}
             >
                 Confirm
             </Button>

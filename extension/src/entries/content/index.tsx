@@ -18,6 +18,46 @@ function injectScript(file: string) {
 
 injectScript('inpage.js');
 
+const PIN_KEY_RELAY_TIMEOUT_MS = 120_000;
+const PIN_KEY_RELAY_MESSAGE = 'sealx-pin-relay-keydown';
+
+let pinKeyRelayTimer: ReturnType<typeof setTimeout> | null = null;
+
+function stopPinKeyRelay() {
+    if (pinKeyRelayTimer) {
+        clearTimeout(pinKeyRelayTimer);
+        pinKeyRelayTimer = null;
+    }
+    window.removeEventListener('keydown', handlePinKeyRelay, true);
+    window.removeEventListener('pointerdown', stopPinKeyRelay, true);
+}
+
+function isPinRelayKey(event: KeyboardEvent) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return false;
+    return /^[a-zA-Z0-9]$/.test(event.key) || event.key === 'Backspace';
+}
+
+function handlePinKeyRelay(event: KeyboardEvent) {
+    if (!isPinRelayKey(event)) return;
+
+    event.preventDefault();
+    event.stopImmediatePropagation();
+
+    chrome.runtime.sendMessage({ type: PIN_KEY_RELAY_MESSAGE, key: event.key }).catch((err) => {
+        console.warn('[SealX] Failed to relay PIN key:', err?.message);
+    });
+}
+
+function armPinKeyRelay() {
+    stopPinKeyRelay();
+    window.addEventListener('keydown', handlePinKeyRelay, true);
+    pinKeyRelayTimer = setTimeout(stopPinKeyRelay, PIN_KEY_RELAY_TIMEOUT_MS);
+
+    setTimeout(() => {
+        window.addEventListener('pointerdown', stopPinKeyRelay, true);
+    }, 0);
+}
+
 function waitForBody(callback: () => void) {
     // 如果body已经存在，直接执行回调
     if (document.body) {
@@ -86,7 +126,9 @@ document.addEventListener('click', (e) => {
     const target = (e.target as HTMLElement)?.closest?.('[data-sealx-action="open"]')
     if (!target) return
 
+    armPinKeyRelay()
     chrome.runtime.sendMessage({ type: 'open-side-panel' }).catch((err) => {
+        stopPinKeyRelay()
         console.warn('[SealX] Failed to send open-side-panel:', err?.message)
     })
 })
