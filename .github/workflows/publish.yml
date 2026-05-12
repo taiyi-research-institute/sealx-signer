@@ -148,3 +148,68 @@ jobs:
         run: npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  check-extension:
+    name: Check extension release
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/extension-v')
+    outputs:
+      extension-version: ${{ steps.extract.outputs.version }}
+    steps:
+      - name: Extract extension version from tag
+        id: extract
+        run: |
+          TAG="${{ github.ref_name }}"
+          VERSION="${TAG#extension-v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extension version: $VERSION"
+
+  publish-extension:
+    name: Publish Extension to Chrome Web Store
+    runs-on: ubuntu-latest
+    needs: check-extension
+    if: needs.check-extension.result == 'success'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        working-directory: extension
+        run: pnpm install --frozen-lockfile
+
+      - name: Build extension
+        working-directory: extension
+        run: pnpm run build
+
+      - name: Zip extension
+        working-directory: extension
+        run: |
+          cd dist_chrome
+          zip -r ../sealx-v${{ needs.check-extension.outputs.extension-version }}.zip ./*
+
+      - name: Upload to Chrome Web Store
+        working-directory: extension
+        run: |
+          npx chrome-webstore-upload-cli upload \
+            --source sealx-v${{ needs.check-extension.outputs.extension-version }}.zip \
+            --extension-id ${{ secrets.CHROME_EXTENSION_ID }} \
+            --client-id ${{ secrets.CHROME_CLIENT_ID }} \
+            --client-secret ${{ secrets.CHROME_CLIENT_SECRET }} \
+            --refresh-token ${{ secrets.CHROME_REFRESH_TOKEN }}
+
+      - name: Publish to Chrome Web Store
+        working-directory: extension
+        run: |
+          npx chrome-webstore-upload-cli publish \
+            --extension-id ${{ secrets.CHROME_EXTENSION_ID }} \
+            --client-id ${{ secrets.CHROME_CLIENT_ID }} \
+            --client-secret ${{ secrets.CHROME_CLIENT_SECRET }} \
+            --refresh-token ${{ secrets.CHROME_REFRESH_TOKEN }}

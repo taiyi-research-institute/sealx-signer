@@ -33,6 +33,24 @@ const messager = MessagerManager.getMessager()
 PanelManager.setMessager(messager)
 PanelManager.init()
 
+// Wait for Zustand persist to rehydrate from chrome.storage.local,
+// then clear stale session. On SW restart the in-memory privateKeyCache is
+// always empty, so any persisted session refers to a non-existent key.
+// This only runs in the background Service Worker context.
+;(async () => {
+    try {
+        const persistStore = sessionStore as typeof sessionStore & {
+            persist?: {
+                rehydrate?: () => Promise<unknown> | unknown
+            }
+        }
+        await persistStore.persist?.rehydrate?.()
+    } catch {
+        // rehydrate() may not exist in all Zustand versions — ignore
+    }
+    sessionStore.getState().setSession(null)
+})()
+
 /**
  * Handles extension installation and startup
  */
@@ -426,75 +444,16 @@ const initialize = async (pin: string) => {
     return res.address
 }
 
-const STORAGE_KEY_PIN_ATTEMPTS = 'pinAttemptMap'
-const pinAttemptMap = new Map<string, { failCount: number; lockUntil: number }>()
-const MAX_PIN_ATTEMPTS = 5
-const PIN_LOCK_DURATION = 30 * 60 * 1000 // 30 minutes
-
-const pinAttemptsReady = chrome.storage.session.get(STORAGE_KEY_PIN_ATTEMPTS)
-    .then((result) => {
-        if (result[STORAGE_KEY_PIN_ATTEMPTS]) {
-            const stored = result[STORAGE_KEY_PIN_ATTEMPTS] as Record<string, { failCount: number; lockUntil: number }>
-            for (const [k, v] of Object.entries(stored)) {
-                pinAttemptMap.set(k, v)
-            }
-        }
-    })
-    .catch((error) => {
-        console.warn('Failed to restore PIN attempt state:', error)
-    })
-
-const persistPinAttempts = async () => {
-    const obj: Record<string, { failCount: number; lockUntil: number }> = {}
-    for (const [k, v] of pinAttemptMap) {
-        obj[k] = v
-    }
-    try {
-        await chrome.storage.session.set({ [STORAGE_KEY_PIN_ATTEMPTS]: obj })
-    } catch (error) {
-        console.warn('Failed to persist PIN attempt state:', error)
-        throw error
-    }
-}
-
 /**
- * Validates a PIN against a wallet address with rate limiting
- * Locks account after MAX_PIN_ATTEMPTS consecutive failures.
- * Lock state persists across service worker restarts via chrome.storage.session.
+ * Validates a PIN against the stored wallet.
+ * Rate limiting is enforced in state/getAddressByPin so all PIN entry points
+ * share one lock policy.
  * @param pin - PIN to validate
  * @returns Promise resolving to boolean indicating if PIN is valid
  */
 const checkPin = async (pin: string) => {
-    await pinAttemptsReady
-
-    const info = await getSealxInfo()
-    const addr = info?.address ?? ''
-
-    if (addr) {
-        const record = pinAttemptMap.get(addr)
-        if (record && record.lockUntil > Date.now()) {
-            const remaining = Math.ceil((record.lockUntil - Date.now()) / 60000)
-            throw new Error(`Account locked for ${remaining} minutes due to too many incorrect PIN attempts`)
-        }
-    }
-
     const address = await getAddressByPin(pin)
-    const isValid = !!address
-
-    if (!isValid && addr) {
-        const current = pinAttemptMap.get(addr) || { failCount: 0, lockUntil: 0 }
-        current.failCount++
-        if (current.failCount >= MAX_PIN_ATTEMPTS) {
-            current.lockUntil = Date.now() + PIN_LOCK_DURATION
-        }
-        pinAttemptMap.set(addr, current)
-        await persistPinAttempts()
-    } else if (isValid && addr) {
-        pinAttemptMap.delete(addr)
-        await persistPinAttempts()
-    }
-
-    return isValid
+    return !!address
 }
 
 

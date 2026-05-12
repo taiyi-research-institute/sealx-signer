@@ -26,7 +26,7 @@ export async function deriveHMACKeyFromPIN(pin: string) {
         ['deriveKey']
     );
     // Static key used as part of salt generation
-    const key = `96b939a6abc19fc9269222f65c6d1dd096f57e25544fb2bc4a728222a5aba4a0`;
+    const key = import.meta.env.VITE_PBKDF2_SALT;
     // Generate salt by hashing PIN + static key
     const salt = CryptoJS.SHA256(pin + key).toString(CryptoJS.enc.Hex);
 

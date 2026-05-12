@@ -162,7 +162,8 @@ export const DefaultTemplateRender = memo(({
         if (context && templates[props.command]) onRendered()
     }, [context, onRendered, props.command]);
     if (context && templates[props.command]) {
-        return <div dangerouslySetInnerHTML={{ __html: safeHtml }}></div>;
+        // Sanitize and render the template with context
+        return <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(safeHtml) }}></div>;
     }
     if (props.signContent instanceof Array) {
         return '';

@@ -1,4 +1,4 @@
-import { dbStorageWrapper, type Eip712Struct, type SealxAccount, type SealxSession, PinError } from "sealx-core";
+import { dbStorageWrapper, type Eip712Struct, type SealxAccount, type SealxSession, PinError, DataCorruptedError } from "sealx-core";
 import type { PrivateKeyStoreRecord, SealxBaseInfo } from "../models";
 import { createWallet } from "../utils/wallet";
 import { decodeEncryptedPrivateKey, encodePrivateKey, strToHex } from "../utils/crypto";
@@ -10,6 +10,19 @@ import { extractPolicyAction, type PolicyAsset } from "../policy-adapters";
 import type { AuthMethod } from "../signing-providers";
 import { SigningError } from "../signing-errors";
 syncStores()
+
+// --- IndexedDB write mutex ---
+// Serializes write operations on shared tables to prevent race conditions
+// (e.g. clear() + setItem() gaps) in the single-threaded SW event loop.
+let _dbLock: Promise<void> = Promise.resolve()
+
+function withDbLock<T>(fn: () => Promise<T>): Promise<T> {
+    let release: () => void
+    const chain = _dbLock.then(fn)
+    _dbLock = new Promise<void>(r => { release = r })
+    return chain.finally(() => release!())
+}
+// --- End DB mutex ---
 
 const privateKeyTable = () => dbStorageWrapper('sealx', 'sealx-pk');
 const memoryKeyrings = new Map<string, string>()
@@ -225,6 +238,51 @@ export const runWithSigningCapability = async <T>(
     }
 }
 
+// --- Global PIN brute-force rate limiting ---
+// Applies to ALL PIN verification entry points (checkPin, login, import, export).
+// Rolling window: 10 failures in 1 minute triggers lock with exponential backoff.
+// PIN success resets everything.
+const MAX_PIN_ATTEMPTS = 10
+const PIN_WINDOW_MS = 60 * 1000 // 1 minute sliding window
+const PIN_BASE_LOCK_MINUTES = 10
+let _pinFailures: number[] = [] // timestamps of failures in current window
+let _pinLockExpire = 0
+let _lockCount = 0 // number of times locked (for exponential backoff)
+
+function assertPinNotLocked() {
+    if (_pinLockExpire > 0 && Date.now() < _pinLockExpire) {
+        const remaining = Math.ceil((_pinLockExpire - Date.now()) / 60000)
+        throw new Error(`PIN locked. Remaining: ${remaining} minutes`)
+    }
+    if (_pinLockExpire > 0) {
+        _pinLockExpire = 0
+        _pinFailures = []
+    }
+}
+
+function recordPinSuccess() {
+    _pinFailures = []
+    _pinLockExpire = 0
+    _lockCount = 0
+}
+
+function recordPinFailure() {
+    const now = Date.now()
+    _pinFailures.push(now)
+
+    const cutoff = now - PIN_WINDOW_MS
+    _pinFailures = _pinFailures.filter(t => t > cutoff)
+
+    if (_pinFailures.length >= MAX_PIN_ATTEMPTS) {
+        _lockCount++
+        // Exponential backoff: 10min, 20min, 40min, 80min, ...
+        const lockMs = PIN_BASE_LOCK_MINUTES * 60 * 1000 * Math.pow(2, _lockCount - 1)
+        _pinLockExpire = now + lockMs
+        _pinFailures = []
+    }
+}
+// --- End rate limiting ---
+
 /**
  * Initializes SealX by creating a new wallet and encrypting its private key
  * @param pin - User's PIN for encryption
@@ -232,7 +290,7 @@ export const runWithSigningCapability = async <T>(
  */
 export const initializeSealx = async (pin: string, privateKey: string = ''): Promise<PrivateKeyStoreRecord> => {
     const db = privateKeyTable()
-    const pin1 = CryptoJS.SHA256(pin).toString(CryptoJS.enc.Hex)
+    // const pin1 = CryptoJS.SHA256(pin).toString(CryptoJS.enc.Hex)
     try {
         const wallet = createWallet(privateKey)
         if(!privateKey)privateKey = wallet.privateKey
@@ -244,8 +302,10 @@ export const initializeSealx = async (pin: string, privateKey: string = ''): Pro
             baseInfo.updateTime = Date.now()
             await sealxTable().setItem(baseInfoKey, baseInfo)
         }
-        await db.clear()
-        await db.setItem(pin1, storeRecord);
+        await withDbLock(async () => {
+            await db.clear()
+            await db.setItem(storeRecord.id, storeRecord);
+        })
         clearAllSessionRuntimeState()
         return storeRecord;
     } catch (error) {
@@ -273,12 +333,13 @@ export const resetSealxPin = async (address: string, oldPin: string, pin: string
     try {
         const privateKey = await getPrivateKey(oldPin)
         if (privateKey) {
-            await privateKeyTable().clear()
-            const pin1 = CryptoJS.SHA256(pin).toString(CryptoJS.enc.Hex)
             const storeRecord = await encodePrivateKey(address, privateKey, pin)
-            const res = await db.setItem(pin1, storeRecord);
+            await withDbLock(async () => {
+                await db.clear()
+                await db.setItem(storeRecord.id, storeRecord);
+            })
             clearAllSessionRuntimeState()
-            return res
+            return storeRecord
         }
     } finally {
         db.close()
@@ -293,13 +354,18 @@ export const resetSealxPin = async (address: string, oldPin: string, pin: string
  * @throws Error if decryption fails or data is invalid
  */
 export const getPrivateKey = async (pin: string): Promise<string | null> => {
+    assertPinNotLocked()
+
     // Validate inputs
     if (!pin) {
         throw new Error('Invalid parameters');
     }
 
     const result = await getSealxPkRecord(pin);
-    if (!result) return null;
+    if (!result) {
+        recordPinFailure()
+        return null;
+    }
 
     // Verify required fields exist
     if (!result.encrypted || !result.iv || !result.slat) {
@@ -308,8 +374,16 @@ export const getPrivateKey = async (pin: string): Promise<string | null> => {
 
     // Additional validation - check if private key is valid
     try {
-        return decodeEncryptedPrivateKey(result, pin, result.address)
+        const pk = await decodeEncryptedPrivateKey(result, pin, result.address)
+        recordPinSuccess()
+        return pk
     } catch (walletError) {
+        // Data corruption is NOT a PIN failure — don't count against rate limiting
+        if (walletError instanceof DataCorruptedError) {
+            throw new Error(`Data corrupted: ${walletError.message}`);
+        }
+        recordPinFailure()
+        console.log('------- wallet error ------', walletError)
         throw new Error(`Invalid private key: ${walletError instanceof Error ? walletError.message : 'Unknown error'}`);
     }
 
@@ -321,7 +395,12 @@ export const getPrivateKey = async (pin: string): Promise<string | null> => {
  * @returns Promise resolving to the wallet address or empty string if not found
  */
 export const getAddressByPin = async (pin: string) => {
+    assertPinNotLocked()
+
     const result = await getSealxPkRecord(pin)
+    if (!result) {
+        recordPinFailure()
+    }
     return result?.address ?? ''
 }
 
@@ -509,8 +588,8 @@ export const pkHex = async (pin: string, host: string = '', userId: string = '',
     const pk = await getPrivateKey(pin)
     const k = CryptoJS.SHA256(`sealx-export-v1:${sessionId}:${host}:${userId}:${expire}`).toString(CryptoJS.enc.Hex)
     const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
-    const pkHex = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
-    return pkHex
+    const pkHexStr = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
+    return pkHexStr
 }
 
 

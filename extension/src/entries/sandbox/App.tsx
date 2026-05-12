@@ -11,17 +11,17 @@ window.addEventListener('message', (event) => {
     };
     if (type === 'parseContent') {
         try {
-            event.source?.postMessage({ type: 'contentParsed', output: parseSignContent(signContent), messageId }, { targetOrigin: '*' });
+            event.source?.postMessage({ type: 'contentParsed', output: parseSignContent(signContent), messageId }, { targetOrigin: event.origin });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            event.source?.postMessage({ type: 'error', error: errorMessage, messageId }, { targetOrigin: '*' });
+            event.source?.postMessage({ type: 'error', error: errorMessage, messageId }, { targetOrigin: event.origin });
         }
     } else if (type === 'render' && template && context) {
         try {
-            event.source?.postMessage({ type: 'rendered', output: layoutRender((template), context), messageId }, { targetOrigin: '*' });
+            event.source?.postMessage({ type: 'rendered', output: layoutRender((template), context), messageId }, { targetOrigin: event.origin });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : String(err);
-            event.source?.postMessage({ type: 'error', error: errorMessage, messageId }, { targetOrigin: '*' });
+            event.source?.postMessage({ type: 'error', error: errorMessage, messageId }, { targetOrigin: event.origin });
         }
     }
 });

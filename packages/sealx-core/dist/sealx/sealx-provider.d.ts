@@ -5,6 +5,6 @@ declare global {
     }
 }
 export declare class SealxProvider {
-    static register(): void;
+    static register(): SealxSigner;
 }
 //# sourceMappingURL=sealx-provider.d.ts.map

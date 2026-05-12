@@ -1,7 +1,7 @@
 {
     "name": "extension",
     "private": true,
-    "version": "0.0.46",
+    "version": "0.0.47",
     "type": "module",
     "scripts": {
         "build": "npm run build:inpage && cp dist_inpage/inpage.js inpage.js && vite build --config vite-config/chrome.ts",
@@ -30,8 +30,8 @@
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "react-router-dom": "^7.6.2",
-        "sealx-core": "^1.0.12",
-        "sealx-message": "^1.0.13",
+        "sealx-core": "^1.0.14",
+        "sealx-message": "^1.0.15",
         "zustand": "^5.0.6"
     },
     "devDependencies": {
@@ -46,6 +46,7 @@
         "@types/react-dom": "^19.1.6",
         "@vitejs/plugin-react": "^4.5.2",
         "autoprefixer": "^10.4.21",
+        "chrome-webstore-upload-cli": "^3.5.0",
         "eslint": "^9.29.0",
         "eslint-plugin-react-hooks": "^5.2.0",
         "eslint-plugin-react-refresh": "^0.4.20",
