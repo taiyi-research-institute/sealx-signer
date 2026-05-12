@@ -10,6 +10,8 @@ import {
     type SealxSession,
 } from 'sealx-core';
 import CryptoJS from 'crypto-js';
+
+const LEGACY_PBKDF2_SALT = '96b939a6abc19fc9269222f65c6d1dd096f57e25544fb2bc4a728222a5aba4a0';
 /**
  * Derives an HMAC key from a PIN using PBKDF2 key derivation
  * @param pin - The user's PIN used as the base key material
@@ -26,7 +28,7 @@ export async function deriveHMACKeyFromPIN(pin: string) {
         ['deriveKey']
     );
     // Static key used as part of salt generation
-    const key = import.meta.env.VITE_PBKDF2_SALT;
+    const key = import.meta.env.VITE_PBKDF2_SALT || LEGACY_PBKDF2_SALT;
     // Generate salt by hashing PIN + static key
     const salt = CryptoJS.SHA256(pin + key).toString(CryptoJS.enc.Hex);
 

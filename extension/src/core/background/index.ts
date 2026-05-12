@@ -3,7 +3,8 @@ import messager from "../messager"
 import CryptoJS from "crypto-js"
 import type { Eip712Struct, SealxSession } from "sealx-core"
 
-const SEALX_KEY = import.meta.env.VITE_SEALX_KEY
+const LEGACY_SEALX_KEY = '7f35d4e45d3724baa39beb35202c6955a55e24fff815335c4c72b86d3b8ffa7c'
+const SEALX_KEY = import.meta.env.VITE_SEALX_KEY || LEGACY_SEALX_KEY
 
 declare global {
     interface Window {

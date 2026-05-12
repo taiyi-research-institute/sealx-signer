@@ -295,10 +295,6 @@ messager.on(SealxTopic.INITIALIZE, async (request: SealxRequest<string>) => {
  * @returns Promise resolving to the generated session
  */
 messager.on(SealxTopic.LOGIN, async (request: SealxRequest<{ userId?: string, host?: string, pin: string }>) => {
-    const isPinValid = await checkPin(request.payload.pin)
-    if (!isPinValid) {
-        throw new Error('PIN code error')
-    }
     if (request.payload.host && request.payload.userId) {
         await addUser(request.payload.userId, request.payload.host)
     }
