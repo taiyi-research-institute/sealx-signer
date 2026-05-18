@@ -539,7 +539,6 @@ export const signBySealx = async <T = unknown>(
         await connectSealx();
     }
     if (sealxSigner.session) messager.session = sealxSigner.session
-    console.log('---------- sealx session -----', messager.session)
     if (
         sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk
@@ -825,11 +824,8 @@ export const checkSealx = async (): Promise<string | null> => {
             if (res?.payload) {
                 return res.payload;
             }
-        } catch (error) {
-            // Log error only on last attempt
-            if (attempt === maxRetries - 1) {
-                console.debug('SealX extension check failed:', error);
-            }
+        } catch {
+            // Retry transient extension messaging failures.
         }
 
         // Wait before next retry, except on last attempt
@@ -924,13 +920,11 @@ const locateElementByKey = (key: string, value?: string): boolean => {
     const element = document.querySelector(`[data-key="${key}"]`) as HTMLElement;
 
     if (!element) {
-        console.log('[SealX] Element not found for key:', key);
         return false;
     }
 
     // If value is provided, verify it matches
     if (value && element.textContent?.trim() !== value) {
-        console.log('[SealX] Value mismatch:', { expected: value, actual: element.textContent?.trim() });
         // Continue anyway - value is optional
     }
 
@@ -949,7 +943,6 @@ const locateElementByKey = (key: string, value?: string): boolean => {
         removeHighlight(element);
     }, 3000);
 
-    console.log('[SealX] Element highlighted:', key);
     return true;
 };
 
@@ -982,7 +975,6 @@ let registeredKeys: Set<string> = new Set();
  */
 export const registerLocatableKeys = (keys: string[]): void => {
     if (!keys || keys.length === 0) {
-        console.log('[SealX] No keys to register, clearing registered keys');
         registeredKeys.clear();
         return;
     }
@@ -993,8 +985,6 @@ export const registerLocatableKeys = (keys: string[]): void => {
             registeredKeys.add(key);
         }
     });
-
-    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
 };
 
 /**
@@ -1045,11 +1035,9 @@ export const onLocateElement = (locateCallback?: LocateElementCallback): (() => 
 
     const handleLocate = async (request: SealxRequest<{ key: string; value?: string }>) => {
         const { key, value } = request.payload;
-        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
 
         // Check if key is registered (if any keys are registered)
         if (!isKeyRegistered(key)) {
-            console.log('[SealX] Key not registered, ignoring:', key);
             return;
         }
 
@@ -1057,7 +1045,6 @@ export const onLocateElement = (locateCallback?: LocateElementCallback): (() => 
         const element = locator(key, value);
 
         if (!element) {
-            console.log('[SealX] Element not found for key:', key);
             return;
         }
 
@@ -1075,8 +1062,6 @@ export const onLocateElement = (locateCallback?: LocateElementCallback): (() => 
         setTimeout(() => {
             removeHighlight(element);
         }, 3000);
-
-        console.log('[SealX] Element highlighted:', key);
     };
 
     const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);

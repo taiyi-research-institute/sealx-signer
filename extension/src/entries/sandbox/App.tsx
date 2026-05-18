@@ -1,6 +1,6 @@
 import { layoutRender, parseSignContent, type SignContent } from 'sealx-core';
 import './App.css'
-console.log('------------- sign context parse iframe -------')
+
 window.addEventListener('message', (event) => {
     const { type, signContent, template, context, messageId } = event.data as {
         type: string,
@@ -9,7 +9,6 @@ window.addEventListener('message', (event) => {
         context: unknown
         messageId: string
     };
-    console.log('------------------- receive message -------', type, signContent)
     if (type === 'parseContent') {
         try {
             event.source?.postMessage({ type: 'contentParsed', output: parseSignContent(signContent), messageId }, { targetOrigin: event.origin });

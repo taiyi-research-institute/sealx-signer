@@ -9,6 +9,7 @@ import { useGlobalContext } from '@src/hooks/useGlobalContext';
 import { lockLogin } from '../../state/session';
 // import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { useSessionStore } from '@src/core/state/session';
+import ArrowLeft from '@assets/svg/arrow-left.svg?react';
 // import { logout } from '@src/core/state/session';
 
 export default function ResetPin() {
@@ -79,7 +80,6 @@ export default function ResetPin() {
         setPassword(value);
         if (oldPasswordPass !== 1 && value.length === 6) {
             const res = await checkPin(value)
-            console.log('--------- check pin -----', res)
             if (res) {
                 //
                 // old = value
@@ -117,7 +117,6 @@ export default function ResetPin() {
         // 判断PIN完成初始化
         if (value === password) {
             const res = await resetSealxPin(address, old, value)
-            console.log(res)
             if (res) {
                 // 自动登录
                 navigate('/', { replace: true })
@@ -129,6 +128,15 @@ export default function ResetPin() {
     return (
         <div className="login-container ">
             <div className='w-full min-h-full mx-auto relative'>
+                <button
+                    type='button'
+                    className='reset-pin-back'
+                    onClick={() => navigate(-1)}
+                    aria-label='Back'
+                >
+                    <ArrowLeft />
+                    <span>Back</span>
+                </button>
                 <div className='sealx-logo w-full pt-[5rem] font-[500] text-[1.0625rem]'>
                     <img className='m-auto' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>

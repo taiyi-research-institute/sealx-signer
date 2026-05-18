@@ -41,7 +41,10 @@ export default defineConfig({
     plugins: [
         svgr(),
         tailwindcss(),
-        tsconfigPaths({ ignoreConfigErrors: true }),
+        tsconfigPaths({
+            projects: [resolve(__dirname, '../tsconfig.app.json')],
+            ignoreConfigErrors: true
+        }),
         react(),
         stripDevIcons(isDev),
         crxI18n({ localize, src: '../src/locales' }),
@@ -53,10 +56,11 @@ export default defineConfig({
             'sealx-core': path.resolve(__dirname, '../../packages/sealx-core/src'),
             'sealx-message': path.resolve(__dirname, '../../packages/sealx-message/src'),
             'sealx-sdk': path.resolve(__dirname, '../../packages/sealx-sdk/src'),
-            buffer: path.resolve(__dirname, '../node_modules/buffer'),
-            'crypto-js': path.resolve(__dirname, '../node_modules/crypto-js'),
-            ethers: path.resolve(__dirname, '../node_modules/ethers'),
-            lodash: path.resolve(__dirname, '../node_modules/lodash'),
+            'crypto-js': path.resolve(__dirname, '../node_modules', 'crypto-js'),
+            ethers: path.resolve(__dirname, '../node_modules', 'ethers'),
+            lodash: path.resolve(__dirname, '../node_modules', 'lodash'),
+            'webextension-polyfill': path.resolve(__dirname, '../node_modules', 'webextension-polyfill'),
+            buffer: path.resolve(__dirname, '../node_modules', 'buffer')
         },
     },
     define: {

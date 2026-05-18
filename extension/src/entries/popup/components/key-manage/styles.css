@@ -1,0 +1,106 @@
+.key-manage-page {
+    width: 100%;
+    min-height: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    background: var(--sx-bg);
+    color: var(--sx-text);
+}
+
+.key-manage-card {
+    width: 100%;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-lg);
+    background: var(--sx-surface);
+    box-shadow: var(--sx-shadow-card);
+    padding: 18px;
+}
+
+.key-manage-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    text-align: left;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--sx-border);
+}
+
+.key-manage-header h1 {
+    margin: 0;
+    color: var(--sx-text);
+    font-size: 24px;
+    line-height: 1.2;
+    font-weight: 850;
+}
+
+.key-manage-header p {
+    margin: 6px 0 0;
+    color: var(--sx-brand);
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 750;
+}
+
+.key-status-dot {
+    width: 10px;
+    height: 10px;
+    margin-top: 8px;
+    border-radius: 999px;
+    background: var(--sx-brand);
+    box-shadow: 0 0 0 5px rgba(10, 160, 110, 0.12);
+}
+
+.key-pubkey-block {
+    margin-top: 16px;
+    text-align: left;
+}
+
+.key-pubkey-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sx-muted);
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.key-pubkey-label svg {
+    width: 18px;
+    height: 18px;
+}
+
+.key-pubkey-value {
+    margin-top: 9px;
+    min-height: 92px;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-sm);
+    background: var(--sx-surface-soft);
+    color: var(--sx-text);
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 700;
+    overflow-wrap: anywhere;
+}
+
+.key-action-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.key-action-grid .sealx-button,
+.key-footer-actions .sealx-button {
+    width: 100%;
+}
+
+.key-footer-actions {
+    margin-top: 14px;
+}

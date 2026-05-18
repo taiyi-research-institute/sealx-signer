@@ -16,13 +16,11 @@ import { BindPubKey } from './components/bind-pubkey';
 import { KeyManage } from './components/key-manage';
 import { KeyExport } from './components/key-manage/export';
 import { KeyImport } from './components/key-manage/import';
-// import path from 'path';
 import { Initialized } from './components/initialize/Initialized';
 import { TaskDetail } from './components/task/Task-detail';
 import Home from './components/home';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import GlobalMessageManager from '@src/components/global-message/GlobalMessageManager';
-// import path from 'path';
 
 
 const RootLayout = () => {
@@ -30,16 +28,13 @@ const RootLayout = () => {
     const navigate = useSealXNavigate();
     const { address, lockTime } = useGlobalContext()
     const { setSession } = useRequestContext()
-    console.log('Current address value:', address, typeof address);
     const checkRoute = useCallback(async () => {
         const session = useSessionStore.getState().session
         const address = useInitializedStore.getState().address
-        console.log('checkRoute called with:', { address, pathname, lockTime });
         if (!address) {
             if (pathname !== '/initialize' && pathname !== '/initialized')
                 navigate('/initialize', { replace: true });
         } else if (lockTime > Date.now() && pathname !== '/login') {
-            console.log('Redirecting to login');
             navigate('/login', { replace: true });
         } else {
             if (!session || session.expire < Date.now()) {
@@ -84,37 +79,37 @@ const ROUTE_DATA = [
     },
     {
         path: '/',
-        element: <Home />,
-    },
-    {
-        path: '/',
         element: <Layout />,
         children: [
             {
-                path: '/task-home',
+                index: true,
+                element: <Home />,
+            },
+            {
+                path: 'task-home',
                 element: <TaskHome></TaskHome>
             }, {
-                path: '/task-detail',
+                path: 'task-detail',
                 element: <TaskDetail />
             }, {
-                path: '/reset-pin',
+                path: 'reset-pin',
                 element: <ResetPin />
             }, {
-                path: '/set-screen-timer',
+                path: 'set-screen-timer',
                 element: <SetSessionExpire></SetSessionExpire>
             }, {
-                path: '/bind-pubkey',
+                path: 'bind-pubkey',
                 element: <BindPubKey></BindPubKey>
             }, {
-                path: '/key-manage',
+                path: 'key-manage',
                 element: <KeyManage></KeyManage>
             },
             {
-                path: '/key-export',
+                path: 'key-export',
                 element: <KeyExport></KeyExport>
             },
             {
-                path: '/key-import',
+                path: 'key-import',
                 element: <KeyImport></KeyImport>
             }
         ]

@@ -3,9 +3,30 @@
     line-height: 1.5;
     font-weight: 400;
 
+    --sx-bg: #f4f6f8;
+    --sx-surface: #ffffff;
+    --sx-surface-soft: #fbfcfd;
+    --sx-text: #17202a;
+    --sx-muted: #5a6677;
+    --sx-brand: #0aa06e;
+    --sx-brand-soft: #ecf8f3;
+    --sx-warning: #875300;
+    --sx-warning-soft: #fffaf0;
+    --sx-danger: #b42318;
+    --sx-danger-soft: #fff1f1;
+    --sx-border: #dce3ea;
+    --sx-border-strong: #cbd8e5;
+    --sx-focus: rgba(10, 160, 110, 0.3);
+    --sx-shadow-card: 0 10px 24px rgba(16, 24, 32, 0.055);
+    --sx-shadow-raised: 0 14px 34px rgba(16, 24, 32, 0.07);
+    --sx-radius-sm: 10px;
+    --sx-radius-md: 12px;
+    --sx-radius-lg: 16px;
+    --sx-radius-xl: 20px;
+
     /* color-scheme: light dark; */
     color: #1a1a1a;
-    background-color: #fff;
+    background-color: var(--sx-bg);
 
     font-synthesis: none;
     text-rendering: optimizeLegibility;
@@ -51,7 +72,8 @@ button:hover {
 }
 button:focus,
 button:focus-visible {
-    outline: 4px auto -webkit-focus-ring-color;
+    outline: 3px solid var(--sx-focus);
+    outline-offset: 3px;
 }
 
 /* @media (prefers-color-scheme: light) {
@@ -76,4 +98,356 @@ html {
 html:has(body[popup-mode='sidepanel']) {
   --scale-factor: 0.8167;
   font-size: calc(100% * var(--scale-factor));
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
+
+.sx-task-render {
+    color: var(--sx-text);
+}
+
+.sx-signing-list-page {
+    background: var(--sx-bg);
+}
+
+.sx-task-container {
+    width: 100%;
+    padding: 22px 18px 10px;
+}
+
+.sx-task-list {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sx-task-card {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid rgba(16, 24, 32, 0.08);
+    border-radius: var(--sx-radius-lg);
+    background: var(--sx-surface);
+    box-shadow: var(--sx-shadow-raised);
+}
+
+.sx-task-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    width: 100%;
+    min-height: 55px;
+    padding: 15px 18px 14px;
+    color: #fff;
+    background: linear-gradient(180deg, #18212b, #0e151d);
+    box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+    text-align: left;
+}
+
+.sx-task-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 20px;
+    line-height: 26px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.sx-task-timer {
+    display: inline-flex;
+    align-items: center;
+    align-self: center;
+    gap: 6px;
+    flex-shrink: 0;
+    margin-top: 0;
+    padding: 3px 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.07);
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.sx-task-timer svg {
+    width: 15px;
+    height: 15px;
+}
+
+.sx-task-body {
+    width: 100%;
+    padding: 14px 18px 12px;
+    background: var(--sx-surface);
+}
+
+.sx-task-body .sx-outside-template > .cmd-content-body,
+.sx-task-body .cmd-content-body {
+    padding: 0 !important;
+}
+
+.sx-task-body [data-command='transfer'].cmd-content-body > .flex.justify-between,
+.sx-task-body [data-command='initAuthorizer'].cmd-content-body > .flex.justify-between {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+    justify-content: initial !important;
+}
+
+.sx-task-body [data-command='transfer'].cmd-content-body > .flex.justify-between > .cmd-name,
+.sx-task-body [data-command='initAuthorizer'].cmd-content-body > .flex.justify-between > .cmd-name {
+    margin-right: 0 !important;
+    min-width: 0;
+    padding: 10px 12px !important;
+}
+
+.sx-task-body [data-command='transfer'].cmd-content-body .title,
+.sx-task-body [data-command='initAuthorizer'].cmd-content-body .title {
+    font-size: 13px !important;
+    line-height: 1.45 !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.sx-task-body [data-command='transfer'].cmd-content-body .title + div,
+.sx-task-body [data-command='initAuthorizer'].cmd-content-body .title + div {
+    margin-top: 0.55rem !important;
+    min-width: 0;
+    font-size: 0.9375rem !important;
+    line-height: 1.45 !important;
+    font-weight: 700 !important;
+    overflow-wrap: anywhere;
+}
+
+.sx-field-card {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-sm);
+    background: var(--sx-surface-soft);
+    text-align: left;
+}
+
+.sx-field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 10px;
+}
+
+.sx-field-row:first-child {
+    margin-top: 0;
+}
+
+.sx-field-row + .sx-field-card {
+    margin-top: 10px;
+}
+
+.sx-field-row .sx-field-card {
+    margin-top: 0;
+}
+
+.sx-task-body > .sx-field-card:first-child,
+.sx-treasury-grid > .sx-field-card:first-child,
+.sx-treasury-row:first-child .sx-field-card {
+    margin-top: 0;
+}
+
+.sx-field-card.field-command,
+.sx-field-card.field-time,
+.sx-field-card.field-vault {
+    background: var(--sx-surface);
+    box-shadow: 0 8px 18px rgba(16, 24, 32, 0.04);
+}
+
+.sx-field-card.field-amount {
+    border-color: rgba(135, 83, 0, 0.24);
+    background: var(--sx-warning-soft);
+}
+
+.sx-field-card.field-address,
+.sx-field-card.field-target,
+.sx-field-card.field-file {
+    background: #f7fafc;
+}
+
+.sx-field-title {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    color: var(--sx-muted);
+    font-size: 13px;
+    line-height: 1.45;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.sx-field-title svg {
+    width: 17px;
+    height: 17px;
+    flex-shrink: 0;
+    color: currentColor;
+}
+
+.sx-field-value {
+    width: 100%;
+    margin-top: 0.55rem;
+    display: flex;
+    color: var(--sx-text);
+    text-align: left;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.sx-field-value:hover {
+    color: #007aff;
+}
+
+.sx-field-value.field-address,
+.sx-field-value.field-target,
+.sx-field-value.field-file,
+.sx-field-value.field-vault {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.sx-field-value.field-amount {
+    color: var(--sx-warning);
+    font-size: 1.0625rem;
+    font-weight: 700;
+}
+
+.sx-field-divider {
+    width: 100%;
+    height: 1px;
+    margin-top: 10px;
+    background: var(--sx-border);
+}
+
+.sx-field-list,
+.sx-field-nested {
+    width: 100%;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: left;
+}
+
+.sx-field-nested {
+    padding-left: 0;
+}
+
+.sx-field-nested-item {
+    width: 100%;
+}
+
+.sx-array-item {
+    display: grid;
+    grid-template-columns: 26px minmax(0, 1fr);
+    gap: 8px;
+    align-items: flex-start;
+    width: 100%;
+    padding: 8px;
+    border-radius: 9px;
+    background: rgba(16, 24, 32, 0.025);
+}
+
+.sx-array-index {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    background: var(--sx-surface);
+    border: 1px solid var(--sx-border);
+    color: var(--sx-muted);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.sx-array-content {
+    min-width: 0;
+}
+
+.sx-array-content > .sx-field-title:first-child {
+    display: none;
+}
+
+.sx-array-content .sx-field-divider {
+    display: none;
+}
+
+.sx-task-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 10px;
+    margin: 0;
+    padding: 0 18px 12px;
+    background: var(--sx-surface);
+}
+
+.sx-task-actions-review {
+    display: flex;
+    justify-content: center;
+}
+
+.sx-task-actions .sealx-button {
+    width: 100%;
+}
+
+.sx-treasury-grid {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sx-treasury-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.sx-treasury-row .sx-field-card {
+    margin-top: 0;
+}
+
+@media (max-width: 420px) {
+    .sx-task-body [data-command='transfer'].cmd-content-body > .flex.justify-between,
+    .sx-task-body [data-command='initAuthorizer'].cmd-content-body > .flex.justify-between,
+    .sx-treasury-row,
+    .sx-field-row,
+    .sx-task-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .sx-task-header {
+        flex-direction: column;
+        gap: 10px;
+    }
 }

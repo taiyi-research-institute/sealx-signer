@@ -1,84 +1,77 @@
-.password {
+.password-container {
     position: relative;
+    cursor: text;
+}
+
+.password-container:focus {
     outline: none;
+}
+
+.password-container:focus-visible {
+    outline: none;
+}
+
+.password-capture-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    outline: 0;
+    opacity: 0;
+    background: transparent;
+    color: transparent;
     caret-color: transparent;
-    color: transparent; /* Hide actual text */
+    z-index: 1;
+}
+
+.password {
+    outline: none;
+    caret-color: var(--sx-brand);
     text-align: center;
-    font-size: 32px;
-    font-weight: 700;
-    line-height: 83px;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 76px;
-    width: 70px;
-    border-radius: 12px;
-}
-
-.password::after {
-    content: attr(data-char);
+    height: 62px;
+    width: 58px;
+    border-radius: var(--sx-radius-sm);
+    border: 1px solid var(--sx-border);
+    background-color: var(--sx-surface-soft);
+    color: var(--sx-text);
     font-family: 'open-sans', sans-serif;
-    color: #000;
-    position: absolute;
-    left: 0;
-    right: 0;
-    text-align: center;
-    letter-spacing: 0;
-    height: 100%;
-    line-height: 95.5px;
-}
-
-.password.error::after {
-    color: #f0231e !important;
-}
-/* .password.error {
-    color: #f0231e !important;
-} */
-
-.password:focus {
-    border-color: #4caf50;
-}
-.password:focus .password-caret {
-    content: '';
-    display: inline-block;
-    width: 4.74px;
-    height: 45.57px;
-    background: #00be78;
-    border-radius: 2px;
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    animation: blink-caret 1s steps(1) infinite;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
     pointer-events: none;
-    /* 上下左右居中对齐 */
 }
 
-/* .password-caret-with-content::after { */
-/* content: '';
-    display: inline-block;
-    width: 4.74px;
-    height: 45.57px;
-    background: #00be78;
-    border-radius: 2px;
-    position: absolute;
-    left: calc(50% + 12px);
-    top: 50%;
-    transform: translate(-50%, -50%);
-    animation: blink-caret 1s steps(1) infinite;
-    pointer-events: none; */
-/* 上下左右居中对齐 */
-/* } */
+.password.active {
+    border-color: var(--sx-brand);
+    background-color: var(--sx-surface);
+    box-shadow: 0 0 0 3px rgba(10, 160, 110, 0.14);
+}
 
-@keyframes blink-caret {
-    0%,
-    50% {
-        opacity: 1;
-    }
-    51%,
-    100% {
-        opacity: 0;
-    }
+.password-container:focus .password.active,
+.password-container:focus-visible .password.active,
+.password-container:focus-within .password.active {
+    outline: 3px solid rgba(10, 160, 110, 0.24);
+    outline-offset: 2px;
+}
+
+.password-mask-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.password.error {
+    color: var(--sx-danger) !important;
+    border-color: rgba(180, 35, 24, 0.72) !important;
+    background-color: var(--sx-danger-soft);
 }
 
 /* Side Panel elastic layout — prevent password box compression at narrow widths */
@@ -89,11 +82,11 @@ body[popup-mode='sidepanel'] .password-container {
 body[popup-mode='sidepanel'] .password {
     width: auto !important;
     flex: 1 !important;
-    max-width: 70px !important;
+    max-width: 58px !important;
     height: auto !important;
-    aspect-ratio: 70 / 76;
+    aspect-ratio: 58 / 62;
     line-height: normal;
-    font-size: 24px !important;
+    font-size: 22px !important;
 }
 
 body[popup-mode='sidepanel'] .password::after {
@@ -102,7 +95,8 @@ body[popup-mode='sidepanel'] .password::after {
     justify-content: center !important;
 }
 
-body[popup-mode='sidepanel'] .password:focus .password-caret {
+body[popup-mode='sidepanel'] .password-container:focus .password-caret,
+body[popup-mode='sidepanel'] .password-container:focus-within .password-caret {
     width: 3.16px !important;
     height: 30.38px !important;
 }

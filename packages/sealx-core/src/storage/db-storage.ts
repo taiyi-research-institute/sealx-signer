@@ -52,12 +52,9 @@ export class IndexedDBWrapper implements StorageLike {
             const request = indexedDB.open(this.dbName);
             request.onupgradeneeded = () => {
                 const db = request.result;
-                const contains = db.objectStoreNames.contains(this.storeName)
-                console.log(`-------------db open ${this.dbName} contains ${this.storeName} ${contains ? 'true' : 'false'}--------------`)
                 if (!db.objectStoreNames.contains(this.storeName)) {
                     db.createObjectStore(this.storeName);
                 }
-                console.log(`-------------db create  ${this.storeName} ${db.objectStoreNames.contains(this.storeName) ? 'true' : 'false'}--------------`)
             };
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
@@ -114,12 +111,11 @@ export class IndexedDBWrapper implements StorageLike {
         return this.withStore('readwrite', store => {
             return new Promise((resolve, reject) => {
                 const req = store.clear();
-                req.onsuccess = (req) => {
+                req.onsuccess = () => {
                     // Notify all listeners that their values have been cleared
                     this.listeners.forEach((callbacks, key) => {
                         callbacks.forEach(cb => cb(null, null));
                     });
-                    console.log('--------- clear ------', req)
                     resolve();
                 };
                 req.onerror = () => reject(req.error);

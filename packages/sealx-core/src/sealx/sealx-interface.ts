@@ -26,11 +26,19 @@ export interface SealxSession {
     host?: string;
 
     /**
+     * Runtime authorization capability associated with this session.
+     * This is metadata only and must not contain private key material.
+     */
+    capabilityId?: string;
+
+    /**
      * Cryptographic public key associated with the session.
      * Used for signing operations when no account is specified.
      * Can be any key format supported by the implementation.
      */
     pk?: any;
+
+    pkKdf?: 'sha256-v1' | 'md5-legacy';
 }
 
 /**
@@ -109,4 +117,3 @@ export interface SealxSignTask {
     /**(Optional) Additional external data or context for the task, provided as a key-value map. */
     extenals?: Record<string, unknown>
 }
-

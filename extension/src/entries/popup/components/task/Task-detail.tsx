@@ -119,27 +119,27 @@ export const TaskDetail = memo(() => {
     }
 
     return (
-        <div className="w-full h-full flex flex-col bg-[#F5F5F5]">
+        <div className="w-full h-full flex flex-col bg-[var(--sx-bg)]">
             {/* Header with back button and progress */}
-            <div className="w-full bg-[#fff] px-[1.5rem] pt-[1rem] pb-[1rem] flex items-center justify-between border-b border-[rgba(0,0,0,0.1)]">
+            <div className="w-full bg-[var(--sx-surface)] px-[1.25rem] pt-[0.875rem] pb-[0.875rem] flex items-center justify-between border-b border-[var(--sx-border)]">
                 <div className="flex items-center">
                     <button
                         onClick={() => navigate('/task-home', { replace: true })}
-                        className="mr-[1rem] cursor-pointer"
+                        className="mr-[0.75rem] cursor-pointer rounded-[8px] border border-[var(--sx-border)] bg-[var(--sx-surface-soft)] w-[34px] h-[34px] flex items-center justify-center"
                     >
-                        <ArrowLeft className="w-[24px] text-[#fff] h-[24px]" />
+                        <ArrowLeft className="w-[18px] text-[var(--sx-text)] h-[18px]" />
                     </button>
-                    <span className="font-[500] text-[1.3125rem] leading-[1.5625]">Task Details</span>
+                    <span className="font-[800] text-[1.125rem] leading-[1.35] text-[var(--sx-text)]">Task Details</span>
                 </div>
-                <div className="font-[500] text-[1.1875rem] leading-[1.375] text-[rgba(0,0,0,0.6)]">
+                <div className="font-[800] text-[0.875rem] leading-[1.35] text-[var(--sx-muted)]">
                     {currentIndex + 1} / {totalSubTasks}
                 </div>
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-[4px] bg-[rgba(0,0,0,0.1)]">
+            <div className="w-full h-[4px] bg-[rgba(16,24,32,0.08)]">
                 <div
-                    className="h-full bg-[#000] transition-all duration-300"
+                    className="h-full bg-[var(--sx-brand)] transition-all duration-300 ease-out"
                     style={{ width: `${((currentIndex + 1) / totalSubTasks) * 100}%` }}
                 />
             </div>
@@ -164,8 +164,8 @@ export const TaskDetail = memo(() => {
 
             {/* Info about remaining tasks */}
             {!isLastSubTask && (
-                <div className="w-full px-[1.5rem] pb-[1rem] pt-[0.5rem] bg-[#fff] border-t border-[rgba(0,0,0,0.1)]">
-                    <div className="text-center font-[500] text-[1.0625rem] leading-[1.25] text-[rgba(0,0,0,0.6)]">
+                <div className="w-full px-[1.25rem] pb-[0.875rem] pt-[0.75rem] bg-[var(--sx-surface)] border-t border-[var(--sx-border)]">
+                    <div className="text-center font-[750] text-[0.875rem] leading-[1.35] text-[var(--sx-muted)]">
                         {totalSubTasks - currentIndex - 1} more {totalSubTasks - currentIndex - 1 === 1 ? 'task' : 'tasks'} remaining
                     </div>
                 </div>

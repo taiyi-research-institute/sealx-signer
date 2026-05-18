@@ -446,7 +446,6 @@ export default abstract class MessagerBase implements Messager {
         if (!this.handlers[topicKey]) {
             this.handlers[topicKey] = [];
         }
-        console.log(topic, topicKey)
         // TODO: Implement full handler logic including:
         // - Better error handling
         // - Message validation

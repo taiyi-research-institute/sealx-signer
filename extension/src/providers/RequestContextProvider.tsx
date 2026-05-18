@@ -10,7 +10,6 @@ import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
 // import { MessageChannel } from 'sealx-message';
-import { usePopupType } from '@src/hooks/usePopupType';
 
 /**
  * Props for RequestContextProvider component
@@ -35,6 +34,16 @@ const isSessionValid = (
     return true;
 };
 
+const REQUEST_ONLY_ROUTES = new Set(['/bind-pubkey', '/task-detail', '/task-home']);
+const PANEL_TRIGGER_MAX_AGE_MS = 2_000;
+const BLOCKING_SYNC_MS = 800;
+
+const normalizeRoute = (route: string) => {
+    const normalizedRoute = route.replace(/^#/, '');
+    if (!normalizedRoute || normalizedRoute === '/') return '/';
+    return normalizedRoute.startsWith('/') ? normalizedRoute : `/${normalizedRoute}`;
+};
+
 /**
  * Request context provider that manages:
  * - Incoming SealX requests from the messager
@@ -49,10 +58,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const [title, setTitle] = useState<string>('Sealx Sign What You See');
     const [loading, setLoading] = useState(false);
 
-    // Enforce minimum 3s loading duration for all extension opens
+    // Keep loading brief so it does not cover already-rendered signing details.
     const loadingStartRef = useRef(0);
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const MIN_LOADING_MS = 3000;
+    const MIN_LOADING_MS = 450;
 
     // Clear loading only after minimum duration has elapsed
     const finishLoading = useCallback(() => {
@@ -85,45 +94,64 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const navigate = useSealXNavigate();
     const { pathname } = useLocation();
 
-    // Popup type detection
-    const { popupType } = usePopupType();
-
-    // isSidePanelCandidate: treat anything other than known non-sidepanel modes as sidepanel
-    // This covers 'sidepanel' and 'unknown' states conservatively
-    const isSidePanelCandidate =
-        popupType !== 'action' && popupType !== 'window' && popupType !== 'tab';
-
     // Freeze isButtonTriggered: once set, don't unset on re-render
     const buttonTriggeredRef = useRef(false);
+    const buttonTriggerCheckedRef = useRef(false);
     const [isButtonTriggered, setIsButtonTriggered] = useState(false);
+    const [blockingSync, setBlockingSync] = useState(false);
 
-    // Detect button-triggered source via chrome.storage.session
-    // Set by PanelManager.openPanelWithSource before sidePanel.open()
-    // Read on mount, then immediately clear the flag
-    useEffect(() => {
-        chrome.storage.session.get('panelTriggerSource').then((res) => {
-            if (res.panelTriggerSource === 'button') {
+    const consumePanelTriggerSource = useCallback(async () => {
+        if (buttonTriggerCheckedRef.current) return buttonTriggeredRef.current;
+
+        buttonTriggerCheckedRef.current = true;
+        try {
+            const res = await chrome.storage.session.get(['panelTriggerSource', 'panelTriggerSourceAt']);
+            const sourceAt = typeof res.panelTriggerSourceAt === 'number' ? res.panelTriggerSourceAt : 0;
+            const isFreshButtonSource =
+                res.panelTriggerSource === 'button' &&
+                sourceAt > 0 &&
+                Date.now() - sourceAt <= PANEL_TRIGGER_MAX_AGE_MS;
+
+            await chrome.storage.session.remove(['panelTriggerSource', 'panelTriggerSourceAt']);
+
+            if (isFreshButtonSource) {
                 buttonTriggeredRef.current = true;
                 setIsButtonTriggered(true);
-                setLoading(true);  // Ensure opaque loading displays even if init already cleared it
+                setBlockingSync(true);
+                setLoading(true);
                 loadingStartRef.current = Date.now();
-                chrome.storage.session.remove('panelTriggerSource');
+                return true;
             }
-        }).catch(() => { });
+        } catch {
+            // Storage can fail in non-extension test contexts; fall back to normal open.
+        }
+        return false;
     }, []);
 
     // 5s timeout fallback: unlock loading if no bind/sign request arrives in time
     useEffect(() => {
         if (!isButtonTriggered) return;
-        const timer = setTimeout(() => {
+        const unblockTimer = setTimeout(() => {
+            setBlockingSync(false);
+        }, BLOCKING_SYNC_MS);
+        const fallbackTimer = setTimeout(() => {
             if (loadingTimerRef.current) {
                 clearTimeout(loadingTimerRef.current);
                 loadingTimerRef.current = null;
             }
+            setBlockingSync(false);
             setLoading(false);
+            if (!request.topic && REQUEST_ONLY_ROUTES.has(pathname)) {
+                useRequestStore.getState().clearRequest();
+                setRequest({} as SealxRequest);
+                navigate('/', { replace: true });
+            }
         }, 5_000);
-        return () => clearTimeout(timer);
-    }, [isButtonTriggered]);
+        return () => {
+            clearTimeout(unblockTimer);
+            clearTimeout(fallbackTimer);
+        };
+    }, [isButtonTriggered, navigate, pathname, request.topic]);
 
     // Watch request.topic: unlock loading when BIND_PK / SIGN / BATCH_SIGN arrives
     // CONNECT does NOT end loading (per spec)
@@ -138,6 +166,51 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             finishLoading();
         }
     }, [request.topic, isButtonTriggered, finishLoading]);
+
+    useEffect(() => {
+        if (isButtonTriggered) return;
+
+        const clearRequestRoute = () => {
+            if (request.topic) return;
+            if (REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) {
+                useRequestStore.getState().clearRequest();
+                setRequest({} as SealxRequest);
+                navigate('/', { replace: true });
+            }
+        };
+
+        const handleVisible = () => {
+            if (!document.hidden) {
+                clearRequestRoute();
+            }
+        };
+
+        window.addEventListener('focus', clearRequestRoute);
+        document.addEventListener('visibilitychange', handleVisible);
+        return () => {
+            window.removeEventListener('focus', clearRequestRoute);
+            document.removeEventListener('visibilitychange', handleVisible);
+        };
+    }, [isButtonTriggered, navigate, pathname, request.topic]);
+
+    useEffect(() => {
+        const clearOnPageHide = () => {
+            buttonTriggeredRef.current = false;
+            buttonTriggerCheckedRef.current = false;
+            setIsButtonTriggered(false);
+            setBlockingSync(false);
+            if (!REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) return;
+
+            useRequestStore.getState().clearRequest();
+            setRequest({} as SealxRequest);
+            navigate('/', { replace: true });
+        };
+
+        window.addEventListener('pagehide', clearOnPageHide);
+        return () => {
+            window.removeEventListener('pagehide', clearOnPageHide);
+        };
+    }, [navigate, pathname]);
 
     /**
      * Determine target route based on request topic and session state
@@ -207,19 +280,14 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
      */
     const routeByRequest = useCallback(
         (req: SealxRequest) => {
-            if (loading) return;
-
-            setLoading(true);
             const currentSession = useSessionStore.getState().session;
             const targetRoute = getTargetRoute(req, currentSession);
 
             if (targetRoute && targetRoute !== pathname) {
                 navigate(targetRoute, { replace: true });
             }
-
-            setLoading(false);
         },
-        [pathname, getTargetRoute, navigate, loading]
+        [pathname, getTargetRoute, navigate]
     );
 
     /**
@@ -319,6 +387,8 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     const initializeApplication = useCallback(async () => {
         if (initializedRef.current) return;
 
+        const openedByButton = await consumePanelTriggerSource();
+
         setLoading(true);
         loadingStartRef.current = Date.now();
 
@@ -350,29 +420,33 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             await useRequestStore.persist.rehydrate();
         }
 
-        // Check for cached request data with polling retry
-        // (handles race: background wrote to storage but async propagation hasn't completed)
-        let storeRequest = useRequestStore.getState().request;
-        for (let attempt = 0; attempt < 3 && !storeRequest; attempt++) {
-            if (attempt > 0) {
-                await new Promise(r => setTimeout(r, 100));
-            }
-            storeRequest = useRequestStore.getState().request;
-        }
-        if (storeRequest) {
-            // Restore request with reply function binding
-            if (storeRequest.once) {
-                storeRequest.reply = (res, end?: boolean) => {
-                    messager.reply(res, storeRequest, end);
-                };
-            }
-            setRequest(storeRequest);
+        if (!openedByButton) {
             useRequestStore.getState().clearRequest();
-            if (!buttonTriggeredRef.current) {
-                finishLoading();
+            if (REQUEST_ONLY_ROUTES.has(pathname)) {
+                navigate('/', { replace: true });
             }
-            initializedRef.current = true;
-            return;
+        } else {
+            // Check for cached request data with polling retry
+            // (handles race: background wrote to storage but async propagation hasn't completed)
+            let storeRequest = useRequestStore.getState().request;
+            for (let attempt = 0; attempt < 3 && !storeRequest; attempt++) {
+                if (attempt > 0) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                storeRequest = useRequestStore.getState().request;
+            }
+            if (storeRequest) {
+                // Restore request with reply function binding
+                if (storeRequest.once) {
+                    storeRequest.reply = (res, end?: boolean) => {
+                        messager.reply(res, storeRequest, end);
+                    };
+                }
+                setRequest(storeRequest);
+                useRequestStore.getState().clearRequest();
+                initializedRef.current = true;
+                return;
+            }
         }
 
         // No cached request, check session
@@ -396,15 +470,17 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             // If on login or initialize pages, redirect to main page
             if (pathname === '/login' || pathname === '/initialize' || pathname === '/initialized') {
                 navigate('/', { replace: true });
+            } else if (!openedByButton && REQUEST_ONLY_ROUTES.has(pathname)) {
+                navigate('/', { replace: true });
             }
             // Otherwise stay on current page
         }
 
-        if (!buttonTriggeredRef.current) {
+        if (!openedByButton) {
             setLoading(false);
         }
         initializedRef.current = true;
-    }, [pathname, navigate, finishLoading, setHost, setUserId, setSession]);
+    }, [consumePanelTriggerSource, pathname, navigate, setHost, setUserId, setSession, finishLoading]);
 
     /**
      * Setup messager listener - runs once on mount
@@ -467,51 +543,30 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                 userId,
                 title,
             }}>
-            {isButtonTriggered && loading ? (
-                <Loading opaque />
-            ) : (
-                <>
-                        {children}
-                        {loading && <Loading />}
-                </>
-            )}
+            <>
+                {children}
+                {loading && <Loading compact={isButtonTriggered} blocking={blockingSync} />}
+            </>
         </RequestContext.Provider>
     );
 };
 
-const Loading: React.FC<{ opaque?: boolean }> = () => {
-    return (
-        <div className={`fixed inset-0 z-50 flex w-full h-full items-center justify-center bg-[#282828] backdrop-blur-sm`}>
-            <div className='relative flex flex-col items-center justify-center p-[2rem] rounded-2xl shadow-2xl min-w-[200px] min-h-[200px] bg-white/80'>
-                {/* Progress bar loader */}
-                <div
-                    className='w-[120px] h-[22px] rounded-[20px] border-2 border-solid relative mb-6'
-                    style={{ color: '#00be78' }}
-                >
-                    <div
-                        className='absolute m-[2px] rounded-[20px] bg-[#00be78]'
-                        style={{
-                            animation: 'loader-fill 2s infinite',
-                            left: 0,
-                            top: 0,
-                            bottom: 0,
-                            right: '100%',
-                        }}
-                    />
+const Loading: React.FC<{ compact?: boolean; blocking?: boolean }> = ({ compact, blocking }) => {
+    if (compact && blocking) {
+        return (
+            <div className='fixed inset-0 z-50 flex items-center justify-center bg-white'>
+                <div className='flex items-center gap-[10px] rounded-[999px] border border-[var(--sx-border)] bg-white px-[14px] py-[10px] text-[12px] font-[800] text-[var(--sx-muted)] shadow-[0_10px_24px_rgba(16,24,32,0.10)]'>
+                    <span className='h-[8px] w-[8px] animate-pulse rounded-full bg-[var(--sx-brand)]'></span>
+                    Syncing
                 </div>
-
-                {/* Loading text */}
-                <div className='text-[1.25rem] font-medium text-[#00be78]'>
-                    Loading...
-                </div>
-
-                {/* Keyframes */}
-                <style>{`
-                    @keyframes loader-fill {
-                        100% { right: 0; }
-                    }
-                `}</style>
             </div>
+        );
+    }
+
+    return (
+        <div className='pointer-events-none fixed right-[16px] top-[16px] z-50 flex items-center gap-[8px] rounded-[999px] border border-[var(--sx-border)] bg-white/92 px-[12px] py-[8px] text-[12px] font-[800] text-[var(--sx-muted)] shadow-[0_10px_24px_rgba(16,24,32,0.10)]'>
+            <span className='h-[8px] w-[8px] animate-pulse rounded-full bg-[var(--sx-brand)]'></span>
+            {compact ? 'Syncing' : 'Loading'}
         </div>
     );
 };

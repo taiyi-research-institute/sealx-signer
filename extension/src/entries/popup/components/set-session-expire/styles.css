@@ -1,0 +1,192 @@
+.screen-timer-page {
+    width: 100%;
+    min-height: 100%;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    background: var(--sx-bg);
+    color: var(--sx-text);
+}
+
+.screen-timer-card {
+    width: 100%;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-lg);
+    background: var(--sx-surface);
+    box-shadow: var(--sx-shadow-card);
+    padding: 18px;
+}
+
+.screen-timer-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--sx-border);
+    text-align: left;
+}
+
+.screen-timer-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--sx-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: var(--sx-brand-soft);
+    color: var(--sx-brand);
+}
+
+.screen-timer-icon svg {
+    width: 21px;
+    height: 21px;
+}
+
+.screen-timer-heading {
+    min-width: 0;
+}
+
+.screen-timer-heading h1 {
+    margin: 0;
+    color: var(--sx-text);
+    font-size: 24px;
+    line-height: 1.2;
+    font-weight: 850;
+}
+
+.screen-timer-heading p {
+    margin: 5px 0 0;
+    color: var(--sx-muted);
+    font-size: 13px;
+    line-height: 1.4;
+    font-weight: 700;
+}
+
+.screen-timer-current {
+    margin-top: 16px;
+    padding: 12px;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--sx-surface-soft);
+}
+
+.screen-timer-current span {
+    color: var(--sx-muted);
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+.screen-timer-current strong {
+    color: var(--sx-brand);
+    font-size: 16px;
+    line-height: 1.2;
+    font-weight: 850;
+}
+
+.screen-timer-options {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.screen-timer-option {
+    min-width: 0;
+    min-height: 86px;
+    padding: 12px;
+    border: 1px solid var(--sx-border);
+    border-radius: var(--sx-radius-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: var(--sx-surface);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.screen-timer-option:hover {
+    border-color: rgba(10, 160, 110, 0.45);
+    background: #fbfffd;
+}
+
+.screen-timer-option.is-selected {
+    border-color: rgba(10, 160, 110, 0.72);
+    background: var(--sx-brand-soft);
+    box-shadow: 0 0 0 3px rgba(10, 160, 110, 0.1);
+}
+
+.screen-timer-option-top {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+}
+
+.screen-timer-value {
+    color: var(--sx-text);
+    font-size: 25px;
+    line-height: 1;
+    font-weight: 850;
+    font-variant-numeric: tabular-nums;
+}
+
+.screen-timer-unit {
+    color: var(--sx-muted);
+    font-size: 12px;
+    line-height: 1.2;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.screen-timer-option-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--sx-muted);
+    font-size: 12px;
+    line-height: 1.3;
+    font-weight: 700;
+}
+
+.screen-timer-radio {
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    border: 2px solid var(--sx-border-strong);
+    background: var(--sx-surface);
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 3px var(--sx-surface);
+}
+
+.screen-timer-option.is-selected .screen-timer-radio {
+    border-color: var(--sx-brand);
+    background: var(--sx-brand);
+}
+
+.screen-timer-actions {
+    margin-top: 14px;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 10px;
+}
+
+.screen-timer-actions .sealx-button {
+    width: 100%;
+}
+
+@media (max-width: 420px) {
+    .screen-timer-options,
+    .screen-timer-actions {
+        grid-template-columns: 1fr;
+    }
+}

@@ -32,21 +32,21 @@ const Button = ({
     ...props
 }: ButtonProps) => {
     // Base styles common to all buttons
-    const baseStyles = 'sealx-button rounded-[34px] border-2 font-[500] text-[1.5rem] leading-[1.75] pt-[1.125rem] pb-[1.375rem] transition-all duration-200'
+    const baseStyles = 'sealx-button rounded-[10px] border font-[800] text-[1rem] leading-[1.5] min-h-[48px] pt-[0.625rem] pb-[0.625rem] transition-all duration-150'
 
     // Padding styles based on variant
     const paddingStyles = variant === 'primary'
-        ? 'pl-[3.6106rem] pr-[3.6394rem] primary-padding'
-        : 'pl-[3.2981rem] pr-[3.3269rem] secondary-padding'
+        ? 'pl-[1.5rem] pr-[1.5rem] primary-padding'
+        : 'pl-[1.5rem] pr-[1.5rem] secondary-padding'
 
     // Variant-specific styles
     const variantStyles = {
         primary: disabled
-            ? 'bg-gray-400 text-[#fff] border-inherit! hover:border-inherit!   bg-[#000]/60 cursor-not-allowed'
-            : 'bg-[#000] text-[#fff] border-[#000] hover:border-[#000]! hover:scale-105 cursor-pointer',
+            ? 'bg-[#101820]/56 text-[#fff] border-[#101820]/0 cursor-not-allowed shadow-none'
+            : 'bg-[#101820] text-[#fff] border-[#101820] hover:border-[#101820]! hover:shadow-[0_10px_20px_rgba(16,24,32,0.14)] active:translate-y-[1px] cursor-pointer',
         secondary: disabled
-            ? 'bg-transparent text-[#000]/60 border-[rgba(0,0,0,0.3)] cursor-not-allowed'
-            : 'bg-transparent text-[#000] border-[rgba(0,0,0,0.06)] hover:border-[#00be78]/30 hover:bg-[#00be78]/10 hover:scale-105 cursor-pointer'
+            ? 'bg-transparent text-[#5a6677]/56 border-[#dce3ea] cursor-not-allowed shadow-none'
+            : 'bg-[#fff] text-[#344052] border-[#cfd8e2] hover:border-[#0aa06e]/50 hover:bg-[#ecf8f3] active:translate-y-[1px] cursor-pointer'
     }
 
     // Width styles - primary buttons have fixed width, secondary buttons adjust to content

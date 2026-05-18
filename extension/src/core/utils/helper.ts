@@ -10,6 +10,8 @@ import {
     type SealxSession,
 } from 'sealx-core';
 import CryptoJS from 'crypto-js';
+
+const LEGACY_PBKDF2_SALT = '96b939a6abc19fc9269222f65c6d1dd096f57e25544fb2bc4a728222a5aba4a0';
 /**
  * Derives an HMAC key from a PIN using PBKDF2 key derivation
  * @param pin - The user's PIN used as the base key material
@@ -26,7 +28,7 @@ export async function deriveHMACKeyFromPIN(pin: string) {
         ['deriveKey']
     );
     // Static key used as part of salt generation
-    const key = import.meta.env.VITE_PBKDF2_SALT;
+    const key = import.meta.env.VITE_PBKDF2_SALT || LEGACY_PBKDF2_SALT;
     // Generate salt by hashing PIN + static key
     const salt = CryptoJS.SHA256(pin + key).toString(CryptoJS.enc.Hex);
 
@@ -109,15 +111,21 @@ export const sessionKey = (host: string = '', userId: string = '') => {
  * @returns Promise<any> - The decoded private key object or null if no key exists
  */
 export const decodeSessionPrivateKey = async (session: SealxSession) => {
+    if (!session.pk) return null;
     const pkStr = hexToStr(session.pk);
-    const pkRecord = session.pk ? JSON.parse(pkStr) : null;
-    const k = CryptoJS.MD5(
-        session.sessionId + session.host + session.userId + session.expire
-    ).toString();
-    const pkObj = session.pk
-        ? await decodeEncryptedPrivateKey(pkRecord, k, session.address)
-        : null;
-    return pkObj;
+    const pkRecord = JSON.parse(pkStr);
+    const sha256Key = CryptoJS.SHA256(
+        `sealx-export-v1:${session.sessionId}:${session.host ?? ''}:${session.userId ?? ''}:${session.expire}`
+    ).toString(CryptoJS.enc.Hex);
+    try {
+        return await decodeEncryptedPrivateKey(pkRecord, sha256Key, session.address);
+    } catch (error) {
+        if (session.pkKdf === 'sha256-v1') throw error;
+        const legacyKey = CryptoJS.MD5(
+            session.sessionId + session.host + session.userId + session.expire
+        ).toString();
+        return await decodeEncryptedPrivateKey(pkRecord, legacyKey, session.address);
+    }
 };
 
 /**
@@ -177,7 +185,6 @@ export const exportPrivateKeyToGoogleDrive = async (
             if (folderSearchResult.files && folderSearchResult.files.length > 0) {
                 // 使用第一个找到的文件夹
                 folderId = folderSearchResult.files[0].id;
-                console.log(`Found existing folder: ${folderName} (${folderId})`);
             } else {
                 // 创建新文件夹
                 const createFolderResponse = await fetch(
@@ -198,7 +205,6 @@ export const exportPrivateKeyToGoogleDrive = async (
                 if (createFolderResponse.ok) {
                     const folderData = await createFolderResponse.json();
                     folderId = folderData.id;
-                    console.log(`Created new folder: ${folderName} (${folderId})`);
                 } else {
                     throw new Error(`Failed to create folder: ${createFolderResponse.statusText}`);
                 }
@@ -245,8 +251,6 @@ export const exportPrivateKeyToGoogleDrive = async (
 
                     if (!deleteResponse.ok) {
                         console.warn(`Failed to delete existing file ${file.id}: ${deleteResponse.statusText}`);
-                    } else {
-                        console.log(`Deleted existing file: ${file.name} (${file.id})`);
                     }
                 }
             }

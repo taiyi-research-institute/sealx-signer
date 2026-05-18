@@ -1,4 +1,3 @@
-import FilterMenu from '@assets/svg/filter-menu.svg?react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import CheckBox from '@assets/svg/check-board.svg?react'
 import Calendar from '@assets/svg/calendar.svg?react'
@@ -12,8 +11,6 @@ import CoinIcon from '@assets/svg/coin-icon.svg?react'
 import AddressCardIcon from '@assets/svg/address-card.svg?react'
 import TagIcon from '@assets/svg/tag.svg?react'
 import NoTasksIcon from '@assets/svg/no-tasks.svg?react'
-import { PopupCategory } from './category.js'
-import { useClickOutside } from '@src/hooks/useOutsideClick'
 import { useRequestContext } from '@src/hooks/useRequestContextHook'
 import { TabManager, type SealxSignTask } from 'sealx-core'
 import moment from 'moment'
@@ -28,13 +25,13 @@ import { useLocation } from 'react-router-dom'
 
 const NoPendingTasks = () => {
     return (
-        <div className="w-full h-full flex flex-col items-center justify-center py-[3.75rem]">
+        <div className="w-full h-full flex flex-col items-center justify-center py-[3.75rem] px-[1.5rem]">
             <NoTasksIcon className="mb-[1.5rem]" />
             <div className="text-center">
-                <div className="text-[1.5rem] leading-[1.8125] font-[500] text-[#000] mb-[0.75rem]">
+                <div className="text-[1.25rem] leading-[1.35] font-[850] text-[var(--sx-text)] mb-[0.5rem]">
                     No Pending Tasks
                 </div>
-                <div className="text-[1rem] leading-[1.375] font-[400] text-[rgba(0,0,0,0.6)]">
+                <div className="text-[0.875rem] leading-[1.45] font-[650] text-[var(--sx-muted)]">
                     No pending tasks for sign-off or rejection at this time
                 </div>
             </div>
@@ -45,12 +42,12 @@ const NoPendingTasks = () => {
 const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
     if (timeout) {
         return (
-            <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
-                <div className="flex flex-col items-center">
-                    <div className="text-[#ff4d4f] text-[1.25rem] font-[500] mb-4">Signing Timeout</div>
+            <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
+                <div className="flex flex-col items-center rounded-[16px] bg-white px-6 py-5 shadow-[var(--sx-shadow-raised)]">
+                    <div className="text-[var(--sx-danger)] text-[1rem] font-[800] mb-4">Signing Timeout</div>
                     <button
                         onClick={onClose}
-                        className="px-4 py-2 bg-[#1677ff] text-white rounded-lg text-[0.875rem] font-[500] cursor-pointer border-none"
+                        className="px-4 py-2 bg-[#101820] text-white rounded-[10px] text-[0.875rem] font-[800] cursor-pointer border-none"
                     >
                         Close
                     </button>
@@ -59,13 +56,13 @@ const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; prog
         )
     }
     return (
-        <div className='absolute inset-0 bg-[#000]/80 flex items-center justify-center'>
+        <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
             <div className="flex flex-col items-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-[3px] border-white/30 border-t-white mb-4"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-white/30 border-t-white mb-4"></div>
                 {progress >= 75 ? (
-                    <div className="text-white/80 text-[1rem] font-[400] animate-pulse">Almost done...</div>
+                    <div className="text-white/80 text-[0.875rem] font-[700] animate-pulse">Almost done...</div>
                 ) : (
-                        <div className="text-white text-[1.25rem] font-[500]">Signing...</div>
+                        <div className="text-white text-[1rem] font-[800]">Signing...</div>
                 )}
             </div>
         </div>
@@ -86,11 +83,7 @@ const onReview = async (preViewUrl: string) => {
 }
 export const TaskHome = () => {
     const [total, setTotal] = useState<number>(0)
-    const [category, setCategory] = useState<string>('')
     const templateFactory = useRef<HTMLDivElement>(null)
-    const [showPopupMenu, setShowPopupMenu] = useState<boolean>(false)
-    const popupMenuRef = useRef<HTMLDivElement>(null);
-    useClickOutside(popupMenuRef, () => setShowPopupMenu(false));
     const { request } = useRequestContext()
     const [list, setList] = useState<Array<SealxSignTask>>([])
     const [signing, setSigning] = useState(false)
@@ -120,8 +113,8 @@ export const TaskHome = () => {
             try {
                 reply?.(state)
                 messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-            } catch (e) {
-                console.debug(e, '--------------- 00000 ---------')
+            } catch {
+                // Reply channel may already be closed; signing state fallback handles timeout.
             }
 
             // 20s fallback timeout: show timeout hint if no SIGN_RESPONSE arrives
@@ -228,8 +221,8 @@ export const TaskHome = () => {
             })
             try {
                 request.reply?.(request.payload as never)
-            } catch (e) {
-                console.debug(e, '----------- 11111 ------------')
+            } catch {
+                // Reply channel may already be closed.
             }
 
         }
@@ -291,9 +284,31 @@ export const TaskHome = () => {
                 date: date.format('YYYY-MM-DD')
             }
         }), 'days')
-        console.log('Tasks:', tasks)
         return tasks
     }, [list])
+
+    const clearTaskAndCloseIfDone = useCallback((taskId: string) => {
+        setList(currentList => {
+            const task = currentList.find(a => a.taskId === taskId)
+            if (task?.preViewUrl && previewWindow) {
+                chrome.windows.remove(previewWindow.id!).then(() => {
+                    previewWindow = null
+                })
+            }
+
+            const items = currentList.filter(a => a.taskId !== taskId)
+            setTotal(items.length)
+            if (items.length === 0) {
+                setTimeout(() => {
+                    chrome.runtime.sendMessage({ type: 'panel-process-queue' })
+                    closeWindow()
+                }, 50)
+            } else {
+                chrome.runtime.sendMessage({ type: 'panel-process-queue' })
+            }
+            return items
+        })
+    }, [])
 
     // Note: signing state is managed by the SIGN/BATCH_SIGN request handler
     // This callback only sends the signature result
@@ -334,35 +349,29 @@ export const TaskHome = () => {
             originTabIdMapRef.current.delete(taskId)
         }
         messager.send(signResponsePayload, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
-    }, [list])
+        currentSigningTaskIdRef.current = null
+        setSigning(false)
+        setSignTimeout(false)
+        setSignProgress(0)
+        if (signTimeoutRef.current) {
+            clearTimeout(signTimeoutRef.current)
+            signTimeoutRef.current = null
+        }
+        clearTaskAndCloseIfDone(taskId)
+    }, [clearTaskAndCloseIfDone, list])
     return <>
         {/* <button onClick={onTest}>Test</button> */}
-        <div className="w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
-            <div className='w-full px-[1.6406rem] mt-[1.5rem] flex items-center relative'>
-                <FilterMenu onClick={() => {
-                    setShowPopupMenu(true)
-                }} className='mr-[0.5rem]'></FilterMenu>
-                <span className='font-[500] leading-[1.5625] text-[1.3125rem]'>Total {total}</span>
-                {showPopupMenu ? <PopupCategory category={category} onChange={(c: string) => {
-                    setCategory(c)
-                    setShowPopupMenu(false)
-                }} ref={popupMenuRef} className=' py-[0.75rem] absolute z-999999 let-[12px] top-[30px] rounded-[8px]  w-[242px] bg-[#fff] popup-menu'></PopupCategory> : ('')}
-            </div>
+        <div className="sx-signing-list-page w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
             {total === 0 ? (
                 <NoPendingTasks />
             ) : (
                     map(tasks, (t: unknown[], day: string | number) => {
-                        return (<div className={'task-container w-full pt-[1.4375rem] '}>
-                            <div className='w-full px-[1.5rem]'>
-                                <div className='w-full mb-[1rem] text-center text-[1.1875rem] leading-[1.375] font-[500] text-[rgba(0,0,0,0.40)]'>
-                                {
-                                    Number(day) === 0 ? 'Urgent' : `Within ${day} Days`
-                                }
-                            </div>
+                        return (<div key={day} className='task-container sx-task-container'>
+                            <div className='sx-task-list'>
                             {
                                     t.map((task: unknown) => {
                                     const taskProps = task as unknown as SignTaskRenderProps;
-                                    return <SignTaskRender {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
+                                    return <SignTaskRender key={taskProps.taskId} {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
                                 })
                             }
                         </div>

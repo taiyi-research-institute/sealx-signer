@@ -26,12 +26,10 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
         })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Reset Pin</div>
         <div onClick={handleItemClick(() => {
             if (shouldOpenInNewTab) {
-                console.log('Opening key-manage in new tab (action popup detected)')
                 chrome.tabs.create({
                     url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
                 })
             } else {
-                console.log('Navigating to key-manage normally')
                 navigate('/key-manage')
             }
         })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Key Management</div>

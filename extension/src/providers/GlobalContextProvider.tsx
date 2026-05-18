@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { GlobalContext } from '@src/context/globalConext';
 import { checkInitialed } from '@src/core/background';
 import { useInitializedStore } from '@src/core/state';
@@ -22,6 +22,21 @@ interface GlobalConextProviderProps {
  */
 const MAX_TIME = 5; // Maximum allowed login attempts
 const LOCK_TIME = 10; // Lock duration in minutes after max attempts reached
+const IFRAME_MESSAGE_TIMEOUT = 10_000;
+
+interface IframeResponse {
+    type: string;
+    output: string;
+    error?: string;
+    messageId?: string;
+}
+
+interface PendingIframeMessage {
+    message: Record<string, unknown>;
+    resolve: (value: IframeResponse) => void;
+    timeoutId: ReturnType<typeof setTimeout>;
+}
+
 export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ children }) => {
     // State for tracking login attempts
     const [attempt, setAttempt] = useState<number>(MAX_TIME);
@@ -35,8 +50,17 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
 
     const [messageQueueIframe, setMessageQueueIframe] = useState<HTMLIFrameElement>()
     const [messageQueueReady, setMessageQueueReady] = useState<boolean>(false)
-    // const messageQueue: Array<Record<string, unknown>> = [];
-    const [messageQueue, setMessageQueue] = useState<Array<Record<string, unknown>>>([])
+    const iframeRef = useRef<HTMLIFrameElement | null>(null)
+    const messageQueueRef = useRef<PendingIframeMessage[]>([])
+    const pendingMessagesRef = useRef<Map<string, PendingIframeMessage>>(new Map())
+
+    const postIframeMessage = useCallback((pending: PendingIframeMessage) => {
+        const iframe = iframeRef.current
+        if (!iframe?.contentWindow) return false
+        pendingMessagesRef.current.set(pending.message.messageId as string, pending)
+        iframe.contentWindow.postMessage(pending.message, '*')
+        return true
+    }, [])
 
     const setupIframe = useCallback(() => {
         const iframe = document.createElement('iframe');
@@ -44,40 +68,77 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
         iframe.sandbox.add('allow-scripts');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
+        iframeRef.current = iframe
         setMessageQueueIframe(iframe)
 
-        iframe.addEventListener('load', () => {
+        const handleLoad = () => {
             setMessageQueueReady(true)
-            while (messageQueue.length) {
-                console.log('------------- iframe ready -------')
-                const msg = messageQueue.shift();
-                setMessageQueue(messageQueue)
-                iframe.contentWindow?.postMessage(msg, window.location.origin);
+            const queued = messageQueueRef.current.splice(0)
+            for (const pending of queued) {
+                postIframeMessage(pending)
             }
-        });
-    }, [messageQueue])
+        }
+        iframe.addEventListener('load', handleLoad);
+        return () => {
+            iframe.removeEventListener('load', handleLoad)
+            iframe.remove()
+            iframeRef.current = null
+            setMessageQueueIframe(undefined)
+            setMessageQueueReady(false)
+        }
+    }, [postIframeMessage])
 
     const sendToIframe = useCallback((message: Record<string, unknown>) => {
-        return new Promise((resolve) => {
+        return new Promise<IframeResponse>((resolve) => {
             const index = Math.round(Math.random() * 10000)
             const messageId = `T-${Date.now()}-${index}`
             message['messageId'] = messageId
+            const timeoutId = setTimeout(() => {
+                pendingMessagesRef.current.delete(messageId)
+                messageQueueRef.current = messageQueueRef.current.filter(item => item.message.messageId !== messageId)
+                resolve({ type: 'error', output: '', error: 'sandbox timeout', messageId })
+            }, IFRAME_MESSAGE_TIMEOUT)
+            const pending: PendingIframeMessage = {
+                message,
+                resolve,
+                timeoutId
+            }
             if (messageQueueIframe && messageQueueReady) {
-                console.log('--------- send message 111 -----', message)
-                messageQueueIframe?.contentWindow?.postMessage(message, window.location.origin);
-                const messageHandler = (event: MessageEvent) => {
-                    if (event.data && event.data.messageId === messageId) {
-                        window.removeEventListener('message', messageHandler as EventListener);
-                        resolve(event.data)
-                    }
-                };
-                window.addEventListener('message', messageHandler as EventListener);
+                if (!postIframeMessage(pending)) {
+                    clearTimeout(timeoutId)
+                    resolve({ type: 'error', output: '', error: 'sandbox not available', messageId })
+                }
             } else {
-                messageQueue.push(message);
-                resolve({ type: '', output: '', error: 'not ready' })
+                messageQueueRef.current.push(pending)
             }
         })
-    }, [messageQueue, messageQueueIframe, messageQueueReady])
+    }, [messageQueueIframe, messageQueueReady, postIframeMessage])
+
+    useEffect(() => {
+        const pendingMessages = pendingMessagesRef.current
+        const queuedMessages = messageQueueRef.current
+        const messageHandler = (event: MessageEvent) => {
+            const messageId = event.data?.messageId
+            if (typeof messageId !== 'string') return
+            const pending = pendingMessages.get(messageId)
+            if (!pending) return
+            pendingMessages.delete(messageId)
+            clearTimeout(pending.timeoutId)
+            pending.resolve(event.data)
+        };
+        window.addEventListener('message', messageHandler as EventListener);
+        return () => {
+            window.removeEventListener('message', messageHandler as EventListener);
+            for (const pending of pendingMessages.values()) {
+                clearTimeout(pending.timeoutId)
+            }
+            for (const pending of queuedMessages) {
+                clearTimeout(pending.timeoutId)
+            }
+            pendingMessages.clear()
+            queuedMessages.length = 0
+        }
+    }, [])
     /**
      * Wrapper function for setting the wallet address
      * Handles both direct values and functional updates
@@ -147,7 +208,7 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
      * Effect to setup the iframe for message communication
      */
     useEffect(() => {
-        setupIframe();
+        return setupIframe();
     }, [setupIframe]);
 
     /**

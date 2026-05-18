@@ -1,4 +1,4 @@
-import { dbStorageWrapper, type SealxAccount, type SealxSession, PinError, DataCorruptedError } from "sealx-core";
+import { dbStorageWrapper, type Eip712Struct, type SealxAccount, type SealxSession, PinError, DataCorruptedError } from "sealx-core";
 import type { PrivateKeyStoreRecord, SealxBaseInfo } from "../models";
 import { createWallet } from "../utils/wallet";
 import { decodeEncryptedPrivateKey, encodePrivateKey, strToHex } from "../utils/crypto";
@@ -6,6 +6,9 @@ import CryptoJS from "crypto-js";
 import { sessionKey } from "@src/core/utils/helper";
 import { sessionStore } from "@src/core/state/session";
 import { syncStores } from "@src/core/state/internal/syncStores";
+import { extractPolicyAction, type PolicyAsset } from "../policy-adapters";
+import type { AuthMethod } from "../signing-providers";
+import { SigningError } from "../signing-errors";
 syncStores()
 
 // --- IndexedDB write mutex ---
@@ -22,25 +25,217 @@ function withDbLock<T>(fn: () => Promise<T>): Promise<T> {
 // --- End DB mutex ---
 
 const privateKeyTable = () => dbStorageWrapper('sealx', 'sealx-pk');
+const memoryKeyrings = new Map<string, string>()
+const DEFAULT_MAX_SIGN_COUNT = 10
 
-// In-memory private key cache — decrypted keys live only in Service Worker heap
-// Map<sessionId, rawPrivateKey>, cleared on session expiry / panel close / SW restart
-const privateKeyCache = new Map<string, string>()
-
-export const setCachedPrivateKey = (sessionId: string, privateKey: string) => {
-    privateKeyCache.set(sessionId, privateKey)
+export interface SigningCapability {
+    id: string
+    address: string
+    host: string
+    userId: string
+    expiresAt: number
+    maxSignCount: number
+    usedSignCount: number
+    maxSingleAmount?: string
+    maxTotalAmount?: string
+    usedTotalAmount: string
+    asset?: PolicyAsset
+    createdAt: number
+    authMethod: AuthMethod
 }
 
-export const getCachedPrivateKey = (sessionId: string): string | null => {
-    return privateKeyCache.get(sessionId) ?? null
+const signingCapabilities = new Map<string, SigningCapability>()
+const capabilityLocks = new Set<string>()
+
+const memoryKeyringKey = (host: string = '', userId: string = '') => sessionKey(host, userId)
+
+export const setSessionPrivateKey = (host: string = '', userId: string = '', privateKey: string) => {
+    memoryKeyrings.set(memoryKeyringKey(host, userId), privateKey)
 }
 
-export const removeCachedPrivateKey = (sessionId: string) => {
-    privateKeyCache.delete(sessionId)
+export const getSessionPrivateKey = (host: string = '', userId: string = '') => {
+    return memoryKeyrings.get(memoryKeyringKey(host, userId)) ?? null
 }
 
-export const clearAllCachedPrivateKeys = () => {
-    privateKeyCache.clear()
+export const clearSessionPrivateKey = (host: string = '', userId: string = '') => {
+    memoryKeyrings.delete(memoryKeyringKey(host, userId))
+}
+
+export const clearAllSessionPrivateKeys = () => {
+    memoryKeyrings.clear()
+}
+
+const createSigningCapability = ({
+    id,
+    address,
+    host = '',
+    userId = '',
+    expiresAt,
+}: {
+    id: string
+    address: string
+    host?: string
+    userId?: string
+    expiresAt: number
+}) => {
+    const capability: SigningCapability = {
+        id,
+        address,
+        host,
+        userId,
+        expiresAt,
+        maxSignCount: DEFAULT_MAX_SIGN_COUNT,
+        usedSignCount: 0,
+        usedTotalAmount: '0',
+        createdAt: Date.now(),
+        authMethod: 'pin'
+    }
+    signingCapabilities.set(id, capability)
+    return capability
+}
+
+export const getSigningCapability = (id?: string | null) => {
+    return id ? signingCapabilities.get(id) ?? null : null
+}
+
+export const clearSigningCapability = (id?: string | null) => {
+    if (!id) return
+    signingCapabilities.delete(id)
+    capabilityLocks.delete(id)
+}
+
+export const clearAllSigningCapabilities = () => {
+    signingCapabilities.clear()
+    capabilityLocks.clear()
+}
+
+export const clearSessionRuntimeState = (host: string = '', userId: string = '', capabilityId?: string | null) => {
+    clearSessionPrivateKey(host, userId)
+    clearSigningCapability(capabilityId)
+}
+
+export const clearAllSessionRuntimeState = () => {
+    clearAllSessionPrivateKeys()
+    clearAllSigningCapabilities()
+}
+
+const parseCapabilityLimit = (value?: string) => {
+    if (!value) return null
+    if (!/^\d+$/.test(value)) {
+        throw new SigningError('POLICY_MISMATCH', 'Invalid signing capability amount limit')
+    }
+    return BigInt(value)
+}
+
+const normalizePolicyValue = (value?: string | number) => `${value ?? ''}`.trim().toLowerCase()
+
+const ensureAssetPolicy = (capability: SigningCapability, actionAsset: PolicyAsset | null) => {
+    const expected = capability.asset
+    if (!expected) return
+    if (!actionAsset) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability cannot parse asset')
+    }
+    if (
+        expected.chainId !== undefined &&
+        expected.chainId !== actionAsset.chainId
+    ) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability chainId does not match')
+    }
+    if (
+        expected.verifyingContract &&
+        normalizePolicyValue(expected.verifyingContract) !== normalizePolicyValue(actionAsset.verifyingContract)
+    ) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability verifying contract does not match')
+    }
+    if (
+        expected.token &&
+        normalizePolicyValue(expected.token) !== normalizePolicyValue(actionAsset.token)
+    ) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability token does not match')
+    }
+    if (
+        expected.symbol &&
+        normalizePolicyValue(expected.symbol) !== normalizePolicyValue(actionAsset.symbol)
+    ) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability symbol does not match')
+    }
+}
+
+const getAmountPolicyUpdate = (capability: SigningCapability, signContent?: Eip712Struct) => {
+    const maxSingleAmount = parseCapabilityLimit(capability.maxSingleAmount)
+    const maxTotalAmount = parseCapabilityLimit(capability.maxTotalAmount)
+    if (maxSingleAmount === null && maxTotalAmount === null) {
+        return null
+    }
+
+    if (!signContent) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability requires sign content for amount policy')
+    }
+    const action = extractPolicyAction(signContent)
+    if (!action) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability cannot apply amount policy to unknown template')
+    }
+    if (action.amount === null) {
+        throw new SigningError('POLICY_MISMATCH', 'Signing capability cannot parse amount')
+    }
+    ensureAssetPolicy(capability, action.asset)
+    if (maxSingleAmount !== null && action.amount > maxSingleAmount) {
+        throw new SigningError('AMOUNT_LIMIT_EXCEEDED', 'Signing capability single amount limit exceeded')
+    }
+
+    const usedTotalAmount = BigInt(capability.usedTotalAmount)
+    if (maxTotalAmount !== null && usedTotalAmount + action.amount > maxTotalAmount) {
+        throw new SigningError('AMOUNT_LIMIT_EXCEEDED', 'Signing capability total amount limit exceeded')
+    }
+
+    return {
+        usedTotalAmount: (usedTotalAmount + action.amount).toString(),
+        asset: action.asset ?? capability.asset
+    }
+}
+
+export const runWithSigningCapability = async <T>(
+    id: string,
+    session: SealxSession,
+    signContent: Eip712Struct,
+    action: () => Promise<T | null | undefined>
+) => {
+    if (capabilityLocks.has(id)) {
+        throw new SigningError('CAPABILITY_BUSY', 'Signing capability is busy')
+    }
+    capabilityLocks.add(id)
+    try {
+        const capability = getSigningCapability(id)
+        if (!capability) {
+            throw new SigningError('CAPABILITY_MISSING', 'Signing capability not found')
+        }
+        if (capability.expiresAt <= Date.now()) {
+            clearSigningCapability(id)
+            throw new SigningError('CAPABILITY_EXPIRED', 'Signing capability expired')
+        }
+        if (
+            capability.address !== session.address ||
+            capability.host !== (session.host ?? '') ||
+            capability.userId !== (session.userId ?? '')
+        ) {
+            throw new SigningError('SESSION_MISMATCH', 'Signing capability does not match session')
+        }
+        if (capability.usedSignCount >= capability.maxSignCount) {
+            throw new SigningError('USAGE_LIMIT_REACHED', 'Signing capability usage limit reached')
+        }
+        const amountPolicyUpdate = getAmountPolicyUpdate(capability, signContent)
+        const result = await action()
+        if (result !== null && result !== undefined) {
+            if (amountPolicyUpdate) {
+                capability.usedTotalAmount = amountPolicyUpdate.usedTotalAmount
+                capability.asset = amountPolicyUpdate.asset
+            }
+            capability.usedSignCount += 1
+        }
+        return result
+    } finally {
+        capabilityLocks.delete(id)
+    }
 }
 
 // --- Global PIN brute-force rate limiting ---
@@ -111,6 +306,7 @@ export const initializeSealx = async (pin: string, privateKey: string = ''): Pro
             await db.clear()
             await db.setItem(storeRecord.id, storeRecord);
         })
+        clearAllSessionRuntimeState()
         return storeRecord;
     } catch (error) {
         console.error('Failed to initialize SealX:', error);
@@ -142,6 +338,7 @@ export const resetSealxPin = async (address: string, oldPin: string, pin: string
                 await db.clear()
                 await db.setItem(storeRecord.id, storeRecord);
             })
+            clearAllSessionRuntimeState()
             return storeRecord
         }
     } finally {
@@ -272,11 +469,13 @@ export const initializeSealxInfo = async (time?: number) => {
     const db = sealxTable()
     try {
         const version = chrome.runtime.getManifest().version
+        const existing = await db.getItem<SealxBaseInfo>(baseInfoKey)
         const info = {
+            ...existing,
             version,
-            installedTime: Date.now(),
-            address: '',
-            sessionTimeout: time ?? 5
+            installedTime: existing?.installedTime ?? Date.now(),
+            address: existing?.address ?? '',
+            sessionTimeout: time ?? existing?.sessionTimeout ?? 5
         } as SealxBaseInfo
         return await db.setItem(baseInfoKey, info)
     } finally {
@@ -302,13 +501,14 @@ export const setSealxSessionTimeout = async (time: number) => {
 
 /**
  * Installs IndexedDB database with specified tables/object stores
- * 
+ *
  * @param dbName - Name of the database to create/upgrade
  * @param tables - Array of table/object store names to create
  * @returns Promise that resolves when database is ready
  * @remarks
- * - Creates a new database or upgrades existing one to version 1
+ * - Creates a new database or upgrades existing one to specified version
  * - Creates all specified tables if they don't exist
+ * - Resolves immediately if DB already exists at target version (no upgrade needed)
  * - Used during initial extension setup
  */
 export const installDB = (dbName: string, tables: string[], version: number = 1) => {
@@ -321,7 +521,13 @@ export const installDB = (dbName: string, tables: string[], version: number = 1)
                     db.createObjectStore(table);
                 }
             }
+        };
+        request.onsuccess = () => {
+            request.result.close()
             resolve(true)
+        };
+        request.onerror = () => {
+            resolve(false)
         };
     })
 }
@@ -349,11 +555,17 @@ export const generateSession = async (pin: string, host: string = '', userId: st
     }
     const setSession = sessionStore.getState().setSession
     const pk = await getPrivateKey(pin)
-
-    // Store raw private key in Service Worker memory only (NOT persisted to IndexedDB)
-    if (pk) {
-        setCachedPrivateKey(sessionId, pk)
+    if (!pk) {
+        throw new PinError()
     }
+    setSessionPrivateKey(host, userId, pk)
+    const capability = createSigningCapability({
+        id: sessionId,
+        address,
+        host,
+        userId,
+        expiresAt: expire
+    })
 
     const session: SealxSession = {
         address,
@@ -361,7 +573,7 @@ export const generateSession = async (pin: string, host: string = '', userId: st
         host,
         userId,
         sessionId,
-        pk: sessionId  // sessionId doubles as lookup key for the in-memory cache
+        capabilityId: capability.id
     }
 
     setSession(session)
@@ -373,14 +585,8 @@ export const pkHex = async (pin: string, host: string = '', userId: string = '',
     if (!address) {
         throw new PinError()
     }
-    // Try in-memory cache first (set during generateSession)
-    let pk = getCachedPrivateKey(sessionId)
-    // Fall back to IndexedDB for export scenarios where session is not active
-    if (!pk) {
-        pk = await getPrivateKey(pin)
-    }
-    // Re-encrypt with session-specific parameters for the export (temporary code)
-    const k = CryptoJS.MD5(sessionId + host + userId + expire).toString()
+    const pk = await getPrivateKey(pin)
+    const k = CryptoJS.SHA256(`sealx-export-v1:${sessionId}:${host}:${userId}:${expire}`).toString(CryptoJS.enc.Hex)
     const pkObj = pk ? (await encodePrivateKey(address, pk, k)) : null
     const pkHexStr = pkObj ? strToHex(JSON.stringify(pkObj)) : ''
     return pkHexStr

@@ -62,7 +62,6 @@ export default function Login() {
 
     const handlePasswordChange = useCallback(async (value: string) => {
         setPassword(value);
-        console.log(`------ password ${value} --------`)
         if (value.length >= 6) {
             try {
                 const res = await login(value, userId, activeTabHost)
@@ -76,7 +75,6 @@ export default function Login() {
                             pk: res.pk
                         }
                     } as never)
-                    console.log('---------- topic -------', request?.topic)
                     if (request.topic === SealxTopic.BIND_PK) {
                         navigate('/bind-pubkey', { replace: true })
                     } else if (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN) {
@@ -85,7 +83,6 @@ export default function Login() {
                         navigate('/', { replace: true })
                     }
                     // alert(request.topic)
-                    console.log('---------- connected -----', Date.now())
                 } else {
                     setPassword('')
                 }

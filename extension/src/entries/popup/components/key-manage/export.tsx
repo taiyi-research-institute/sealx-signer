@@ -186,8 +186,7 @@ export const KeyExport = () => {
 
                 setGoogleDriveStatus('uploading')
                 try {
-                    const fileId = await googleDrive.uploadFile('sealx.key', encoded)
-                    console.log('File uploaded to Google Drive with ID:', fileId)
+                    await googleDrive.uploadFile('sealx.key', encoded)
                     setSuccess('Export successful. Key file has been uploaded to Google Drive as "sealx.key".')
                 } catch (err) {
                     console.error('Google Drive upload failed:', err)
@@ -220,8 +219,6 @@ export const KeyExport = () => {
     }, [directoryHandle, session, tpPin, navigate, setError, setSuccess, exportMethod, googleDrive, googleDriveStatus])
 
     const onSubmit = useCallback(async () => {
-        console.log('Export method selected:', exportMethod)
-
         // Validate all fields
         const isTpPinValid = validateTpPin(tpPin)
         const isConfirmPinValid = validateConfirmPin(confirmPin)

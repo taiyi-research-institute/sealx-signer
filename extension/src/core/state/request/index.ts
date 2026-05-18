@@ -20,11 +20,7 @@ export const requestStore = createStore<RequestState>((set) => ({
     }
 }), {
     persist: {
-        name: 'request',
-        onRehydrateStorage: () => (state) => {
-            // This callback runs after the store is rehydrated from storage
-            console.log('request store rehydrated:', state);
-        }
+        name: 'request'
     }
 });
 

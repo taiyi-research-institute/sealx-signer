@@ -76,7 +76,6 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
             // Remove from sessionMap
             const session = state.sessionMap[key]
             if (session && session.expire < Date.now() - 5000) delete state.sessionMap[key]
-            console.log('Deleted session from sessionMap with key:', key)
             // Clear session but keep host/userId
             set({ session: null })
         }
@@ -87,7 +86,6 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
         const userId = state.userId ?? ''
         const key = sessionKey(host, userId)
         delete state.sessionMap[key]
-        console.log('Logged out session from sessionMap with key:', key)
         set({ ...state, session: null })
     },
     isSessionConsistent: () => {
@@ -103,17 +101,12 @@ export const sessionStore = createStore<SessionState>((set, get) => ({
         return sessionMatchesState
     },
     clearAllSession: () => {
-        console.log('Clearing all sessions from sessionMap')
         // Clear all sessions from sessionMap and reset current session
         set({ sessionMap: {}, session: null })
     }
 }), {
     persist: {
         name: 'session',
-        onRehydrateStorage: () => (state) => {
-            // This callback runs after the store is rehydrated from storage
-            console.log('Session store rehydrated:', JSON.stringify(state));
-        },
     }
 })
 

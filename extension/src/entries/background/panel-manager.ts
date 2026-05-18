@@ -179,7 +179,6 @@ export default class PanelManager {
         // 3. 如果面板已打开且正在处理其他 tab 的请求，入队等待
         if (this.isPanelOpen && this.isProcessing && this.processingTabId !== targetTabId) {
             this.requestQueue.push({ route, tabId: targetTabId })
-            console.log(`PanelManager: request from tab ${targetTabId} queued (${this.requestQueue.length} in queue)`)
             return
         }
 
@@ -228,13 +227,16 @@ export default class PanelManager {
      * 1. chrome.storage.session.set({ panelTriggerSource: 'button' }) — 同步入队，不打断手势链
      * 2. chrome.sidePanel.open({ tabId }) — 在 transient activation 上下文内执行
      *
-     * panel 端通过 chrome.storage.session.get('panelTriggerSource') 检测来源，
+     * panel 端通过 chrome.storage.session.get('panelTriggerSource') 检测来源和时间戳，
      * 读到 'button' 则显示不透明白色全屏 loading 直到签名/绑定请求到达。
      *
      * @param tabId - 触发打开的 tab ID
      */
     static async openPanelWithSource(tabId: number): Promise<void> {
-        chrome.storage.session.set({ panelTriggerSource: 'button' })
+        chrome.storage.session.set({
+            panelTriggerSource: 'button',
+            panelTriggerSourceAt: Date.now(),
+        })
         // MUST remain synchronous — no await between set and open, preserves transient activation
         await chrome.sidePanel.open({ tabId })
     }
