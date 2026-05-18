@@ -20,21 +20,47 @@ export const PopupMenu = React.forwardRef<HTMLDivElement, PopupMenuProps>(({ clo
     // Side Panel 模式下不需要"在新 tab 打开"
     const shouldOpenInNewTab = !isPopupTypeLoading && isActionPopup && !isSidePanel && chrome?.tabs?.create
 
-    return <div {...props} ref={ref}>
-        <div onClick={handleItemClick(() => {
-            navigate('/reset-pin')
-        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Reset Pin</div>
-        <div onClick={handleItemClick(() => {
+    return (
+      <div {...props} ref={ref}>
+        <div
+          onClick={handleItemClick(() => {
+            navigate('/reset-pin');
+          })}
+          className='w-full cursor-pointer hover:bg-[#00BE78]/6'
+        >
+          <div className='pt-[1.125rem] px-[1.5rem] text-[#000] text-[1.125rem] w-max font-[500] leading-[1.5625] pb-[1.0625rem] text-left'>
+            Reset Pin
+          </div>
+        </div>
+        <div
+          onClick={handleItemClick(() => {
             if (shouldOpenInNewTab) {
-                chrome.tabs.create({
-                    url: chrome.runtime.getURL('src/entries/popup/index.html#/key-manage') + '#/key-manage'
-                })
+              chrome.tabs.create({
+                url:
+                  chrome.runtime.getURL(
+                    'src/entries/popup/index.html#/key-manage',
+                  ) + '#/key-manage',
+              });
             } else {
-                navigate('/key-manage')
+              navigate('/key-manage');
             }
-        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Key Management</div>
-        <div onClick={handleItemClick(() => {
-            navigate('/set-screen-timer')
-        })} className="pt-[1.125rem]  px-[1.5rem] cursor-pointer hover:bg-[#00BE78]/6 text-[#000] text-[1.3125rem] font-[500] leading-[1.5625] pb-[1.0625rem] text-left">Set Screen Off Time</div>
-    </div>
+          })}
+          className='w-full cursor-pointer hover:bg-[#00BE78]/6'
+        >
+          <div className='pt-[1.125rem] px-[1.5rem] text-[#000] text-[1.125rem] w-max font-[500] leading-[1.5625] pb-[1.0625rem] text-left'>
+            Key Management
+          </div>
+        </div>
+        <div
+          onClick={handleItemClick(() => {
+            navigate('/set-screen-timer');
+          })}
+          className='w-full cursor-pointer hover:bg-[#00BE78]/6'
+        >
+          <div className='pt-[1.125rem] px-[1.5rem] text-[#000] text-[1.125rem] w-max font-[500] leading-[1.5625] pb-[1.0625rem] text-left'>
+            Set Screen Off Time
+          </div>
+        </div>
+      </div>
+    );
 })

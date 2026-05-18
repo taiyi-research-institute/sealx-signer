@@ -42,13 +42,5 @@ export const KeyManage = () => {
                 </Button>
             </div>
         </section>
-        <div className='key-footer-actions'>
-            <Button
-                variant="secondary"
-                onClick={() => navigate(-1)}
-            >
-                Back
-            </Button>
-        </div>
     </div>
 }

@@ -139,7 +139,6 @@ function initializeSealX() {
     root.render(<SealX />);
 }
 
-
 // 等待body加载完成后初始化
 waitForBody(initializeSealX);
 

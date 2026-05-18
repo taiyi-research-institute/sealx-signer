@@ -74,6 +74,20 @@
     background-color: var(--sx-danger-soft);
 }
 
+/* Custom caret element — replaces native input caret */
+.password-caret {
+    width: 4.74px;
+    height: 45.57px;
+    background-color: var(--sx-brand);
+    border-radius: 2px;
+    animation: password-caret-blink 1s step-end infinite;
+}
+
+@keyframes password-caret-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+}
+
 /* Side Panel elastic layout — prevent password box compression at narrow widths */
 body[popup-mode='sidepanel'] .password-container {
     gap: 0.5rem;

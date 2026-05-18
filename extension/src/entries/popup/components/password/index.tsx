@@ -21,6 +21,7 @@ export const Password = ({
     const inputRef = useRef<HTMLInputElement | null>(null);
     const passwordRef = useRef(password.slice(0, 6));
     const [draftPassword, setDraftPassword] = useState(password.slice(0, 6));
+    const [isFocused, setIsFocused] = useState(false);
     const displayPassword = draftPassword || password.slice(0, 6);
     const chars = useMemo(() => displayPassword.padEnd(6, '').split(''), [displayPassword]);
     const activeIndex = useMemo(() => {
@@ -37,7 +38,6 @@ export const Password = ({
 
     const focusInput = useCallback(() => {
         if (readonly) return;
-        window.focus();
         const input = inputRef.current;
         if (!input) return;
         input.focus({ preventScroll: true });
@@ -182,7 +182,9 @@ export const Password = ({
                 aria-label="PIN"
                 onFocus={(event) => {
                     event.currentTarget.setSelectionRange(displayPassword.length, displayPassword.length);
+                    setIsFocused(true);
                 }}
+                onBlur={() => setIsFocused(false)}
                 onChange={handleInputChange}
                 onPaste={handlePaste}
             />
@@ -195,6 +197,9 @@ export const Password = ({
                     aria-hidden="true"
                 >
                     {chars[i] && <span className="password-mask-dot" />}
+                    {isFocused && i === activeIndex && displayPassword.length < 6 && (
+                        <span className="password-caret" />
+                    )}
                 </div>
             ))}
         </div>
