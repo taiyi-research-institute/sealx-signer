@@ -2,15 +2,27 @@ import { createRoot } from 'react-dom/client';
 import './style.css'
 import { SealX } from './SealX';
 
+const openSidePanel = (e: MouseEvent) => {
+  console.log('[SealX] Click event:', e.target);
+  const target = (e.target as HTMLElement)?.closest?.(
+    '[data-sealx-action="open"]',
+  );
+  if (!target) return;
+
+  chrome.runtime.sendMessage({ type: 'open-side-panel' }).catch((err) => {
+    console.warn('[SealX] Failed to send open-side-panel:', err?.message);
+  });
+};
+
 function injectScript(file: string) {
     if (document.documentElement.hasAttribute('data-sealx-inpage-injected')) {
         return;
     }
     document.documentElement.setAttribute('data-sealx-inpage-injected', 'true');
 
-    const script = document.createElement("script");
+    const script = document.createElement('script');
     script.src = chrome.runtime.getURL(file); // 如：inpage.js
-    script.type = "text/javascript";
+    script.type = 'text/javascript';
     script.async = false;
     (document.head || document.documentElement)?.appendChild(script);
     script.remove(); // 清理 DOM
@@ -42,6 +54,14 @@ function waitForBody(callback: () => void) {
 }
 
 function initializeSealX() {
+    document.removeEventListener('click', openSidePanel); // 先移除旧监听，避免重复绑定
+    // ===== 手势中继：事件委托监听 SealX 操作组件 =====
+    // 用户在 HTML 元素上定义 sealx 属性（如 <button sealx>），
+    // SDK 自动将其转换为 data-sealx-action="open"。
+    // Content script 通过事件委托，只在点击带该属性的元素时，
+    // 在 transient activation 窗口内发送 open-side-panel 消息。
+    console.log('[SealX] Setting up click listener for SealX actions');
+    document.addEventListener('click', openSidePanel);
     if (document.getElementById('sealXContainer')) {
         return;
     }
@@ -77,19 +97,25 @@ function initializeSealX() {
     root.render(<SealX />);
 }
 
-// ===== 手势中继：事件委托监听 SealX 操作组件 =====
-// 用户在 HTML 元素上定义 sealx 属性（如 <button sealx>），
-// SDK 自动将其转换为 data-sealx-action="open"。
-// Content script 通过事件委托，只在点击带该属性的元素时，
-// 在 transient activation 窗口内发送 open-side-panel 消息。
-document.addEventListener('click', (e) => {
-    const target = (e.target as HTMLElement)?.closest?.('[data-sealx-action="open"]')
-    if (!target) return
-
-    chrome.runtime.sendMessage({ type: 'open-side-panel' }).catch((err) => {
-        console.warn('[SealX] Failed to send open-side-panel:', err?.message)
-    })
-})
 
 // 等待body加载完成后初始化
 waitForBody(initializeSealX);
+
+//sealx-component 组件库的样式可能在页面加载后才被注入，因此我们需要监听 DOM 变化，确保在样式加载后再初始化 SealX。
+const observer = new MutationObserver((mutations) => {
+  for (const mutation of mutations) {
+    mutation.addedNodes.forEach((node) => {
+      if (
+        node instanceof HTMLElement &&
+        node.hasAttribute &&
+        (node as Element).hasAttribute('sealx-component')
+      ) {
+        console.log('[SealX] Detected style injection, initializing SealX');
+        node.removeEventListener('click', openSidePanel); // 先移除旧监听，避免重复绑定
+        node.addEventListener('click', openSidePanel);
+      }
+    });
+  }
+});
+
+observer.observe(document.documentElement, { childList: true, subtree: true });
