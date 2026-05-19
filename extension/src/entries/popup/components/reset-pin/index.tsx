@@ -147,6 +147,7 @@ export default function ResetPin() {
                                 className='w-full password-confirm-input-wrapper'
                                 errorIndex={errorIndex}
                                 onChange={handleConfirmPassword}
+                                autoFocus
                             />
                         )
                     }

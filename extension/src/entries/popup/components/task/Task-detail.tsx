@@ -171,15 +171,15 @@ export const TaskDetail = memo(() => {
                 </div>
             )}
 
-            {/* Loading overlay */}
-            {/* {signing && (
-                <div className="w-full h-full bg-[#000]/70 absolute left-0 top-0 flex items-center justify-center">
+            {/* Signing overlay */}
+            {signing && (
+                <div className="absolute inset-0 bg-[#101820]/82 flex items-center justify-center z-50">
                     <div className="flex flex-col items-center">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-                        <div className="text-[#fff] text-[2rem] font-[500]">Signing...</div>
+                        <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-white/30 border-t-white mb-4"></div>
+                        <div className="text-white text-[1rem] font-[800]">Signing...</div>
                     </div>
                 </div>
-            )} */}
+            )}
         </div>
     );
 });

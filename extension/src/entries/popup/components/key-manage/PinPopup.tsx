@@ -122,6 +122,7 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                         onChange={setPin}
                         readonly={isProcessing}
                             className="w-full gap-x-[0.75rem]"
+                            autoFocus
                     />
                 </div>
                 </>) : (

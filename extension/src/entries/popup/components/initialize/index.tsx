@@ -234,6 +234,7 @@ export default function Initialize() {
                                     className='w-full password-confirm-input-wrapper'
                                     errorIndex={errorIndex}
                                     onChange={handleConfirmPassword}
+                                    autoFocus
                                 />
                     )}
                 </div>

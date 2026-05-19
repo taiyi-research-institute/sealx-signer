@@ -317,6 +317,7 @@ export const KeyExport = () => {
               <div className=' w-full flex mt-[1rem] items-center wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
                 <div className='flex-1 relative'>
                   <input
+                    autoFocus
                     type={closeEye ? 'password' : 'text'}
                     value={tpPin}
                     onChange={(e) => {

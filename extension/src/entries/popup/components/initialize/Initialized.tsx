@@ -3,9 +3,10 @@ import { MessageChannel } from 'sealx-message';
 import { closeWindow } from '@src/core/background';
 import { useMemo } from 'react';
 import Button from '@src/components/button';
+import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 
 export function Initialized() {
-    // const navigate = useSealXNavigate();
+    const navigate = useSealXNavigate();
     const { request } = useRequestContext();
 
     // Determine if opened by page or manually
@@ -14,15 +15,11 @@ export function Initialized() {
         (request.sender === MessageChannel.INPAGE || request.sender === MessageChannel.CONTENT), [request]);
 
     const handleAction = () => {
-        closeWindow();
-        // if (isPageInitiated) {
-        //     // Page-initiated: close window to return to page
-        //     // messager.send(null, SealxTopic.CLOSE, MessageChannel.BACKGROUND);
-        //     closeWindow();
-        // } else {
-        //     // Manually opened: navigate to home
-        //     navigate('/', { replace: true });
-        // }
+        if (isPageInitiated) {
+            closeWindow();
+        } else {
+            navigate('/', { replace: true });
+        }
     };
 
     return (
