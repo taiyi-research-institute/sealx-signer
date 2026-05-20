@@ -375,8 +375,7 @@ export default class PanelManager {
      * 如果调用方需要强制隐藏面板（如错误场景），使用 forceHide()
      */
     static async closePanel(): Promise<void> {
-        await this.navigateToRoute('')
-        this.currentRoute = ''
+        await this.forceHide()
     }
 
     /**
