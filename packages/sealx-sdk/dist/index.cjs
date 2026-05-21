@@ -535,9 +535,7 @@ class SealxProvider {
         if (!window.sealxSigner) {
             window.sealxSigner = new SealxSigner();
         }
-        else {
-            console.warn("SealxSigner is already registered.");
-        }
+        return window.sealxSigner;
     }
 }
 
@@ -8695,6 +8693,9 @@ function isNativeFullscreen$1() {
 class PinError extends Error {
 }
 
+class DataCorruptedError extends Error {
+}
+
 /**
  * Escapes special regex characters in a string
  * @param string - The string to escape
@@ -9026,10 +9027,29 @@ const encryptPrivateKey = async (privateKey, pin, slat) => {
 };
 // pin码解密私钥
 const decryptPrivateKey = async (pin, encodePrivateKey, iv, slat) => {
+    // Pre-decryption format validation: distinguish data corruption from wrong PIN
+    let encrypted;
+    let ivBytes;
+    try {
+        // Validate base64 format of ciphertext
+        encrypted = new Uint8Array(atob(encodePrivateKey).split('').map(c => c.charCodeAt(0)));
+    }
+    catch {
+        throw new DataCorruptedError('Invalid base64 encoding in encrypted data');
+    }
+    try {
+        // Validate base64 format of IV
+        ivBytes = new Uint8Array(atob(iv).split('').map(c => c.charCodeAt(0)));
+    }
+    catch {
+        throw new DataCorruptedError('Invalid base64 encoding in IV');
+    }
+    // Validate IV length (AES-GCM requires 12 bytes)
+    if (ivBytes.length !== 12) {
+        throw new DataCorruptedError(`Invalid IV length: expected 12 bytes, got ${ivBytes.length}`);
+    }
     try {
         const key = await deriveKeyFromPin(pin, slat);
-        const encrypted = new Uint8Array(new Uint8Array(atob(encodePrivateKey).split('').map(c => c.charCodeAt(0))));
-        const ivBytes = new Uint8Array(atob(iv).split('').map(c => c.charCodeAt(0)));
         const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: ivBytes }, key, encrypted);
         return new TextDecoder().decode(decrypted);
     }
@@ -9557,6 +9577,14 @@ class MessagerBase {
 }
 
 // import { TabManager } from "sealx-core";
+const ignoreMissingReceiver$2 = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('ContentMessager postMessage failed:', error);
+};
 /**
  * Handles message communication for content scripts in browser extensions.
  * Manages message passing between:
@@ -9646,10 +9674,10 @@ class ContentMessager extends MessagerBase {
             try {
                 const runtime = chrome.runtime;
                 if (runtime)
-                    runtime.sendMessage(message);
+                    runtime.sendMessage(message).catch(ignoreMissingReceiver$2);
             }
             catch (e) {
-                console.error('postMessage error:', e);
+                ignoreMissingReceiver$2(e);
                 this.replyError(e, message);
             }
         }
@@ -17343,6 +17371,14 @@ function isNativeFullscreen() {
         doc.msFullscreenElement);
 }
 
+const ignoreMissingReceiver$1 = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('ExtensionMessager postMessage failed:', error);
+};
 /**
  * ExtensionMessager handles message communication for browser extension UI components
  *
@@ -17418,15 +17454,12 @@ class ExtensionMessager extends MessagerBase {
         }
         // Send message to appropriate destination
         if (!message.header.tabId) {
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver$1);
         }
         else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            }
-            catch (e) {
-                chrome.runtime?.sendMessage(message);
-            }
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
+                chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver$1);
+            });
         }
     }
     /**
@@ -17445,6 +17478,14 @@ class ExtensionMessager extends MessagerBase {
     }
 }
 
+const ignoreMissingReceiver = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('BackgroundMessager postMessage failed:', error);
+};
 /**
  * BackgroundMessager handles message communication for browser extension background scripts.
  *
@@ -17542,18 +17583,15 @@ class BackgroundMessager extends MessagerBase {
             || message.receiver === exports.MessageChannel.SIDEBAR
             || !message.header.tabId) {
             // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver);
         }
         else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            }
-            catch (e) {
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
                 const tab = TabManager.getInstance().currentTab;
                 if (tab && tab.id) {
-                    chrome.tabs?.sendMessage(tab.id, message);
+                    chrome.tabs?.sendMessage(tab.id, message).catch(ignoreMissingReceiver);
                 }
-            }
+            });
             // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
         }
     }
@@ -17883,6 +17921,11 @@ if (document.readyState === 'loading') {
 else {
     setupSealxActions();
 }
+const sealxId = () => {
+    const time = Date.now().toString(16);
+    const random = Math.floor(Math.random() * 1e6).toString(16);
+    return `sealx-${time}-${random}`;
+};
 // MutationObserver: 监听后续动态添加的 sealx 元素
 const sealxObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -17891,6 +17934,11 @@ const sealxObserver = new MutationObserver((mutations) => {
                 if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
                     if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
                         node.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                        node.setAttribute('data-sealx-id', sealxId());
+                        window.postMessage({
+                            type: 'sealx-element-updated',
+                            'data-sealx-id': node.getAttribute('data-sealx-id'),
+                        }, '*');
                     }
                 }
                 // 同时扫描子节点
@@ -17898,6 +17946,11 @@ const sealxObserver = new MutationObserver((mutations) => {
                     node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
                         if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
                             el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                            el.setAttribute('data-sealx-id', sealxId());
+                            window.postMessage({
+                                type: 'sealx-element-updated',
+                                'data-sealx-id': el.getAttribute('data-sealx-id'),
+                            }, '*');
                         }
                     });
                 }
@@ -17908,6 +17961,11 @@ const sealxObserver = new MutationObserver((mutations) => {
             const el = mutation.target;
             if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
                 el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                el.setAttribute('data-sealx-id', sealxId());
+                window.postMessage({
+                    type: 'sealx-element-updated',
+                    'data-sealx-id': el.getAttribute('data-sealx-id'),
+                }, '*');
             }
         }
     }
@@ -17952,12 +18010,16 @@ const isSealxActive = async () => {
     }
     const isActive = (await checkSealx()) !== null;
     sealxSigner.active = isActive;
+    if (isActive && !sealxSigner.installed) {
+        sealxSigner.installed = true;
+        void sealxSigner.storageWrapper.setItem('installed', true);
+    }
     // Update cache
     sealxStatusCache = {
         isActive,
         timestamp: now
     };
-    return sealxSigner?.installed && isActive;
+    return isActive;
 };
 /**
  * Initializes the SealX session for a user
@@ -18266,7 +18328,6 @@ const signBySealx = async (task, userId) => {
     }
     if (sealxSigner.session)
         messager.session = sealxSigner.session;
-    console.log('---------- sealx session -----', messager.session);
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
         throw new PkException('Public key mismatch - new key does not match registered key');
@@ -18508,11 +18569,8 @@ const checkSealx = async () => {
                 return res.payload;
             }
         }
-        catch (error) {
-            // Log error only on last attempt
-            if (attempt === maxRetries - 1) {
-                console.debug('SealX extension check failed:', error);
-            }
+        catch {
+            // Retry transient extension messaging failures.
         }
         // Wait before next retry, except on last attempt
         if (attempt < maxRetries - 1) {
@@ -18605,7 +18663,6 @@ let registeredKeys = new Set();
  */
 const registerLocatableKeys = (keys) => {
     if (!keys || keys.length === 0) {
-        console.log('[SealX] No keys to register, clearing registered keys');
         registeredKeys.clear();
         return;
     }
@@ -18615,7 +18672,6 @@ const registerLocatableKeys = (keys) => {
             registeredKeys.add(key);
         }
     });
-    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
 };
 /**
  * Check if a key is registered for location
@@ -18662,16 +18718,13 @@ const onLocateElement = (locateCallback) => {
     const locator = locateCallback || defaultLocateCallback;
     const handleLocate = async (request) => {
         const { key, value } = request.payload;
-        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
         // Check if key is registered (if any keys are registered)
         if (!isKeyRegistered(key)) {
-            console.log('[SealX] Key not registered, ignoring:', key);
             return;
         }
         // Call the callback to get the element to highlight
         const element = locator(key, value);
         if (!element) {
-            console.log('[SealX] Element not found for key:', key);
             return;
         }
         // Remove any existing highlights first
@@ -18685,7 +18738,6 @@ const onLocateElement = (locateCallback) => {
         setTimeout(() => {
             removeHighlight(element);
         }, 3000);
-        console.log('[SealX] Element highlighted:', key);
     };
     const off = messager.on(exports.SealxTopic.LOCATE_ELEMENT, handleLocate, exports.MessageChannel.POPUP);
     return off;
@@ -18693,6 +18745,7 @@ const onLocateElement = (locateCallback) => {
 
 exports.BackgroundMessager = BackgroundMessager;
 exports.ContentMessager = ContentMessager;
+exports.DataCorruptedError = DataCorruptedError;
 exports.ExtensionMessager = ExtensionMessager;
 exports.MessagerManager = MessagerManager;
 exports.PinError = PinError;

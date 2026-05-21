@@ -1,14 +1,15 @@
-export { TabManager } from './sealx-sdk/node_modules/sealx-core/dist/tabs/tab-manager.mjs';
-import { SealxProvider } from './sealx-sdk/node_modules/sealx-core/dist/sealx/sealx-provider.mjs';
-export { SealxSigner } from './sealx-sdk/node_modules/sealx-core/dist/sealx/sealx-signer.mjs';
-import { wait } from './sealx-sdk/node_modules/sealx-core/dist/utils/index.mjs';
-export { isNativeFullscreen, isViewportFullscreenBySize } from './sealx-sdk/node_modules/sealx-core/dist/utils/index.mjs';
-export { dbStorageWrapper, localStorageWrapper } from './sealx-sdk/node_modules/sealx-core/dist/storage/index.mjs';
-export { default as PinError } from './sealx-sdk/node_modules/sealx-core/dist/exceptions/PinError.mjs';
-export { buildSignRenderContext, checkTemplateArgValid, convertToISOFormat, layoutRender, parseSignContent } from './sealx-sdk/node_modules/sealx-core/dist/utils/eip712-helper.mjs';
-export { decryptPrivateKey, deriveKeyFromPin, encryptPrivateKey, pinGenerator, slatGenerator } from './sealx-sdk/node_modules/sealx-core/dist/utils/cropto.mjs';
-import { MessagerManager, SealxTopic, MessageChannel } from './sealx-message/dist/index.mjs';
-export { BackgroundMessager, ContentMessager, ExtensionMessager, TOPIC_PREFIX, WindowMessager, checkSealxSignerActive } from './sealx-message/dist/index.mjs';
+export { TabManager } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/tabs/tab-manager.mjs';
+import { SealxProvider } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/sealx/sealx-provider.mjs';
+export { SealxSigner } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/sealx/sealx-signer.mjs';
+import { wait } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/utils/index.mjs';
+export { isNativeFullscreen, isViewportFullscreenBySize } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/utils/index.mjs';
+export { dbStorageWrapper, localStorageWrapper } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/storage/index.mjs';
+export { default as PinError } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/exceptions/PinError.mjs';
+export { default as DataCorruptedError } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/exceptions/DataCorruptedError.mjs';
+export { buildSignRenderContext, checkTemplateArgValid, convertToISOFormat, layoutRender, parseSignContent } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/utils/eip712-helper.mjs';
+export { decryptPrivateKey, deriveKeyFromPin, encryptPrivateKey, pinGenerator, slatGenerator } from './node_modules/.pnpm/sealx-core@1.0.14/node_modules/sealx-core/dist/utils/cropto.mjs';
+import { MessagerManager, SealxTopic, MessageChannel } from './node_modules/.pnpm/sealx-message@1.0.15/node_modules/sealx-message/dist/index.mjs';
+export { BackgroundMessager, ContentMessager, ExtensionMessager, TOPIC_PREFIX, WindowMessager, checkSealxSignerActive } from './node_modules/.pnpm/sealx-message@1.0.15/node_modules/sealx-message/dist/index.mjs';
 import PkException from './exceptions/PkException.mjs';
 import SignException from './exceptions/SignException.mjs';
 import SessionException from './exceptions/SessionException.mjs';
@@ -82,6 +83,11 @@ if (document.readyState === 'loading') {
 else {
     setupSealxActions();
 }
+const sealxId = () => {
+    const time = Date.now().toString(16);
+    const random = Math.floor(Math.random() * 1e6).toString(16);
+    return `sealx-${time}-${random}`;
+};
 // MutationObserver: 监听后续动态添加的 sealx 元素
 const sealxObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -90,6 +96,11 @@ const sealxObserver = new MutationObserver((mutations) => {
                 if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
                     if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
                         node.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                        node.setAttribute('data-sealx-id', sealxId());
+                        window.postMessage({
+                            type: 'sealx-element-updated',
+                            'data-sealx-id': node.getAttribute('data-sealx-id'),
+                        }, '*');
                     }
                 }
                 // 同时扫描子节点
@@ -97,6 +108,11 @@ const sealxObserver = new MutationObserver((mutations) => {
                     node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
                         if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
                             el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                            el.setAttribute('data-sealx-id', sealxId());
+                            window.postMessage({
+                                type: 'sealx-element-updated',
+                                'data-sealx-id': el.getAttribute('data-sealx-id'),
+                            }, '*');
                         }
                     });
                 }
@@ -107,6 +123,11 @@ const sealxObserver = new MutationObserver((mutations) => {
             const el = mutation.target;
             if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
                 el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                el.setAttribute('data-sealx-id', sealxId());
+                window.postMessage({
+                    type: 'sealx-element-updated',
+                    'data-sealx-id': el.getAttribute('data-sealx-id'),
+                }, '*');
             }
         }
     }
@@ -151,12 +172,16 @@ const isSealxActive = async () => {
     }
     const isActive = (await checkSealx()) !== null;
     sealxSigner.active = isActive;
+    if (isActive && !sealxSigner.installed) {
+        sealxSigner.installed = true;
+        void sealxSigner.storageWrapper.setItem('installed', true);
+    }
     // Update cache
     sealxStatusCache = {
         isActive,
         timestamp: now
     };
-    return sealxSigner?.installed && isActive;
+    return isActive;
 };
 /**
  * Initializes the SealX session for a user
@@ -465,7 +490,6 @@ const signBySealx = async (task, userId) => {
     }
     if (sealxSigner.session)
         messager.session = sealxSigner.session;
-    console.log('---------- sealx session -----', messager.session);
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
         throw new PkException('Public key mismatch - new key does not match registered key');
@@ -707,11 +731,8 @@ const checkSealx = async () => {
                 return res.payload;
             }
         }
-        catch (error) {
-            // Log error only on last attempt
-            if (attempt === maxRetries - 1) {
-                console.debug('SealX extension check failed:', error);
-            }
+        catch {
+            // Retry transient extension messaging failures.
         }
         // Wait before next retry, except on last attempt
         if (attempt < maxRetries - 1) {
@@ -804,7 +825,6 @@ let registeredKeys = new Set();
  */
 const registerLocatableKeys = (keys) => {
     if (!keys || keys.length === 0) {
-        console.log('[SealX] No keys to register, clearing registered keys');
         registeredKeys.clear();
         return;
     }
@@ -814,7 +834,6 @@ const registerLocatableKeys = (keys) => {
             registeredKeys.add(key);
         }
     });
-    console.log('[SealX] Registered locatable keys:', Array.from(registeredKeys));
 };
 /**
  * Check if a key is registered for location
@@ -861,16 +880,13 @@ const onLocateElement = (locateCallback) => {
     const locator = locateCallback || defaultLocateCallback;
     const handleLocate = async (request) => {
         const { key, value } = request.payload;
-        console.log('[SealX] Received LOCATE_ELEMENT:', { key, value });
         // Check if key is registered (if any keys are registered)
         if (!isKeyRegistered(key)) {
-            console.log('[SealX] Key not registered, ignoring:', key);
             return;
         }
         // Call the callback to get the element to highlight
         const element = locator(key, value);
         if (!element) {
-            console.log('[SealX] Element not found for key:', key);
             return;
         }
         // Remove any existing highlights first
@@ -884,7 +900,6 @@ const onLocateElement = (locateCallback) => {
         setTimeout(() => {
             removeHighlight(element);
         }, 3000);
-        console.log('[SealX] Element highlighted:', key);
     };
     const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
     return off;
