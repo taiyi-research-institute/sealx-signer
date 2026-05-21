@@ -83,6 +83,11 @@ if (document.readyState === 'loading') {
     setupSealxActions();
 }
 
+const sealxId = () => {
+  const time = Date.now().toString(16);
+  const random = Math.floor(Math.random() * 1e6).toString(16);
+  return `sealx-${time}-${random}`;
+};
 // MutationObserver: 监听后续动态添加的 sealx 元素
 const sealxObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -91,6 +96,14 @@ const sealxObserver = new MutationObserver((mutations) => {
                 if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
                     if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
                         node.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                        node.setAttribute('data-sealx-id', sealxId());
+                        window.postMessage(
+                          {
+                            type: 'sealx-element-updated',
+                            'data-sealx-id': node.getAttribute('data-sealx-id'),
+                          },
+                          '*',
+                        );
                     }
                 }
                 // 同时扫描子节点
@@ -98,6 +111,15 @@ const sealxObserver = new MutationObserver((mutations) => {
                     node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
                         if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
                             el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                            el.setAttribute('data-sealx-id', sealxId());
+                            window.postMessage(
+                              {
+                                type: 'sealx-element-updated',
+                                'data-sealx-id':
+                                  el.getAttribute('data-sealx-id'),
+                              },
+                              '*',
+                            );
                         }
                     });
                 }
@@ -108,6 +130,14 @@ const sealxObserver = new MutationObserver((mutations) => {
             const el = mutation.target as HTMLElement;
             if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
                 el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+                el.setAttribute('data-sealx-id', sealxId());
+                window.postMessage(
+                  {
+                    type: 'sealx-element-updated',
+                    'data-sealx-id': el.getAttribute('data-sealx-id'),
+                  },
+                  '*',
+                );
             }
         }
     }

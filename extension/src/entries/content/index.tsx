@@ -160,3 +160,20 @@ const observer = new MutationObserver((mutations) => {
 });
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
+
+window.addEventListener('message', (event) => {
+  if (event.source !== window) return;
+  if (event.data?.type === 'sealx-element-updated') {
+    console.log('[SealX] Received element update message:', event.data);
+    // 这里可以根据需要处理元素更新后的逻辑，例如重新绑定事件等
+    const updatedElement = document.querySelector(
+      `[data-sealx-id="${event.data['data-sealx-id']}"]`,
+    ) as HTMLElement | null;
+    if (updatedElement && updatedElement.hasAttribute('data-sealx-action')) {
+      console.log('[SealX] Updated element found:', updatedElement);
+      // 例如，重新绑定事件
+      updatedElement.removeEventListener('click', openSidePanel);
+      updatedElement.addEventListener('click', openSidePanel);
+    }
+  }
+});
