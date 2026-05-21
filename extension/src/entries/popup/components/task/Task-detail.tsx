@@ -7,6 +7,7 @@ import messager from '@src/core/messager';
 import { SealxTopic } from 'sealx-message';
 import { MessageChannel } from 'sealx-message';
 import ArrowLeft from '@assets/svg/arrow-left.svg?react';
+import { REJECT_DELAY_MS } from './constants';
 
 interface SubTask {
     taskId: string;
@@ -28,6 +29,18 @@ export const TaskDetail = memo(() => {
     const navigate = useNavigate();
     useRequestContext();
     const [signing, setSigning] = useState(false);
+    const [rejecting, setRejecting] = useState(false);
+    const rejectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup reject timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (rejectTimeoutRef.current) {
+                clearTimeout(rejectTimeoutRef.current)
+                rejectTimeoutRef.current = null
+            }
+        }
+    }, [])
 
     // Get task data from navigation state
     const taskData = location.state as TaskDetailState | null;
@@ -73,16 +86,21 @@ export const TaskDetail = memo(() => {
 
             // If rejected (empty signature), reject entire task
             if (signature === '' || signature === null) {
-                messager.send(
-                    {
-                        taskId: taskData.mainTaskId,
-                        signatures: null,
-                        rejected: true,
-                    },
-                    SealxTopic.SIGN_RESPONSE,
-                    MessageChannel.INPAGE
-                );
-                navigate('/task-home', { replace: true });
+                setRejecting(true)
+                rejectTimeoutRef.current = setTimeout(() => {
+                    rejectTimeoutRef.current = null
+                    setRejecting(false)
+                    messager.send(
+                        {
+                            taskId: taskData.mainTaskId,
+                            signatures: null,
+                            rejected: true,
+                        },
+                        SealxTopic.SIGN_RESPONSE,
+                        MessageChannel.INPAGE
+                    );
+                    navigate('/task-home', { replace: true });
+                }, REJECT_DELAY_MS);
                 return;
             }
 
@@ -155,6 +173,7 @@ export const TaskDetail = memo(() => {
                         validUntilTime={taskData.validUntilTime}
                         signing={signing}
                         setSigning={setSigning}
+                        rejecting={rejecting}
                         onSign={handleSign}
                         confirmText={isLastSubTask ? 'Sign To Approve' : 'Next'}
                         extenals={taskData.extenals}
@@ -172,11 +191,11 @@ export const TaskDetail = memo(() => {
             )}
 
             {/* Signing overlay */}
-            {signing && (
-                <div className="absolute inset-0 bg-[#101820]/82 flex items-center justify-center z-50">
+            {(signing || rejecting) && (
+                <div className="fixed inset-0 bg-[#101820]/82 flex items-center justify-center z-50" role="alert" aria-busy="true" aria-live="polite">
                     <div className="flex flex-col items-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-white/30 border-t-white mb-4"></div>
-                        <div className="text-white text-[1rem] font-[800]">Signing...</div>
+                        <div className="text-white text-[1rem] font-[800]">{rejecting ? 'Rejecting...' : 'Signing...'}</div>
                     </div>
                 </div>
             )}

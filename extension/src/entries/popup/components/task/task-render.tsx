@@ -1,6 +1,6 @@
 import DOMPurify from 'dompurify';
 import type React from 'react';
-import { useCallback, useEffect, useMemo, useState, memo } from 'react';
+import { useCallback, useEffect, useMemo, useState, memo, useRef } from 'react';
 import {
     convertToISOFormat,
     type SignContent,
@@ -23,6 +23,7 @@ import { useGlobalContext } from '@src/hooks/useGlobalContext.js';
 import Button from '@src/components/button';
 import { useErrorStore, useSessionStore } from '@src/core/state/index.js';
 import { handleLocateElement } from '@src/core/utils/locateElement';
+import { REJECT_DELAY_MS } from './constants';
 // import moment from 'moment';
 
 /**
@@ -61,6 +62,8 @@ export interface SignTaskRenderProps
     signing: boolean
     onReview?: (url: string) => Promise<void>
     setSigning?: (signing: boolean) => void
+    /** Whether the component is currently in rejecting state */
+    rejecting?: boolean
     /** Timestamp when the task expires */
     validUntilTime: number;
     onSign: (taskId: string, signatures: string | { taskId: string, signature: string }[] | null) => void;
@@ -371,10 +374,6 @@ export const OutsideTemplateRender = memo(({
     );
 });
 
-const onRejected = (props: SignTaskRenderProps) => {
-    props.onSign(props.taskId, '');
-};
-
 const handleApprovalFailure = (props: SignTaskRenderProps, error: unknown) => {
     console.error('Approval failed:', error)
     props.setSigning?.(false)
@@ -473,6 +472,34 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     // Tracks remaining time until task expiration in formatted string (HH:MM:SS or Dd:Hh:Mm)
     const [validTime, setValidTime] = useState('00:00:00');
 
+    // Rejection loading state
+    const [rejecting, setRejecting] = useState(false);
+    const rejectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup reject timeout on unmount
+    useEffect(() => {
+        return () => {
+            if (rejectTimeoutRef.current) {
+                clearTimeout(rejectTimeoutRef.current)
+                rejectTimeoutRef.current = null
+            }
+        }
+    }, [])
+
+    // Shared reject handler: shows animation, then calls onSign
+    const handleReject = useCallback(() => {
+        if (rejectTimeoutRef.current) return;
+        setRejecting(true)
+        rejectTimeoutRef.current = setTimeout(() => {
+            rejectTimeoutRef.current = null
+            setRejecting(false)
+            props.onSign(props.taskId, '')
+        }, REJECT_DELAY_MS)
+    }, [props.taskId, props.onSign])
+
+    // Merge local rejecting state with parent-prop rejecting state (TaskDetail passes it)
+    const isRejecting = rejecting || props.rejecting;
+
     const { request } = useRequestContext();
     const parseSignContent = useCallback(async () => {
         if (props.signContent instanceof Array) {
@@ -555,7 +582,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
             const payload = request.payload as { taskId: string, rejected?: boolean }
             if (payload.taskId === props.taskId) {
                 if (payload.rejected) {
-                    props.onSign(props.taskId, '');
+                    handleReject()
                 } else {
                     const req = {
                         ...request
@@ -568,7 +595,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 }
             }
         }
-    }, [request, props, session?.userId, session?.sessionId]); // Removed onApproval and onRejected from dependencies
+    }, [request, props, session?.userId, session?.sessionId, handleReject]);
 
     const onReview = useCallback(() => {
         // If task has subtasks (array of signContent), navigate to detail page
@@ -623,14 +650,15 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                 {!props.preViewUrl ? (<div className='sx-task-actions'>
                 <Button
                     variant="secondary"
-                    onClick={() => onRejected(props)}
-                    disabled={props.signing}
+                    onClick={handleReject}
+                    disabled={props.signing || isRejecting}
+                    loading={isRejecting}
                 >
-                    {props.cencelText ?? 'Reject'}
+                    {isRejecting ? 'Rejecting...' : (props.cencelText ?? 'Reject')}
                 </Button>
                 <Button
                     variant="primary"
-                    disabled={props.signing}
+                    disabled={props.signing || isRejecting}
                     onClick={() => {
                         const req = {
                             ...request

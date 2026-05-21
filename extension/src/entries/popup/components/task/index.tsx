@@ -22,6 +22,7 @@ import { MessageChannel } from 'sealx-message'
 import type { ReplyFunc } from 'sealx-message'
 import { closeWindow } from '@src/core/background'
 import { useLocation } from 'react-router-dom'
+import { SIGN_OVERLAY_DISMISS_MS } from './constants';
 
 const NoPendingTasks = () => {
     return (
@@ -42,7 +43,7 @@ const NoPendingTasks = () => {
 const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; progress: number; onClose: () => void }) => {
     if (timeout) {
         return (
-            <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
+            <div className='fixed inset-0 bg-[#101820]/82 flex items-center justify-center z-50' role="alert" aria-busy="true" aria-live="polite">
                 <div className="flex flex-col items-center rounded-[16px] bg-white px-6 py-5 shadow-[var(--sx-shadow-raised)]">
                     <div className="text-[var(--sx-danger)] text-[1rem] font-[800] mb-4">Signing Timeout</div>
                     <button
@@ -56,7 +57,7 @@ const SigningOverlay = ({ timeout, progress, onClose }: { timeout: boolean; prog
         )
     }
     return (
-        <div className='absolute inset-0 bg-[#101820]/82 flex items-center justify-center'>
+        <div className='fixed inset-0 bg-[#101820]/82 flex items-center justify-center z-50' role="alert" aria-busy="true" aria-live="polite">
             <div className="flex flex-col items-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-white/30 border-t-white mb-4"></div>
                 {progress >= 75 ? (
@@ -93,6 +94,8 @@ export const TaskHome = () => {
     const originTabIdMapRef = useRef<Map<string, number>>(new Map())
     const currentSigningTaskIdRef = useRef<string | null>(null)
     const signTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const dismissTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const clearTaskAndCloseIfDoneRef = useRef<((taskId: string) => void) | null>(null)
     const { state } = useLocation() as {
         state: {
             result: {
@@ -263,10 +266,14 @@ export const TaskHome = () => {
     useEffect(() => {
         const originTabIdMap = originTabIdMapRef.current
         const signTimeout = signTimeoutRef.current
+        const dismissTimeout = dismissTimeoutRef.current
         return () => {
             originTabIdMap.clear()
             if (signTimeout) {
                 clearTimeout(signTimeout)
+            }
+            if (dismissTimeout) {
+                clearTimeout(dismissTimeout)
             }
         }
     }, [])
@@ -309,6 +316,7 @@ export const TaskHome = () => {
             return items
         })
     }, [])
+    clearTaskAndCloseIfDoneRef.current = clearTaskAndCloseIfDone
 
     // Note: signing state is managed by the SIGN/BATCH_SIGN request handler
     // This callback only sends the signature result
@@ -350,15 +358,22 @@ export const TaskHome = () => {
         }
         messager.send(signResponsePayload, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
         currentSigningTaskIdRef.current = null
-        setSigning(false)
-        setSignTimeout(false)
-        setSignProgress(0)
         if (signTimeoutRef.current) {
             clearTimeout(signTimeoutRef.current)
             signTimeoutRef.current = null
         }
-        clearTaskAndCloseIfDone(taskId)
-    }, [clearTaskAndCloseIfDone, list])
+        // Delay overlay dismissal to ensure it's visible to user
+        if (dismissTimeoutRef.current) {
+            clearTimeout(dismissTimeoutRef.current)
+        }
+        dismissTimeoutRef.current = setTimeout(() => {
+            dismissTimeoutRef.current = null
+            setSigning(false)
+            setSignTimeout(false)
+            setSignProgress(0)
+            clearTaskAndCloseIfDoneRef.current(taskId)
+        }, SIGN_OVERLAY_DISMISS_MS)
+    }, [list])
     return <>
         {/* <button onClick={onTest}>Test</button> */}
         <div className="sx-signing-list-page w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
