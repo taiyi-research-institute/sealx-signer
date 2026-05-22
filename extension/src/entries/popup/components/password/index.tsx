@@ -55,12 +55,24 @@ export const Password = ({
 
     useLayoutEffect(() => {
         if (!autoFocus) return;
-        // Extended staggered retries: up to 3000ms for fullscreen side panel scenarios
-        const timers = [0, 50, 120, 250, 500, 900, 1200, 1500, 2000, 2500, 3000].map(delay => setTimeout(focusInput, delay));
+        // Staggered immediate retries
+        const timers = [0, 50, 120, 250, 500, 900].map(delay => setTimeout(focusInput, delay));
         const frame = requestAnimationFrame(focusInput);
         return () => {
             timers.forEach(clearTimeout);
             cancelAnimationFrame(frame);
+        };
+    }, [autoFocus, focusInput]);
+
+    // Fallback polling: retry focus every 500ms for 5s after mount
+    // Covers Chrome side panel in browser fullscreen where events may not fire
+    useEffect(() => {
+        if (!autoFocus) return;
+        const interval = setInterval(focusInput, 500);
+        const stopTimer = setTimeout(() => clearInterval(interval), 5000);
+        return () => {
+            clearInterval(interval);
+            clearTimeout(stopTimer);
         };
     }, [autoFocus, focusInput]);
 
