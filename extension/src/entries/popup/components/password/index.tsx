@@ -83,6 +83,18 @@ export const Password = ({
         };
     }, [autoFocus, focusInput]);
 
+    // Keyboard relay for side panel in browser fullscreen:
+    // The side panel doesn't receive keyboard events when the web page has focus.
+    // Request the content script to capture and forward keydown events to us.
+    useEffect(() => {
+        if (!autoFocus || readonly) return;
+        if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
+        chrome.runtime.sendMessage({ type: 'request-arm-key-relay' }).catch(() => {});
+        return () => {
+            chrome.runtime.sendMessage({ type: 'request-stop-key-relay' }).catch(() => {});
+        };
+    }, [autoFocus, readonly]);
+
     // Fallback polling: retry focus every 500ms for 5s after mount
     // Covers Chrome side panel in browser fullscreen where events may not fire
     useEffect(() => {

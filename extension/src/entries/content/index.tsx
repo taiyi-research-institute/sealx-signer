@@ -161,6 +161,18 @@ const observer = new MutationObserver((mutations) => {
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
+// ========== Key relay activation from background ==========
+// When side panel opens (especially in fullscreen mode), background sends this message
+// to arm the PIN key relay so keyboard events on the web page are forwarded to the panel.
+chrome.runtime.onMessage.addListener((message: Record<string, unknown>) => {
+    if (message?.type === 'arm-pin-key-relay') {
+        armPinKeyRelay();
+    }
+    if (message?.type === 'stop-pin-key-relay') {
+        stopPinKeyRelay();
+    }
+});
+
 window.addEventListener('message', (event) => {
   if (event.source !== window) return;
   if (event.data?.type === 'sealx-element-updated') {

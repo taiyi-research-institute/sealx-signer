@@ -242,6 +242,16 @@ export default class PanelManager {
     }
 
     /**
+     * 向 tab 的 content script 发送消息，激活 PIN 键盘中继
+     * 全屏模式下 side panel 无法接收键盘事件，通过 content script 拦截并转发
+     */
+    static armKeyRelay(tabId: number): void {
+        chrome.tabs.sendMessage(tabId, { type: 'arm-pin-key-relay' }).catch(() => {
+            // Content script may not be loaded on this tab — safe to ignore
+        })
+    }
+
+    /**
      * 导航到指定路由（面板已打开时调用）
      * 通过 runtime.sendMessage 通知 React Router 更新
      *

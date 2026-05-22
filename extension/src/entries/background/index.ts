@@ -185,6 +185,21 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
         }
         return true
     }
+    // Password component requests keyboard relay (needed for fullscreen side panel)
+    if (message?.type === 'request-arm-key-relay') {
+        const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
+        if (tabId) {
+            PanelManager.armKeyRelay(tabId)
+        }
+        return true
+    }
+    if (message?.type === 'request-stop-key-relay') {
+        const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
+        if (tabId) {
+            chrome.tabs.sendMessage(tabId, { type: 'stop-pin-key-relay' }).catch(() => { })
+        }
+        return true
+    }
     if (message?.type === 'panel-process-queue') {
         PanelManager.processNextInQueue()
         return true
