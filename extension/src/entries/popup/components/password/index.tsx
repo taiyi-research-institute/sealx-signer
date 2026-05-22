@@ -22,6 +22,8 @@ export const Password = ({
     const passwordRef = useRef(password.slice(0, 6));
     const [draftPassword, setDraftPassword] = useState(password.slice(0, 6));
     const [isFocused, setIsFocused] = useState(false);
+    const isFocusedRef = useRef(false);
+    const observerRef = useRef<IntersectionObserver | null>(null);
     const retryCountRef = useRef(0);
     const retrySuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const userLeftRef = useRef(false);
@@ -55,12 +57,28 @@ export const Password = ({
 
     useLayoutEffect(() => {
         if (!autoFocus) return;
-        // Staggered immediate retries
-        const timers = [0, 50, 120, 250, 500, 900].map(delay => setTimeout(focusInput, delay));
+        // Initial staggered retries (fast attempts)
+        const timers = [0, 50, 120, 250, 500].map(delay => setTimeout(focusInput, delay));
         const frame = requestAnimationFrame(focusInput);
+        // IntersectionObserver: focus when container becomes visible in viewport
+        // This catches Chrome side panel in browser fullscreen where initial focus may fail
+        const container = containerRef.current;
+        if (container) {
+            observerRef.current = new IntersectionObserver(
+                (entries) => {
+                    if (entries[0]?.isIntersecting) {
+                        setTimeout(focusInput, 100);
+                    }
+                },
+                { threshold: 0.1 }
+            );
+            observerRef.current.observe(container);
+        }
         return () => {
             timers.forEach(clearTimeout);
             cancelAnimationFrame(frame);
+            observerRef.current?.disconnect();
+            observerRef.current = null;
         };
     }, [autoFocus, focusInput]);
 
@@ -279,10 +297,12 @@ export const Password = ({
                 onFocus={(event) => {
                     event.currentTarget.setSelectionRange(displayPassword.length, displayPassword.length);
                     setIsFocused(true);
+                    isFocusedRef.current = true;
                     scheduleStableReset();
                 }}
                 onBlur={() => {
                     setIsFocused(false);
+                    isFocusedRef.current = false;
                     handleBlurRefocus();
                 }}
                 onChange={handleInputChange}
