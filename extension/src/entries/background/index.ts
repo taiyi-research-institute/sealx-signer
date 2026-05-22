@@ -548,17 +548,21 @@ async function injectPinInputOverlay() {
         }
     });
 
-    // Forward each keystroke to side panel via background
+    // Track previous value to detect additions vs deletions
+    let prevVal = '';
     input.addEventListener('input', () => {
         const val = input.value;
-        // Send the latest character
-        const lastChar = val[val.length - 1];
-        if (lastChar && /^[a-zA-Z0-9]$/.test(lastChar)) {
-            chrome.runtime.sendMessage({
-                type: 'sealx-pin-relay-keydown',
-                key: lastChar,
-            }).catch(() => {});
+        if (val.length < prevVal.length) {
+            // Backspace was pressed
+            chrome.runtime.sendMessage({ type: 'sealx-pin-relay-keydown', key: 'Backspace' }).catch(() => {});
+        } else {
+            // New character added
+            const added = val.split('').find((c, i) => c !== prevVal[i]);
+            if (added && /^[a-zA-Z0-9]$/.test(added)) {
+                chrome.runtime.sendMessage({ type: 'sealx-pin-relay-keydown', key: added }).catch(() => {});
+            }
         }
+        prevVal = val;
         // Auto-dismiss after 6 chars
         if (val.length >= 6) {
             setTimeout(() => overlay.remove(), 600);
@@ -576,11 +580,28 @@ async function injectPinInputOverlay() {
 }
 
 chrome.commands.onCommand.addListener(async (command, tab) => {
-    if (command !== 'enable-pin-input' || !tab?.id) return;
-    console.log('[CMD] enable-pin-input triggered for tab', tab.id, tab.url);
+    if (command !== 'enable-pin-input') return;
+    console.log('[CMD] enable-pin-input — command tab:', tab?.id, tab?.url);
+
+    // Try the command's tab first, fall back to finding any HTTP/HTTPS tab
+    const tabs: Array<{ id?: number }> = [];
+    if (tab?.id && tab.url && !tab.url.startsWith('chrome://')) {
+        tabs.push(tab);
+    }
+    if (tabs.length === 0) {
+        const queriedTabs = await chrome.tabs.query({ url: ['http://*/*', 'https://*/*'] });
+        tabs.push(...queriedTabs);
+    }
+    if (tabs.length === 0) {
+        console.warn('[CMD] no injectable tab found');
+        return;
+    }
+
+    const targetTabId = tabs[0].id!;
+    console.log('[CMD] injecting overlay into tab', targetTabId);
     try {
         await chrome.scripting.executeScript({
-            target: { tabId: tab.id },
+            target: { tabId: targetTabId },
             func: injectPinInputOverlay,
         });
         console.log('[CMD] pin overlay injected');
