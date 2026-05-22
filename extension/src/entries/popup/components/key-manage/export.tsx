@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
 import { PinPopup } from "./PinPopup"
-// import CopyBtn from '@assets/svg/copy.svg?react'
-import './password.css'
+import './styles.css'
 import Warning from '@assets/svg/warning.svg?react'
 import CloseEye from '@assets/svg/close-eye.svg?react'
 import OpenEye from '@assets/svg/open-eye.svg?react'
@@ -259,14 +258,11 @@ export const KeyExport = () => {
         setShowPinModal(true)
     }, [directoryHandle, setError, exportMethod, googleDrive, googleDriveStatus, tpPin, confirmPin, validateTpPin, validateConfirmPin, validateMatch])
     return (
-      <div className=' key-manage px-[1.5rem] py-[1.5rem] w-full h-fit flex flex-col'>
-        <div className='w-full rounded-[20px] bg-[#fff] flex-1'>
-          {/* <div className="w-full bg-[#000] rounded-t-[20px] text-left px-[1.5rem] pt-[1.375rem] pb-[1.25rem] font-[500] text-[1.625rem] leading-[2] text-[#fff]">
-                Export Signature Key
-            </div> */}
-          <div className='w-full px-[1.5rem] pt-[1.5rem]'>
-            <div className='  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
-              <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+      <div className='key-manage-page'>
+        <section className='key-manage-card'>
+          <div className='w-full'>
+            <div className='w-full rounded-[12px] border-[var(--sx-border)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+              <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[var(--sx-muted)]'>
                 Where we save the encrypted backup?
               </div>
               <div className='w-full mt-[1rem]'>
@@ -284,7 +280,7 @@ export const KeyExport = () => {
 
               {exportMethod === 'local' ? (
                 <>
-                  <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60 mt-[1.5rem]'>
+                  <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[var(--sx-muted)] mt-[1.5rem]'>
                     Choose where to save your encrypted backup
                   </div>
                   <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125] flex items-center'>
@@ -294,7 +290,7 @@ export const KeyExport = () => {
                       value={directoryPath}
                       readOnly
                       placeholder='Select export directory'
-                      className='w-2/3 text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border-[#000]/10 border cursor-pointer'
+                      className='w-2/3 text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[var(--sx-surface-soft)] border-[var(--sx-border)] focus:border-[var(--sx-focus)] focus:outline-none border cursor-pointer'
                       aria-label='Export directory path'
                     />
                     <Button
@@ -310,8 +306,8 @@ export const KeyExport = () => {
                 <></>
               )}
             </div>
-            <div className=' mt-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
-              <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[#000]/60'>
+            <div className=' mt-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[var(--sx-border)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+              <div className='title flex w-full items-center text-left font-[500] text-[1.1875rem] text-[var(--sx-muted)]'>
                 Recovery Password
               </div>
               <div className=' w-full flex mt-[1rem] items-center wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125]'>
@@ -333,11 +329,11 @@ export const KeyExport = () => {
                     }}
                     onBlur={handleTpPinBlur}
                     placeholder='Enter recovery password'
-                    className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border ${tpPinError ? 'border-[#ff0000]' : 'border-[#000]/10'}`}
+                    className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[var(--sx-surface-soft)] border ${tpPinError ? 'border-[var(--sx-danger)]' : 'border-[var(--sx-border)]'} focus:border-[var(--sx-focus)] focus:outline-none`}
                     aria-label='Recovery password'
                   />
                   {tpPinError && (
-                    <div className='text-[#ff0000] text-[0.875rem] mt-1'>
+                    <div className='text-[var(--sx-danger)] text-[0.875rem] mt-1'>
                       {tpPinError}
                     </div>
                   )}
@@ -378,11 +374,11 @@ export const KeyExport = () => {
                     }}
                     onBlur={handleConfirmPinBlur}
                     placeholder='Confirm recovery password'
-                    className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[#fff]/90 border ${confirmPinError || matchError ? 'border-[#ff0000]' : 'border-[#000]/10'}`}
+                    className={`w-full text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[var(--sx-surface-soft)] border ${confirmPinError || matchError ? 'border-[var(--sx-danger)]' : 'border-[var(--sx-border)]'} focus:border-[var(--sx-focus)] focus:outline-none`}
                     aria-label='Confirm recovery password'
                   />
                   {(confirmPinError || matchError) && (
-                    <div className='text-[#ff0000] text-[0.875rem] mt-1'>
+                    <div className='text-[var(--sx-danger)] text-[0.875rem] mt-1'>
                       {confirmPinError || matchError}
                     </div>
                   )}
@@ -404,22 +400,22 @@ export const KeyExport = () => {
                 </div>
               </div>
 
-              <div className=' relative text-[#E99E42] pl-[2.5rem] mt-[0.75rem] text-[1rem] font-[500] leading-[1.5] flex text-left'>
-                <Warning className=' absolute left-[0px] top-[6px] mr-[0.8281rem] text-[#E99E42] w-[24px] h-[24px]' />
+              <div className=' relative text-[var(--sx-warning)] pl-[2.5rem] mt-[0.75rem] text-[1rem] font-[500] leading-[1.5] flex text-left'>
+                <Warning className=' absolute left-[0px] top-[6px] mr-[0.8281rem] text-[var(--sx-warning)] w-[24px] h-[24px]' />
                 Please enter a recovery password (minimum 6 characters). This
                 password will be used to encrypt your signature key backup. Make
                 sure to save it securely.
               </div>
             </div>
 
-            <div className='font-[500] text-[1.1875rem] text-left mt-[1.5rem] bg-[#00be78]/10 mb-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[rgba(0,0,0,0.2)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
+            <div className='font-[500] text-[1.1875rem] text-left mt-[1.5rem] bg-[var(--sx-brand-soft)] mb-[1.5rem]  w-full rounded-[12px] border-[0.5px] border-[var(--sx-border)] px-[1.5rem] pt-[1.0625rem] pb-[1rem]'>
               After exporting the key file, please securely back up both the
               file and its password. Both are required to recover the key in
               case of emergency.
             </div>
           </div>
-        </div>
-        <div className='w-full mt-[2rem] flex gap-x-[1.5rem] justify-between '>
+        </section>
+        <div className='w-full mt-[1.5rem] key-action-grid'>
           <Button variant='secondary' onClick={() => navigate(-1)}>
             Cancel
           </Button>
