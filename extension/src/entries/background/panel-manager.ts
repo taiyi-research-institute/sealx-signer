@@ -245,11 +245,25 @@ export default class PanelManager {
      * 向 tab 的 content script 发送消息，激活 PIN 键盘中继
      * 全屏模式下 side panel 无法接收键盘事件，通过 content script 拦截并转发
      */
-    static armKeyRelay(tabId: number): void {
+    static async armKeyRelay(tabId: number): Promise<void> {
         console.log('[PM:relay] armKeyRelay → sending arm-pin-key-relay to tab', tabId);
-        chrome.tabs.sendMessage(tabId, { type: 'arm-pin-key-relay' }).catch((err) => {
-            console.warn('[PM:relay] armKeyRelay failed for tab', tabId, ':', err?.message);
-        })
+        try {
+            await chrome.tabs.sendMessage(tabId, { type: 'arm-pin-key-relay' });
+        } catch {
+            console.warn('[PM:relay] failed for tab', tabId, '→ scanning all tabs');
+            // Content script not on this tab — scan all tabs to find one
+            const tabs = await chrome.tabs.query({});
+            for (const tab of tabs) {
+                if (tab.id && tab.id !== tabId) {
+                    try {
+                        await chrome.tabs.sendMessage(tab.id, { type: 'arm-pin-key-relay' });
+                        console.log('[PM:relay] found content script on tab', tab.id);
+                        return;
+                    } catch { continue; }
+                }
+            }
+            console.warn('[PM:relay] no tab with content script found');
+        }
     }
 
     /**
