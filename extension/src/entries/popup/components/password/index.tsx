@@ -56,6 +56,13 @@ export const Password = ({
         console.log('[Password:focusInput] focus result:', success, 'activeElement now:', document.activeElement?.tagName);
         if (success) {
             input.setSelectionRange(input.value.length, input.value.length);
+            // In Chrome side panel fullscreen, the input can be activeElement but
+            // the document doesn't have focus → onFocus event never fires.
+            // Force visual focus so caret and active-cell styling render correctly.
+            if (!isFocusedRef.current) {
+                setIsFocused(true);
+                isFocusedRef.current = true;
+            }
         }
     }, [readonly]);
 
