@@ -381,32 +381,29 @@ export const Password = ({
                 onChange={handleInputChange}
                 onPaste={handlePaste}
             />
-            {isActivationPending ? (
-                <div className="password-activation-target" aria-hidden="true">
-                    <div className="password-activation-content">
-                        <span className="password-activation-icon">
-                            <span />
-                            <span />
-                            <span />
-                        </span>
-                        <span>Click to enter PIN</span>
-                    </div>
-                </div>
-            ) : (
-                Array.from({ length: 6 }).map((_, i) => (
+            {/* Always render 6 cells — semi-transparent when awaiting activation */}
+            <div className={`password-cells ${isActivationPending ? 'password-cells--pending' : ''}`}>
+                {Array.from({ length: 6 }).map((_, i) => (
                     <div
                         key={i}
                         className={`password bg-surface-secondary flex items-center justify-center
-                            ${i === activeIndex ? 'active' : ''}
-                            ${isError(i) ? 'error' : ''}`}
+                            ${i === activeIndex && !isActivationPending ? 'active' : ''}
+                            ${isError(i) ? 'error' : ''}
+                            ${isActivationPending && i === 0 ? 'password--invite' : ''}`}
                         aria-hidden="true"
                     >
-                        {chars[i] && <span className="password-mask-dot" />}
-                        {isFocused && i === activeIndex && displayPassword.length < 6 && (
+                        {!isActivationPending && chars[i] && <span className="password-mask-dot" />}
+                        {isFocused && !isActivationPending && i === activeIndex && displayPassword.length < 6 && (
                             <span className="password-caret" />
                         )}
                     </div>
-                ))
+                ))}
+            </div>
+            {/* Activation badge overlay — only shown when awaiting click */}
+            {isActivationPending && (
+                <div className="password-activation-badge" aria-hidden="true">
+                    <span>Tap to type PIN</span>
+                </div>
             )}
         </div>
     );
