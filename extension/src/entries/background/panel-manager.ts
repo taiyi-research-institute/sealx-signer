@@ -2,7 +2,7 @@
 
 // import { sessionStore } from "@src/core/state"
 import { getSealxInfo } from "./state"
-import { MessageChannel, SealxTopic, type Messager } from "sealx-message"
+import { ChannelManager, MessageChannel, SealxTopic, type Messager } from "sealx-message"
 import { TabManager } from "sealx-core"
 
 /**
@@ -112,6 +112,19 @@ export default class PanelManager {
 
         // 监听 side panel 发送的心跳消息
         this.registerHeartbeatListener()
+
+        // 长链接监听：side panel 端口断开即视为面板关闭
+        ChannelManager.accept('sealx-panel', (channel) => {
+            channel.on('ready', (payload: unknown) => {
+                const route = typeof (payload as Record<string, unknown>)?.route === 'string'
+                    ? (payload as Record<string, unknown>).route as string
+                    : '';
+                this.notifyPanelOpened(route);
+            });
+            channel.onDisconnect(() => {
+                this.notifyPanelClosing();
+            });
+        });
     }
 
     /**

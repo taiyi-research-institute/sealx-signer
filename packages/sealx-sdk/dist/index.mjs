@@ -921,7 +921,7 @@ const onLocateElement = (locateCallback) => {
  * @returns Cleanup function to deregister the callback
  */
 const onPanelClose = (callback) => {
-    const off = messager.on(SealxTopic.PANEL_CLOSE, () => {
+    const off = messager.on(SealxTopic.PANEL_CLOSE, async () => {
         try {
             callback();
         }

@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
+import { ChannelManager } from 'sealx-message';
 import './App.css';
 import { Routes } from './Routes';
 import { useMemo } from 'react';
@@ -98,20 +99,13 @@ function App() {
         };
     }, []);
 
-    // ========== 面板关闭前清理 ==========
+    // ========== 面板长链接 — 关闭检测 ==========
+    // Port auto-disconnects when page closes → background detects immediately.
+    // More reliable than beforeunload/pagehide (may not fire on force quit).
     useEffect(() => {
-        const handleBeforeUnload = () => {
-            chrome.runtime.sendMessage({
-                type: 'panel-closing',
-                route: window.location.hash
-            });
-        };
-        window.addEventListener('beforeunload', handleBeforeUnload);
-        window.addEventListener('pagehide', handleBeforeUnload);
-        return () => {
-            window.removeEventListener('beforeunload', handleBeforeUnload);
-            window.removeEventListener('pagehide', handleBeforeUnload);
-        };
+        const channel = ChannelManager.connect('sealx-panel');
+        channel.send('ready', { route: window.location.hash });
+        return () => channel.disconnect();
     }, []);
 
     return (
