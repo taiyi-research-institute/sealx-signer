@@ -138,7 +138,9 @@ export const Password = ({
         if (!shouldAutoFocus || readonly) return;
         if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
         console.log('[Password:relay] requesting ARM via storage.session');
-        chrome.storage.session.set({ sealxArmKeyRelay: Date.now() }).catch(() => {});
+        chrome.storage.session
+          .set({ sealxArmKeyRelay: Date.now() })
+          .catch(() => {});
         return () => {
             console.log('[Password:relay] unmounting — setting STOP via storage.session');
             chrome.storage.session.set({ sealxArmKeyRelay: 0 }).catch(() => {});
@@ -332,79 +334,101 @@ export const Password = ({
     const { className = '', onMouseDown, onClick, ...containerProps } = props;
     const activateInput = useCallback(() => {
         setUserActivated(true);
-        requestAnimationFrame(focusInput);
-    }, [focusInput, setUserActivated]);
-
-    return (
-        <div
-            {...containerProps}
-            ref={containerRef}
-            className={`password-container max-w-[436px] mx-auto flex justify-between ${isActivationPending ? 'password-container--activation-pending' : ''} ${className}`}
-            onMouseDown={(event) => {
-                onMouseDown?.(event);
-                activateInput();
-            }}
-            onClick={(event) => {
-                onClick?.(event);
-                activateInput();
-            }}
-            onPaste={handlePaste}
+        // Directly focus — don't use focusInput which may have stale isActivationPending=true
+        requestAnimationFrame(() => {
+            const input = inputRef.current;
+            if (!input || readonly) return;
+            input.focus();
+            if (document.activeElement === input) {
+                input.setSelectionRange(input.value.length, input.value.length);
+                if (!isFocusedRef.current) {
+                    setIsFocused(true);
+                    isFocusedRef.current = true;
+                }
+            }
+        });
+    }, [readonly]);
+    if (isActivationPending) {
+      return (
+        <button
+          className='password-activation-target hover:cursor-pointer'
+          aria-hidden='true'
+          onClick={activateInput}
         >
-            <input
-                ref={inputRef}
-                className="password-capture-input"
-                type="text"
-                inputMode="text"
-                autoComplete="off"
-                autoCorrect="off"
-                autoCapitalize="off"
-                spellCheck={false}
-                maxLength={6}
-                value={displayPassword}
-                readOnly={readonly}
-                autoFocus={shouldAutoFocus}
-                tabIndex={readonly ? -1 : 0}
-                aria-label="PIN"
-                onFocus={(event) => {
-                    event.currentTarget.setSelectionRange(displayPassword.length, displayPassword.length);
-                    if (!isActivationPending) {
-                        setIsFocused(true);
-                        isFocusedRef.current = true;
-                    }
-                    scheduleStableReset();
-                }}
-                onBlur={() => {
-                    setIsFocused(false);
-                    isFocusedRef.current = false;
-                    handleBlurRefocus();
-                }}
-                onChange={handleInputChange}
-                onPaste={handlePaste}
-            />
-            {/* Always render 6 cells — semi-transparent when awaiting activation */}
-            <div className={`password-cells ${isActivationPending ? 'password-cells--pending' : ''}`}>
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div
-                        key={i}
-                        className={`password bg-surface-secondary flex items-center justify-center
-                            ${i === activeIndex && !isActivationPending ? 'active' : ''}
-                            ${isError(i) ? 'error' : ''}
-                            ${isActivationPending && i === 0 ? 'password--invite' : ''}`}
-                        aria-hidden="true"
-                    >
-                        {!isActivationPending && chars[i] && <span className="password-mask-dot" />}
-                        {isFocused && !isActivationPending && i === activeIndex && displayPassword.length < 6 && (
-                            <span className="password-caret" />
-                        )}
-                    </div>
-                ))}
-            </div>
-            {/* Activation badge overlay — only shown when awaiting click */}
-            {isActivationPending && (
-                <div className="password-activation-badge" aria-hidden="true">
-                    <span>Tap to type PIN</span>
-                </div>
+          <div className='password-activation-content hover:cursor-pointer'>
+            <span className='password-activation-icon'>
+              <span />
+              <span />
+              <span />
+            </span>
+            <span>Click to enter PIN</span>
+          </div>
+        </button>
+      );
+    }
+    return (
+      <div
+        {...containerProps}
+        ref={containerRef}
+        className={`password-container max-w-[436px] mx-auto flex justify-between ${isActivationPending ? 'password-container--activation-pending' : ''} ${className}`}
+        onMouseDown={(event) => {
+          onMouseDown?.(event);
+          activateInput();
+        }}
+        onClick={(event) => {
+          onClick?.(event);
+          activateInput();
+        }}
+        onPaste={handlePaste}
+      >
+        <input
+          ref={inputRef}
+          className='password-capture-input'
+          type='text'
+          inputMode='text'
+          autoComplete='off'
+          autoCorrect='off'
+          autoCapitalize='off'
+          spellCheck={false}
+          maxLength={6}
+          value={displayPassword}
+          readOnly={readonly}
+          autoFocus={shouldAutoFocus}
+          tabIndex={readonly ? -1 : 0}
+          aria-label='PIN'
+          onFocus={(event) => {
+            event.currentTarget.setSelectionRange(
+              displayPassword.length,
+              displayPassword.length,
+            );
+            if (!isActivationPending) {
+              setIsFocused(true);
+              isFocusedRef.current = true;
+            }
+            scheduleStableReset();
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+            isFocusedRef.current = false;
+            handleBlurRefocus();
+          }}
+          onChange={handleInputChange}
+          onPaste={handlePaste}
+        />
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            className={`password bg-surface-secondary flex items-center justify-center
+                            ${i === activeIndex ? 'active' : ''}
+                            ${isError(i) ? 'error' : ''}`}
+            aria-hidden='true'
+          >
+            {chars[i] && <span className='password-mask-dot' />}
+            {isFocused && i === activeIndex && displayPassword.length < 6 && (
+              <span className='password-caret' />
             )}
-        </div>
+          </div>
+        ))}
+      </div>
     );
 };
