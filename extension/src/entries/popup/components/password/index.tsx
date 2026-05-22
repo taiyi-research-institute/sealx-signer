@@ -76,13 +76,22 @@ export const Password = ({
             setTimeout(focusInput, 200);
         };
         const handlePageShow = () => setTimeout(focusInput, 30);
+        const handleFullscreenChange = () => {
+            if (!document.fullscreenElement) {
+                // Exited fullscreen — re-attempt focus after browser settles
+                resetRetry();
+                setTimeout(focusInput, 400);
+            }
+        };
         document.addEventListener('visibilitychange', handleVisibility);
         window.addEventListener('focus', handleWindowFocus);
         window.addEventListener('pageshow', handlePageShow);
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
         return () => {
             document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('focus', handleWindowFocus);
             window.removeEventListener('pageshow', handlePageShow);
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
         };
     }, [autoFocus, focusInput]);
 
