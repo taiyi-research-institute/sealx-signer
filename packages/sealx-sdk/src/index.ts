@@ -1097,3 +1097,30 @@ export const onLocateElement = (locateCallback?: LocateElementCallback): (() => 
     const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
     return off;
 };
+
+/**
+ * Register a callback to be invoked when the SealX side panel closes.
+ * Returns a cleanup function that deregisters the callback when called.
+ *
+ * @example
+ * // React useEffect pattern
+ * useEffect(() => sealxPanel.onPanelClose(() => setPanelOpen(false)), []);
+ *
+ * @example
+ * // Manual cleanup
+ * const cleanup = sealxPanel.onPanelClose(() => console.log('Panel closed'));
+ * // later: cleanup();
+ *
+ * @param callback - Function to invoke when panel closes
+ * @returns Cleanup function to deregister the callback
+ */
+export const onPanelClose = (callback: () => void): () => void => {
+    const off = messager.on(SealxTopic.PANEL_CLOSE, () => {
+        try {
+            callback();
+        } catch (err) {
+            console.warn('[SealX] onPanelClose callback error:', err);
+        }
+    }, MessageChannel.INPAGE);
+    return off;
+};

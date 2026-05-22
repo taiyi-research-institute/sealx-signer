@@ -183,11 +183,9 @@ observer.observe(document.documentElement, { childList: true, subtree: true });
 // Path 1: global keyboard shortcut (Ctrl/Cmd+Shift+K)
 chrome.runtime.onMessage.addListener((message: Record<string, unknown>) => {
     if (message?.type === 'arm-pin-key-relay') {
-        console.log('[CS:msg] arm-pin-key-relay from background (commands shortcut)');
         armPinKeyRelayForPanel();
     }
     if (message?.type === 'stop-pin-key-relay') {
-        console.log('[CS:msg] stop-pin-key-relay from background');
         stopPinKeyRelay();
     }
 });

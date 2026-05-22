@@ -398,6 +398,23 @@ declare const registerLocatableKeys: (keys: string[]) => void;
  * ```
  */
 declare const onLocateElement: (locateCallback?: LocateElementCallback) => (() => void);
+/**
+ * Register a callback to be invoked when the SealX side panel closes.
+ * Returns a cleanup function that deregisters the callback when called.
+ *
+ * @example
+ * // React useEffect pattern
+ * useEffect(() => sealxPanel.onPanelClose(() => setPanelOpen(false)), []);
+ *
+ * @example
+ * // Manual cleanup
+ * const cleanup = sealxPanel.onPanelClose(() => console.log('Panel closed'));
+ * // later: cleanup();
+ *
+ * @param callback - Function to invoke when panel closes
+ * @returns Cleanup function to deregister the callback
+ */
+declare const onPanelClose: (callback: () => void) => () => void;
 
-export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx };
+export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx };
 export type { LocateElementCallback };

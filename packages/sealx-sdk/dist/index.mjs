@@ -904,6 +904,33 @@ const onLocateElement = (locateCallback) => {
     const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
     return off;
 };
+/**
+ * Register a callback to be invoked when the SealX side panel closes.
+ * Returns a cleanup function that deregisters the callback when called.
+ *
+ * @example
+ * // React useEffect pattern
+ * useEffect(() => sealxPanel.onPanelClose(() => setPanelOpen(false)), []);
+ *
+ * @example
+ * // Manual cleanup
+ * const cleanup = sealxPanel.onPanelClose(() => console.log('Panel closed'));
+ * // later: cleanup();
+ *
+ * @param callback - Function to invoke when panel closes
+ * @returns Cleanup function to deregister the callback
+ */
+const onPanelClose = (callback) => {
+    const off = messager.on(SealxTopic.PANEL_CLOSE, () => {
+        try {
+            callback();
+        }
+        catch (err) {
+            console.warn('[SealX] onPanelClose callback error:', err);
+        }
+    }, MessageChannel.INPAGE);
+    return off;
+};
 
-export { MessageChannel, MessagerManager, SealxProvider, SealxTopic, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx, wait };
+export { MessageChannel, MessagerManager, SealxProvider, SealxTopic, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx, wait };
 //# sourceMappingURL=index.mjs.map

@@ -372,6 +372,11 @@ export default class PanelManager {
      * Called from background's panel-closing handler.
      */
     static notifyPanelClosing(): void {
+        // Send close event to frontend BEFORE clearing state
+        if (this.messager) {
+            this.messager.send({}, SealxTopic.PANEL_CLOSE, MessageChannel.INPAGE).catch(() => {});
+        }
+
         // F8: resolve any pending waitForReady() callers with false
         // (panel closed while someone was waiting for it to be ready)
         this.resolveReadyWaiters(false)

@@ -18742,6 +18742,33 @@ const onLocateElement = (locateCallback) => {
     const off = messager.on(exports.SealxTopic.LOCATE_ELEMENT, handleLocate, exports.MessageChannel.POPUP);
     return off;
 };
+/**
+ * Register a callback to be invoked when the SealX side panel closes.
+ * Returns a cleanup function that deregisters the callback when called.
+ *
+ * @example
+ * // React useEffect pattern
+ * useEffect(() => sealxPanel.onPanelClose(() => setPanelOpen(false)), []);
+ *
+ * @example
+ * // Manual cleanup
+ * const cleanup = sealxPanel.onPanelClose(() => console.log('Panel closed'));
+ * // later: cleanup();
+ *
+ * @param callback - Function to invoke when panel closes
+ * @returns Cleanup function to deregister the callback
+ */
+const onPanelClose = (callback) => {
+    const off = messager.on(exports.SealxTopic.PANEL_CLOSE, () => {
+        try {
+            callback();
+        }
+        catch (err) {
+            console.warn('[SealX] onPanelClose callback error:', err);
+        }
+    }, exports.MessageChannel.INPAGE);
+    return off;
+};
 
 exports.BackgroundMessager = BackgroundMessager;
 exports.ContentMessager = ContentMessager;
@@ -18775,6 +18802,7 @@ exports.isViewportFullscreenBySize = isViewportFullscreenBySize$1;
 exports.layoutRender = layoutRender;
 exports.localStorageWrapper = localStorageWrapper;
 exports.onLocateElement = onLocateElement;
+exports.onPanelClose = onPanelClose;
 exports.onSign = onSign;
 exports.parseSignContent = parseSignContent;
 exports.pinGenerator = pinGenerator;

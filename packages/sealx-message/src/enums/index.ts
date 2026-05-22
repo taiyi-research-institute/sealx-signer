@@ -70,7 +70,10 @@ export enum SealxTopic {
     LOCATE_ELEMENT = 'locate-element',
 
     /** All topics */
-    ALL = '*'
+    ALL = '*',
+
+    /** Panel close event — forwarded to web page when side panel is closed */
+    PANEL_CLOSE = 'sealx-panel-close'
 }
 
 
