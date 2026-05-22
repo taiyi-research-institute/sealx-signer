@@ -185,40 +185,6 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
         }
         return true
     }
-    // Password component requests keyboard relay (needed for fullscreen side panel)
-    if (message?.type === 'request-arm-key-relay') {
-        const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
-        console.log('[BG:relay] ARM requested — processingTabId:', PanelManager.processingTabId, 'msg.tabId:', message.tabId, '→ using tabId:', tabId);
-        if (tabId) {
-            console.log('[BG:relay] sending arm-pin-key-relay to tab', tabId);
-            PanelManager.armKeyRelay(tabId)
-        } else {
-            console.log('[BG:relay] no tabId, falling back to chrome.tabs.query');
-            chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-                if (tabs[0]?.id !== undefined) {
-                    console.log('[BG:relay] found active tab', tabs[0].id);
-                    PanelManager.armKeyRelay(tabs[0].id)
-                } else {
-                    console.warn('[BG:relay] no active tab found');
-                }
-            }).catch((err) => { console.warn('[BG:relay] query failed:', err?.message); })
-        }
-        return true
-    }
-    if (message?.type === 'request-stop-key-relay') {
-        const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
-        console.log('[BG:relay] STOP requested — tabId:', tabId);
-        if (tabId) {
-            chrome.tabs.sendMessage(tabId, { type: 'stop-pin-key-relay' }).catch(() => { })
-        } else {
-            chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
-                if (tabs[0]?.id !== undefined) {
-                    chrome.tabs.sendMessage(tabs[0].id, { type: 'stop-pin-key-relay' }).catch(() => { })
-                }
-            }).catch(() => { })
-        }
-        return true
-    }
     if (message?.type === 'panel-process-queue') {
         PanelManager.processNextInQueue()
         return true
@@ -527,3 +493,18 @@ messager.on(SealxTopic.SIGN, async (request: SealxRequest<{ host: string, userId
     }
 }, MessageChannel.POPUP)
 //
+
+// ========== Global shortcut: enable PIN input in side panel ==========
+// In browser fullscreen mode, the side panel doesn't have focus and can't
+// receive keyboard events. This command gives the user a reliable way to
+// activate keyboard input via Chrome's commands API.
+chrome.commands.onCommand.addListener((command, tab) => {
+    if (command !== 'enable-pin-input' || !tab?.id) return;
+    console.log('[CMD] enable-pin-input triggered for tab', tab.id);
+    // Notify all content scripts to arm the key relay
+    chrome.tabs.sendMessage(tab.id, { type: 'arm-pin-key-relay' }).catch((err) => {
+        console.warn('[CMD] failed to arm relay on tab', tab.id, ':', err?.message);
+    });
+    // Also notify side panel to prepare to receive input
+    chrome.runtime.sendMessage({ type: 'sealx-pin-input-ready' }).catch(() => {});
+});

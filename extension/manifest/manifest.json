@@ -34,6 +34,15 @@
         "alarms",
         "sidePanel"
     ],
+    "commands": {
+        "enable-pin-input": {
+            "suggested_key": {
+                "default": "Ctrl+Shift+K",
+                "mac": "Command+Shift+K"
+            },
+            "description": "Enable PIN input in side panel (for fullscreen mode)"
+        }
+    },
     "oauth2": {
         "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
         "scopes": ["https://www.googleapis.com/auth/drive.file"]

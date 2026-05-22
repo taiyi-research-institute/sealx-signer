@@ -175,17 +175,34 @@ const observer = new MutationObserver((mutations) => {
 
 observer.observe(document.documentElement, { childList: true, subtree: true });
 
-// ========== Key relay activation from background ==========
-// When side panel opens (especially in fullscreen mode), background sends this message
-// to arm the PIN key relay so keyboard events on the web page are forwarded to the panel.
+// ========== Key relay via commands shortcut + storage ==========
+// Two activation paths:
+// 1. chrome.commands shortcut → background → runtime.sendMessage → here
+// 2. Password component in side panel → storage.session → onChanged → here
+
+// Path 1: global keyboard shortcut (Ctrl/Cmd+Shift+K)
 chrome.runtime.onMessage.addListener((message: Record<string, unknown>) => {
     if (message?.type === 'arm-pin-key-relay') {
-        console.log('[CS:msg] received arm-pin-key-relay');
+        console.log('[CS:msg] arm-pin-key-relay from background (commands shortcut)');
         armPinKeyRelayForPanel();
     }
     if (message?.type === 'stop-pin-key-relay') {
-        console.log('[CS:msg] received stop-pin-key-relay');
+        console.log('[CS:msg] stop-pin-key-relay from background');
         stopPinKeyRelay();
+    }
+});
+
+// Path 2: storage.session broadcast (all content scripts on all tabs hear this)
+chrome.storage.onChanged.addListener((changes) => {
+    if (changes.sealxArmKeyRelay) {
+        const val = changes.sealxArmKeyRelay.newValue;
+        if (val && val !== 0) {
+            console.log('[CS:storage] sealxArmKeyRelay set → arming relay');
+            armPinKeyRelayForPanel();
+        } else {
+            console.log('[CS:storage] sealxArmKeyRelay cleared → stopping relay');
+            stopPinKeyRelay();
+        }
     }
 });
 

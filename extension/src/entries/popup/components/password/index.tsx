@@ -85,17 +85,16 @@ export const Password = ({
 
     // Keyboard relay for side panel in browser fullscreen:
     // The side panel doesn't receive keyboard events when the web page has focus.
-    // Request the content script to capture and forward keydown events to us.
+    // Use chrome.storage.session — ALL tabs' content scripts hear onChanged,
+    // so we don't need to know which tab has the content script.
     useEffect(() => {
         if (!autoFocus || readonly) return;
         if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
-        console.log('[Password:relay] requesting ARM — sidepanel + autoFocus, doc.hasFocus:', document.hasFocus());
-        chrome.runtime.sendMessage({ type: 'request-arm-key-relay' }).catch((err) => {
-            console.warn('[Password:relay] ARM request failed:', err?.message);
-        });
+        console.log('[Password:relay] requesting ARM via storage.session');
+        chrome.storage.session.set({ sealxArmKeyRelay: Date.now() }).catch(() => {});
         return () => {
-            console.log('[Password:relay] unmounting — requesting STOP');
-            chrome.runtime.sendMessage({ type: 'request-stop-key-relay' }).catch(() => {});
+            console.log('[Password:relay] unmounting — setting STOP via storage.session');
+            chrome.storage.session.set({ sealxArmKeyRelay: 0 }).catch(() => {});
         };
     }, [autoFocus, readonly]);
 
