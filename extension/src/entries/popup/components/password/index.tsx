@@ -45,28 +45,34 @@ export const Password = ({
     const focusInput = useCallback(() => {
         if (readonly) return;
         const input = inputRef.current;
-        if (!input) return;
-        // In Chrome side panel (especially in fullscreen), the document may not have focus.
-        // Try focusing the window first, then the input.
+        if (!input) { console.log('[Password:focusInput] no input ref, skipping'); return; }
+        const hasDocFocus = document.hasFocus();
+        const isHidden = document.hidden;
+        const activeEl = document.activeElement?.tagName;
+        console.log('[Password:focusInput] calling focus — doc.hasFocus:', hasDocFocus, 'doc.hidden:', isHidden, 'activeElement:', activeEl);
         window.focus();
         input.focus();
-        if (document.activeElement === input) {
+        const success = document.activeElement === input;
+        console.log('[Password:focusInput] focus result:', success, 'activeElement now:', document.activeElement?.tagName);
+        if (success) {
             input.setSelectionRange(input.value.length, input.value.length);
         }
     }, [readonly]);
 
     useLayoutEffect(() => {
         if (!autoFocus) return;
+        console.log('[Password:useLayoutEffect] autoFocus mount — popup-mode:', document.body.getAttribute('popup-mode'), 'hasFocus:', document.hasFocus(), 'hidden:', document.hidden, 'readyState:', document.readyState, 'containerRect:', containerRef.current?.getBoundingClientRect());
         // Initial staggered retries (fast attempts)
         const timers = [0, 50, 120, 250, 500].map(delay => setTimeout(focusInput, delay));
         const frame = requestAnimationFrame(focusInput);
         // IntersectionObserver: focus when container becomes visible in viewport
-        // This catches Chrome side panel in browser fullscreen where initial focus may fail
         const container = containerRef.current;
         if (container) {
             observerRef.current = new IntersectionObserver(
                 (entries) => {
-                    if (entries[0]?.isIntersecting) {
+                    const entry = entries[0];
+                    console.log('[Password:IntersectionObserver] isIntersecting:', entry?.isIntersecting, 'intersectionRatio:', entry?.intersectionRatio);
+                    if (entry?.isIntersecting) {
                         setTimeout(focusInput, 100);
                     }
                 },
@@ -86,8 +92,17 @@ export const Password = ({
     // Covers Chrome side panel in browser fullscreen where events may not fire
     useEffect(() => {
         if (!autoFocus) return;
-        const interval = setInterval(focusInput, 500);
-        const stopTimer = setTimeout(() => clearInterval(interval), 5000);
+        console.log('[Password:polling] starting 5s polling');
+        let attempt = 0;
+        const interval = setInterval(() => {
+            attempt++;
+            console.log('[Password:polling] attempt', attempt);
+            focusInput();
+        }, 500);
+        const stopTimer = setTimeout(() => {
+            console.log('[Password:polling] stopped after 5s');
+            clearInterval(interval);
+        }, 5000);
         return () => {
             clearInterval(interval);
             clearTimeout(stopTimer);
@@ -102,18 +117,24 @@ export const Password = ({
             userLeftRef.current = false;
         };
         const handleVisibility = () => {
+                console.log('[Password:event] visibilitychange — hidden:', document.hidden, 'hasFocus:', document.hasFocus());
             if (!document.hidden) {
                 resetRetry();
                 setTimeout(focusInput, 300);
             }
         };
         const handleWindowFocus = () => {
+            console.log('[Password:event] window.focus — hasFocus:', document.hasFocus());
             resetRetry();
             setTimeout(focusInput, 200);
         };
-        const handlePageShow = () => setTimeout(focusInput, 30);
-        // Handle window resize — covers browser fullscreen transitions that affect side panel layout
+        const handlePageShow = () => {
+            console.log('[Password:event] pageshow');
+            setTimeout(focusInput, 30);
+        };
+        // Handle window resize — covers browser fullscreen transitions
         const handleResize = () => {
+            console.log('[Password:event] resize —', window.innerWidth, 'x', window.innerHeight);
             resetRetry();
             setTimeout(focusInput, 300);
         };
@@ -121,6 +142,8 @@ export const Password = ({
         window.addEventListener('focus', handleWindowFocus);
         window.addEventListener('pageshow', handlePageShow);
         window.addEventListener('resize', handleResize);
+        document.addEventListener('DOMContentLoaded', () => console.log('[Password:event] DOMContentLoaded'));
+        console.log('[Password:events] listeners registered — readyState:', document.readyState);
         return () => {
             document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('focus', handleWindowFocus);
@@ -131,12 +154,13 @@ export const Password = ({
 
     // Blur-based re-focus firewall (side panel Chrome focus defense)
     const handleBlurRefocus = useCallback(() => {
+        console.log('[Password:blur] onBlur fired — retryCount:', retryCountRef.current, 'MAX:', MAX_RETRY);
         if (readonly) return;
         if (!autoFocus) return;
-        if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
-        if (document.hidden) return;
-        if (userLeftRef.current) return;
-        if (retryCountRef.current >= MAX_RETRY) return;
+        if (document.body.getAttribute('popup-mode') !== 'sidepanel') { console.log('[Password:blur] not sidepanel, skipping'); return; }
+        if (document.hidden) { console.log('[Password:blur] document hidden, skipping'); return; }
+        if (userLeftRef.current) { console.log('[Password:blur] user left, skipping'); return; }
+        if (retryCountRef.current >= MAX_RETRY) { console.log('[Password:blur] max retries reached, skipping'); return; }
 
         const active = document.activeElement;
         if (active && active !== inputRef.current) {
