@@ -8,6 +8,7 @@ interface PasswordProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCh
     readonly?: boolean;
     autoFocus?: boolean;
     clickToType?: boolean;
+    clickToTypeKey?: string;
 }
 
 export const Password = ({
@@ -17,6 +18,7 @@ export const Password = ({
     password = '',
     autoFocus = false,
     clickToType = false,
+    clickToTypeKey = '',
     ...props
 }: PasswordProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -24,9 +26,13 @@ export const Password = ({
     const passwordRef = useRef(password.slice(0, 6));
     const [draftPassword, setDraftPassword] = useState(password.slice(0, 6));
     const [isFocused, setIsFocused] = useState(false);
-    const [hasUserActivated, setHasUserActivatedState] = useState(false);
-    const [latchedClickToType, setLatchedClickToType] = useState(clickToType);
-    const hasUserActivatedRef = useRef(false);
+    const requestKey = clickToTypeKey || 'default';
+    const activationKey = `${requestKey}:${clickToType ? 'manual' : 'direct'}`;
+    const [activationState, setActivationState] = useState(() => ({
+        key: activationKey,
+        activated: !clickToType,
+    }));
+    const activeRequestKeyRef = useRef(requestKey);
     const isFocusedRef = useRef(false);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const retryCountRef = useRef(0);
@@ -35,7 +41,11 @@ export const Password = ({
     const previousRequiresClickToTypeRef = useRef(false);
     const MAX_RETRY = 6;
     const displayPassword = draftPassword || password.slice(0, 6);
-    const requiresClickToType = latchedClickToType && autoFocus && !readonly;
+    const requiresClickToType = clickToType && autoFocus && !readonly;
+    const hasUserActivated =
+        activationState.key === activationKey
+            ? activationState.activated
+            : !requiresClickToType;
     const isActivationPending = requiresClickToType && !hasUserActivated && !displayPassword;
     const shouldAutoFocus = autoFocus && !isActivationPending;
     const chars = useMemo(() => displayPassword.padEnd(6, '').split(''), [displayPassword]);
@@ -46,22 +56,29 @@ export const Password = ({
     }, [chars, displayPassword.length, errorIndex]);
 
     const setUserActivated = useCallback((value: boolean) => {
-        hasUserActivatedRef.current = value;
-        setHasUserActivatedState(value);
-    }, []);
+        setActivationState({
+            key: activationKey,
+            activated: value,
+        });
+    }, [activationKey]);
 
     useEffect(() => {
-        if (clickToType) {
-            setLatchedClickToType(true);
+        if (activeRequestKeyRef.current !== requestKey) {
+            activeRequestKeyRef.current = requestKey;
+            setActivationState({
+                key: activationKey,
+                activated: !requiresClickToType,
+            });
         }
-    }, [clickToType]);
+    }, [activationKey, requestKey, requiresClickToType]);
 
     useEffect(() => {
         const normalizedPassword = password.slice(0, 6);
         passwordRef.current = normalizedPassword;
         setDraftPassword(normalizedPassword);
         const enteredClickToTypeMode = requiresClickToType && !previousRequiresClickToTypeRef.current;
-        if (!normalizedPassword && enteredClickToTypeMode) {
+        const sameRequest = activeRequestKeyRef.current === requestKey;
+        if (!normalizedPassword && enteredClickToTypeMode && sameRequest) {
             setUserActivated(false);
             setIsFocused(false);
             isFocusedRef.current = false;
@@ -69,11 +86,11 @@ export const Password = ({
             setUserActivated(true);
         }
         previousRequiresClickToTypeRef.current = requiresClickToType;
-    }, [password, requiresClickToType, setUserActivated]);
+    }, [password, requestKey, requiresClickToType, setUserActivated]);
 
     const focusInput = useCallback(() => {
         if (readonly) return;
-        if (requiresClickToType && !hasUserActivatedRef.current) return;
+        if (isActivationPending) return;
         const input = inputRef.current;
         if (!input) return;
         window.focus();
@@ -85,7 +102,7 @@ export const Password = ({
                 isFocusedRef.current = true;
             }
         }
-    }, [readonly, requiresClickToType]);
+    }, [isActivationPending, readonly]);
 
     useLayoutEffect(() => {
         if (!shouldAutoFocus) return;
@@ -350,7 +367,7 @@ export const Password = ({
                 aria-label="PIN"
                 onFocus={(event) => {
                     event.currentTarget.setSelectionRange(displayPassword.length, displayPassword.length);
-                    if (!requiresClickToType || hasUserActivatedRef.current) {
+                    if (!isActivationPending) {
                         setIsFocused(true);
                         isFocusedRef.current = true;
                     }

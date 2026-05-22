@@ -130,9 +130,6 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     // 5s timeout fallback: unlock loading if no bind/sign request arrives in time
     useEffect(() => {
         if (!isButtonTriggered) return;
-        const unblockTimer = setTimeout(() => {
-            setBlockingSync(false);
-        }, 800);
         const fallbackTimer = setTimeout(() => {
             if (loadingTimerRef.current) {
                 clearTimeout(loadingTimerRef.current);
@@ -147,23 +144,17 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             }
         }, 5_000);
         return () => {
-            clearTimeout(unblockTimer);
             clearTimeout(fallbackTimer);
         };
     }, [isButtonTriggered, navigate, pathname, request.topic]);
 
-    // Watch request.topic: unlock loading when BIND_PK / SIGN / BATCH_SIGN arrives
-    // CONNECT does NOT end loading (per spec)
+    // Keep button-triggered panel blank only until the real request arrives.
     useEffect(() => {
         if (!isButtonTriggered) return;
         if (!request.topic) return;
-        if (
-            request.topic === SealxTopic.BIND_PK ||
-            request.topic === SealxTopic.SIGN ||
-            request.topic === SealxTopic.BATCH_SIGN
-        ) {
-            finishLoading();
-        }
+
+        setBlockingSync(false);
+        finishLoading();
     }, [request.topic, isButtonTriggered, finishLoading]);
 
     useEffect(() => {

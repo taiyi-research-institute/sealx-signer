@@ -1,5 +1,5 @@
 import { MessageChannel, SealxTopic } from "../enums";
-import { Topic } from "./message";
+import type { SealxHeader, Topic } from "./message";
 import { SealxRequest } from "./request";
 import { SealxResponse } from "./response";
 type ReplyType = string | number | Object | Boolean | Record<string, any>
@@ -50,7 +50,7 @@ export interface MessageSendStream {
  * @returns Promise that resolves with the response
  */
 export interface MessageSend {
-    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string): Promise<SealxResponse>
+    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string, header?: Partial<SealxHeader>): Promise<SealxResponse>
 }
 
 /**

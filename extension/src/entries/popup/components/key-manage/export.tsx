@@ -14,6 +14,7 @@ import Radio from "@src/components/radio"
 import Button from "@src/components/button"
 import GoogleDriveAuthMask from "@src/components/google-drive-auth-mask"
 import { GoogleDrive } from "@src/core/google/drive"
+import { usePinInputMode } from "../../utils/pinInputMode"
 // import { error } from "console"
 
 declare global {
@@ -43,12 +44,7 @@ export const KeyExport = () => {
     const [googleDriveStatus, setGoogleDriveStatus] = useState<'unauthenticated' | 'authenticated' | 'uploading' | 'error'>('unauthenticated')
     const setSuccess = useSuccessStore.use.setSuccess()
     const setError = useErrorStore.use.setError()
-    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
-    useEffect(() => {
-        if (request?.header?.fullscreen) {
-            setClickToType(true)
-        }
-    }, [request?.header?.fullscreen])
+    const { clickToType, clickToTypeKey } = usePinInputMode(request)
 
     // Validation states
     const [tpPinError, setTpPinError] = useState<string>('')
@@ -452,6 +448,7 @@ export const KeyExport = () => {
             description='Please enter your 6-digit PIN to export the key'
             processingText='Exporting...'
             clickToType={clickToType}
+            clickToTypeKey={clickToTypeKey}
           />
         )}
 

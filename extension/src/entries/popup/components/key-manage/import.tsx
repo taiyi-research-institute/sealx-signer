@@ -14,6 +14,7 @@ import Radio from "@src/components/radio"
 import Button from "@src/components/button"
 import GoogleDriveAuthMask from "@src/components/google-drive-auth-mask"
 import { GoogleDrive } from "@src/core/google/drive"
+import { usePinInputMode } from "../../utils/pinInputMode"
 
 export const KeyImport = () => {
     const navigate = useSealXNavigate()
@@ -33,12 +34,7 @@ export const KeyImport = () => {
     const [progressTitle, setProgressTitle] = useState<string>('')
     const [progressDesc, setProgressDesc] = useState('')
     const fileInputRef = useRef<HTMLInputElement | null>(null)
-    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
-    useEffect(() => {
-        if (request?.header?.fullscreen) {
-            setClickToType(true)
-        }
-    }, [request?.header?.fullscreen])
+    const { clickToType, clickToTypeKey } = usePinInputMode(request)
 
     const getFileReadErrorMessage = useCallback((err: unknown) => {
         if (err instanceof DOMException) {
@@ -354,6 +350,7 @@ export const KeyImport = () => {
             description='Please enter your 6-digit login PIN to import the key'
             processingText='Importing...'
             clickToType={clickToType}
+            clickToTypeKey={clickToTypeKey}
           />
         )}
 

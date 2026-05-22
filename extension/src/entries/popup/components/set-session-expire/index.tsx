@@ -1,7 +1,6 @@
 import { getSealxSessionTimeout, setSessionTimeout } from "@src/core/background"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
-import { useSuccessStore } from "@src/core/state"
 import Button from "@src/components/button"
 import Clock from '@assets/svg/clock.svg?react'
 import './styles.css'
@@ -46,14 +45,12 @@ export const SetSessionExpire = () => {
             </label>
         })
     }, [time])
-    const setSuccess = useSuccessStore.use.setSuccess()
     const onSubmit = useCallback(async () => {
         const res = await setSessionTimeout(time)
         if (res) {
-            setSuccess('Set screen off timer successful.')
             navigate(-1)
         }
-    }, [time, setSuccess, navigate])
+    }, [time, navigate])
     return <div className="screen-timer-page">
         <section className="screen-timer-card">
             <div className="screen-timer-header">

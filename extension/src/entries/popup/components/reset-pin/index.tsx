@@ -9,6 +9,7 @@ import { useGlobalContext } from '@src/hooks/useGlobalContext';
 import { lockLogin } from '../../state/session';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { useSessionStore } from '@src/core/state/session';
+import { usePinInputMode } from '../../utils/pinInputMode';
 
 export default function ResetPin() {
     // const navigate = useNavigate();
@@ -24,12 +25,7 @@ export default function ResetPin() {
     const { request } = useRequestContext()
     const { address } = useGlobalContext()
     const logout = useSessionStore.use.logout()
-    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
-    useEffect(() => {
-        if (request?.header?.fullscreen) {
-            setClickToType(true)
-        }
-    }, [request?.header?.fullscreen])
+    const { clickToType, clickToTypeKey } = usePinInputMode(request)
 
 
     // Update countdown every second when locked
@@ -146,6 +142,7 @@ export default function ResetPin() {
                                 onChange={handlePasswordChange}
                                 autoFocus
                                 clickToType={clickToType}
+                                clickToTypeKey={clickToTypeKey}
                             />
                         ) : (
                             <Password
@@ -156,6 +153,7 @@ export default function ResetPin() {
                                 onChange={handleConfirmPassword}
                                 autoFocus
                                 clickToType={clickToType}
+                                clickToTypeKey={clickToTypeKey}
                             />
                         )
                     }

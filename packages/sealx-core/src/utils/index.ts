@@ -8,7 +8,15 @@ export const wait = async (delay: number) => {
 }
 
 export function isViewportFullscreenBySize() {
-    return window.innerWidth === screen.availWidth;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const screenWidth = screen.width || screen.availWidth;
+    const screenHeight = screen.height || screen.availHeight;
+
+    return (
+        Math.abs(viewportWidth - screenWidth) <= 1 &&
+        Math.abs(viewportHeight - screenHeight) <= 1
+    );
 }
 
 export function isNativeFullscreen() {

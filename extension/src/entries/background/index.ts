@@ -129,7 +129,16 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         }
 
         try {
-            const res = await messager.send({ userId, host, title }, SealxTopic.CONNECT, MessageChannel.POPUP)
+            const res = await messager.send(
+                { userId, host, title },
+                SealxTopic.CONNECT,
+                MessageChannel.POPUP,
+                undefined,
+                {
+                    fullscreen: request.header.fullscreen,
+                    tabId: request.header.tabId,
+                }
+            )
             await getUser(userId, host)
             // 直接返回 res.payload
             return res.payload

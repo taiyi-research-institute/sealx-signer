@@ -10,10 +10,19 @@ import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { lockLogin } from '../../state/session';
 import { SealxTopic } from 'sealx-message';
 import type { ReplyFunc } from 'sealx-message';
+import { usePinInputMode } from '../../utils/pinInputMode';
 // import { useErrorStore } from '@src/core/state';
 // import messager from '@src/core/messager';
 // import { useSessionStore } from '@src/core/state';
 // import { useSessionStore } from '@src/core/state/session';
+
+const CONNECT_FALLBACK_DELAY_MS = 2_000;
+
+const getPostLoginRoute = (topic?: SealxTopic) => {
+    if (topic === SealxTopic.BIND_PK) return '/bind-pubkey';
+    if (topic === SealxTopic.SIGN || topic === SealxTopic.BATCH_SIGN) return '/task-home';
+    return null;
+};
 
 export default function Login() {
     const navigate = useSealXNavigate()
@@ -25,19 +34,30 @@ export default function Login() {
     // const setSession = useSessionStore.use.setSession()
     const { setSession, activeTabHost, request } = useRequestContext()
     const reply = useRef<ReplyFunc>(null)
-    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
-    useEffect(() => {
-        if (request?.header?.fullscreen) {
-            setClickToType(true)
-        }
-    }, [request?.header?.fullscreen])
+    const latestTopicRef = useRef<SealxTopic | undefined>(request.topic)
+    const connectFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const { clickToType, clickToTypeKey } = usePinInputMode(request)
     // useEffect(() => setError('Test error 5342523453453425234 4352345345 3453245345234 4352345234 345324523 34543534 345234534 popup!!!!!'), [setError])
     useEffect(() => {
+        latestTopicRef.current = request.topic
+        if (request.topic !== SealxTopic.CONNECT && connectFallbackTimerRef.current) {
+            clearTimeout(connectFallbackTimerRef.current)
+            connectFallbackTimerRef.current = null
+        }
         if (request.topic === SealxTopic.LOGIN || request.topic === SealxTopic.CONNECT) {
             reply.current = request.reply ?? null
             // alert(reply.current ? 'settup reply' : 'skip')
         }
     }, [request.topic, request.reply])
+
+    useEffect(() => {
+        return () => {
+            if (connectFallbackTimerRef.current) {
+                clearTimeout(connectFallbackTimerRef.current)
+                connectFallbackTimerRef.current = null
+            }
+        }
+    }, [])
 
     // Update countdown every second when locked
     useEffect(() => {
@@ -69,6 +89,7 @@ export default function Login() {
     const handlePasswordChange = useCallback(async (value: string) => {
         setPassword(value);
         if (value.length >= 6) {
+            const loginRequestTopic = request.topic
             try {
                 const res = await login(value, userId, activeTabHost)
                 if (res) {
@@ -81,10 +102,20 @@ export default function Login() {
                             pk: res.pk
                         }
                     } as never)
-                    if (request.topic === SealxTopic.BIND_PK) {
-                        navigate('/bind-pubkey', { replace: true })
-                    } else if (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN) {
-                        navigate('/task-home', { replace: true })
+                    const targetRoute = getPostLoginRoute(loginRequestTopic)
+                    if (targetRoute) {
+                        navigate(targetRoute, { replace: true })
+                    } else if (loginRequestTopic === SealxTopic.CONNECT) {
+                        setPassword('')
+                        if (connectFallbackTimerRef.current) {
+                            clearTimeout(connectFallbackTimerRef.current)
+                        }
+                        connectFallbackTimerRef.current = setTimeout(() => {
+                            connectFallbackTimerRef.current = null
+                            if (latestTopicRef.current === SealxTopic.CONNECT) {
+                                navigate('/', { replace: true })
+                            }
+                        }, CONNECT_FALLBACK_DELAY_MS)
                     } else {
                         navigate('/', { replace: true })
                     }
@@ -123,6 +154,7 @@ export default function Login() {
                         autoFocus
                         readonly={attempt === 0}
                         clickToType={clickToType}
+                        clickToTypeKey={clickToTypeKey}
                     />
                 </div>
                 <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>

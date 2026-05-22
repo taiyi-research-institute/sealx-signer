@@ -11,9 +11,10 @@ interface PinPopupProps {
     description?: string
     processingText?: string
     clickToType?: boolean
+    clickToTypeKey?: string
 }
 
-export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", description = "Please enter your 6-digit PIN to export the key", processingText = "Exporting...", clickToType = false }: PinPopupProps) => {
+export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", description = "Please enter your 6-digit PIN to export the key", processingText = "Exporting...", clickToType = false, clickToTypeKey = '' }: PinPopupProps) => {
     const [pin, setPin] = useState<string>('')
     const [isProcessing, setIsProcessing] = useState<boolean>(false)
     const setError = useErrorStore.use.setError()
@@ -89,6 +90,7 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                             className="w-full gap-x-[0.75rem]"
                             autoFocus
                             clickToType={clickToType}
+                            clickToTypeKey={clickToTypeKey}
                     />
                 </div>
                 </>) : (

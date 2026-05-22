@@ -279,16 +279,28 @@ export default abstract class MessagerBase implements Messager {
      * @param receiver - Optional specific receiver channel (defaults to ALL)
      * @returns Promise that resolves with the response payload or rejects on error
      */
-    send: MessageSend = async <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel): Promise<SealxResponse> => {
-        // const id = this.messageId()
+    send: MessageSend = async <T = any>(
+        message: T,
+        topic: SealxTopic,
+        receiver?: MessageChannel,
+        requestId?: string,
+        header?: Partial<SealxHeader>
+    ): Promise<SealxResponse> => {
         const sendMsg: SealxRequest<T> = {
-            header: this.header,
+            header: {
+                ...this.header,
+                ...header,
+            },
             payload: message,
             receiver: receiver ?? MessageChannel.ALL,
             sender: this.channel,
             topic: topic,
             once: true,
         }
+        if (requestId) {
+            sendMsg.header.requestId = requestId
+        }
+        sendMsg.header.messagerId = this.id
         // if (chrome.tabs) {
         //     await (TabManager.getInstance().updateActiveTab())
         // }
