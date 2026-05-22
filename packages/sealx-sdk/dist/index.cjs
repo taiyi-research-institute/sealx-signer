@@ -9116,6 +9116,8 @@ exports.SealxTopic = void 0;
     SealxTopic["LOCATE_ELEMENT"] = "locate-element";
     /** All topics */
     SealxTopic["ALL"] = "*";
+    /** Panel close event — forwarded to web page when side panel is closed */
+    SealxTopic["PANEL_CLOSE"] = "sealx-panel-close";
 })(exports.SealxTopic || (exports.SealxTopic = {}));
 /**
  * Communication channels used in the SealX extension
@@ -9350,7 +9352,6 @@ class MessagerBase {
             if (!this.handlers[topicKey]) {
                 this.handlers[topicKey] = [];
             }
-            console.log(topic, topicKey);
             // TODO: Implement full handler logic including:
             // - Better error handling
             // - Message validation
@@ -17800,7 +17801,6 @@ const checkSealxSignerActive = (messager) => {
                 // Send a ping message to check if extension is responsive
                 const res = await messager.send({ time: Date.now() }, exports.SealxTopic.CHECK_ACTIVED);
                 if (res.payload) {
-                    console.log("SealxSigner is active");
                     // If active, schedule next check
                     checkSealxSignerActive(messager);
                 }
@@ -17818,6 +17818,113 @@ const checkSealxSignerActive = (messager) => {
         }, 10000);
     }
 };
+
+/**
+ * Message Channel — lightweight abstraction over chrome.runtime.Port
+ * for persistent, bidirectional message-passing between extension contexts.
+ *
+ * Use case: side panel ↔ background, popup ↔ background, etc.
+ * The port auto-disconnects when the sender's page closes → reliable lifecycle detection.
+ *
+ * Client (panel/popup):
+ *   const channel = ChannelManager.connect('sealx-panel');
+ *   channel.send('ping', { ts: Date.now() });
+ *   channel.on('pong', (data) => { ... });
+ *
+ * Server (background):
+ *   ChannelManager.accept('sealx-panel', (channel) => {
+ *     channel.on('ping', (data) => channel.send('pong', { echo: data }));
+ *     channel.onDisconnect(() => console.log('Panel closed'));
+ *   });
+ */
+/**
+ * A bidirectional message channel backed by a chrome.runtime.Port.
+ * Created by ChannelManager.connect() or received via ChannelManager.accept().
+ */
+class Channel {
+    constructor(name, port) {
+        this.handlers = new Map();
+        this.disconnectHandlers = new Set();
+        this.name = name;
+        this.port = port;
+        this.port.onMessage.addListener((msg) => {
+            if (!msg || typeof msg.topic !== 'string')
+                return;
+            const topicHandlers = this.handlers.get(msg.topic);
+            if (topicHandlers) {
+                topicHandlers.forEach(h => { try {
+                    h(msg.payload);
+                }
+                catch (err) {
+                    console.warn(`[Channel:${name}] handler error for ${msg.topic}:`, err);
+                } });
+            }
+        });
+        this.port.onDisconnect.addListener(() => {
+            this.disconnectHandlers.forEach(h => { try {
+                h();
+            }
+            catch (err) {
+                console.warn(`[Channel:${name}] disconnect handler error:`, err);
+            } });
+        });
+    }
+    /** Send a message on this channel */
+    send(topic, payload) {
+        this.port.postMessage({ topic, payload });
+    }
+    /** Register a handler for a specific topic. Returns cleanup function. */
+    on(topic, handler) {
+        if (!this.handlers.has(topic)) {
+            this.handlers.set(topic, new Set());
+        }
+        this.handlers.get(topic).add(handler);
+        return () => this.handlers.get(topic)?.delete(handler);
+    }
+    /** Register a disconnect handler. Returns cleanup function. */
+    onDisconnect(handler) {
+        this.disconnectHandlers.add(handler);
+        return () => this.disconnectHandlers.delete(handler);
+    }
+    /** Manually close the channel */
+    disconnect() {
+        this.port.disconnect();
+    }
+}
+/**
+ * Manages Channel lifecycle — connect (client) and accept (server).
+ */
+class ChannelManager {
+    /**
+     * Client side: create a persistent connection to the background.
+     * Call from popup/side panel page.
+     *
+     * @param name - Unique channel name (e.g., 'sealx-panel')
+     * @returns Channel instance
+     */
+    static connect(name) {
+        const port = chrome.runtime.connect({ name });
+        return new Channel(name, port);
+    }
+    /**
+     * Server side: accept incoming channel connections.
+     * Call from background script during init.
+     *
+     * @param name - Channel name to accept
+     * @param handler - Called for each new connection
+     */
+    static accept(name, handler) {
+        if (this.accepted.has(name))
+            return; // Prevent duplicate listeners
+        this.accepted.set(name, true);
+        chrome.runtime.onConnect.addListener((port) => {
+            if (port.name !== name)
+                return;
+            handler(new Channel(name, port));
+        });
+    }
+}
+ChannelManager.accepted = new Map();
 
 class PkException extends Error {
     constructor(message) {
@@ -18771,6 +18878,8 @@ const onPanelClose = (callback) => {
 };
 
 exports.BackgroundMessager = BackgroundMessager;
+exports.Channel = Channel;
+exports.ChannelManager = ChannelManager;
 exports.ContentMessager = ContentMessager;
 exports.DataCorruptedError = DataCorruptedError;
 exports.ExtensionMessager = ExtensionMessager;
