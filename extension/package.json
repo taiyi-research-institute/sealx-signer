@@ -31,7 +31,7 @@
         "react-dom": "^19.1.0",
         "react-router-dom": "^7.6.2",
         "sealx-core": "^1.0.14",
-        "sealx-message": "^1.0.15",
+        "sealx-message": "^1.0.17",
         "zustand": "^5.0.6"
     },
     "devDependencies": {
