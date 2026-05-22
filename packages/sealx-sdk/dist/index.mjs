@@ -928,7 +928,7 @@ const onPanelClose = (callback) => {
         catch (err) {
             console.warn('[SealX] onPanelClose callback error:', err);
         }
-    }, MessageChannel.INPAGE);
+    }, MessageChannel.BACKGROUND);
     return off;
 };
 

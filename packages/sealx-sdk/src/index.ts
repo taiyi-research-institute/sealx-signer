@@ -1121,6 +1121,6 @@ export const onPanelClose = (callback: () => void): () => void => {
         } catch (err) {
             console.warn('[SealX] onPanelClose callback error:', err);
         }
-    }, MessageChannel.INPAGE);
+    }, MessageChannel.BACKGROUND);
     return off;
 };
