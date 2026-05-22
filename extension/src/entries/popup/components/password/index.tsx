@@ -44,6 +44,9 @@ export const Password = ({
         if (readonly) return;
         const input = inputRef.current;
         if (!input) return;
+        // In Chrome side panel (especially in fullscreen), the document may not have focus.
+        // Try focusing the window first, then the input.
+        window.focus();
         input.focus();
         if (document.activeElement === input) {
             input.setSelectionRange(input.value.length, input.value.length);
