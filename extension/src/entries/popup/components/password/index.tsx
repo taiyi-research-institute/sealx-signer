@@ -44,13 +44,16 @@ export const Password = ({
         if (readonly) return;
         const input = inputRef.current;
         if (!input) return;
-        input.focus({ preventScroll: true });
-        input.setSelectionRange(input.value.length, input.value.length);
+        input.focus();
+        if (document.activeElement === input) {
+            input.setSelectionRange(input.value.length, input.value.length);
+        }
     }, [readonly]);
 
     useLayoutEffect(() => {
         if (!autoFocus) return;
-        const timers = [0, 50, 120, 250, 500, 900, 1200, 1500].map(delay => setTimeout(focusInput, delay));
+        // Extended staggered retries: up to 3000ms for fullscreen side panel scenarios
+        const timers = [0, 50, 120, 250, 500, 900, 1200, 1500, 2000, 2500, 3000].map(delay => setTimeout(focusInput, delay));
         const frame = requestAnimationFrame(focusInput);
         return () => {
             timers.forEach(clearTimeout);
@@ -58,7 +61,7 @@ export const Password = ({
         };
     }, [autoFocus, focusInput]);
 
-    // Refocus on visibility change
+    // Refocus on visibility change and window events
     useEffect(() => {
         if (!autoFocus) return;
         const resetRetry = () => {
@@ -76,22 +79,20 @@ export const Password = ({
             setTimeout(focusInput, 200);
         };
         const handlePageShow = () => setTimeout(focusInput, 30);
-        const handleFullscreenChange = () => {
-            if (!document.fullscreenElement) {
-                // Exited fullscreen — re-attempt focus after browser settles
-                resetRetry();
-                setTimeout(focusInput, 400);
-            }
+        // Handle window resize — covers browser fullscreen transitions that affect side panel layout
+        const handleResize = () => {
+            resetRetry();
+            setTimeout(focusInput, 300);
         };
         document.addEventListener('visibilitychange', handleVisibility);
         window.addEventListener('focus', handleWindowFocus);
         window.addEventListener('pageshow', handlePageShow);
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        window.addEventListener('resize', handleResize);
         return () => {
             document.removeEventListener('visibilitychange', handleVisibility);
             window.removeEventListener('focus', handleWindowFocus);
             window.removeEventListener('pageshow', handlePageShow);
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            window.removeEventListener('resize', handleResize);
         };
     }, [autoFocus, focusInput]);
 
