@@ -58,6 +58,8 @@ var SealxTopic;
     SealxTopic["LOCATE_ELEMENT"] = "locate-element";
     /** All topics */
     SealxTopic["ALL"] = "*";
+    /** Panel close event — forwarded to web page when side panel is closed */
+    SealxTopic["PANEL_CLOSE"] = "sealx-panel-close";
 })(SealxTopic || (SealxTopic = {}));
 /**
  * Communication channels used in the SealX extension
@@ -292,7 +294,6 @@ class MessagerBase {
             if (!this.handlers[topicKey]) {
                 this.handlers[topicKey] = [];
             }
-            console.log(topic, topicKey);
             // TODO: Implement full handler logic including:
             // - Better error handling
             // - Message validation
@@ -519,6 +520,14 @@ class MessagerBase {
 }
 
 // import { TabManager } from "sealx-core";
+const ignoreMissingReceiver$2 = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('ContentMessager postMessage failed:', error);
+};
 /**
  * Handles message communication for content scripts in browser extensions.
  * Manages message passing between:
@@ -608,10 +617,10 @@ class ContentMessager extends MessagerBase {
             try {
                 const runtime = chrome.runtime;
                 if (runtime)
-                    runtime.sendMessage(message);
+                    runtime.sendMessage(message).catch(ignoreMissingReceiver$2);
             }
             catch (e) {
-                console.error('postMessage error:', e);
+                ignoreMissingReceiver$2(e);
                 this.replyError(e, message);
             }
         }
@@ -8305,6 +8314,14 @@ function isNativeFullscreen() {
         doc.msFullscreenElement);
 }
 
+const ignoreMissingReceiver$1 = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('ExtensionMessager postMessage failed:', error);
+};
 /**
  * ExtensionMessager handles message communication for browser extension UI components
  *
@@ -8380,15 +8397,12 @@ class ExtensionMessager extends MessagerBase {
         }
         // Send message to appropriate destination
         if (!message.header.tabId) {
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver$1);
         }
         else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            }
-            catch (e) {
-                chrome.runtime?.sendMessage(message);
-            }
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
+                chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver$1);
+            });
         }
     }
     /**
@@ -8407,6 +8421,14 @@ class ExtensionMessager extends MessagerBase {
     }
 }
 
+const ignoreMissingReceiver = (error) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Receiving end does not exist'))
+        return;
+    if (message.includes('Extension context invalidated'))
+        return;
+    console.warn('BackgroundMessager postMessage failed:', error);
+};
 /**
  * BackgroundMessager handles message communication for browser extension background scripts.
  *
@@ -8504,18 +8526,15 @@ class BackgroundMessager extends MessagerBase {
             || message.receiver === MessageChannel.SIDEBAR
             || !message.header.tabId) {
             // console.log('--------- send messager from backgroud by chrome.runtime.sendMessage', message)
-            chrome.runtime?.sendMessage(message);
+            chrome.runtime?.sendMessage(message).catch(ignoreMissingReceiver);
         }
         else {
-            try {
-                chrome.tabs?.sendMessage(message.header.tabId, message);
-            }
-            catch (e) {
+            chrome.tabs?.sendMessage(message.header.tabId, message).catch(() => {
                 const tab = TabManager.getInstance().currentTab;
                 if (tab && tab.id) {
-                    chrome.tabs?.sendMessage(tab.id, message);
+                    chrome.tabs?.sendMessage(tab.id, message).catch(ignoreMissingReceiver);
                 }
-            }
+            });
             // console.log('---------- send messager from background by chrome.tabs.sendMessage ------', message)
         }
     }
@@ -8724,7 +8743,6 @@ const checkSealxSignerActive = (messager) => {
                 // Send a ping message to check if extension is responsive
                 const res = await messager.send({ time: Date.now() }, SealxTopic.CHECK_ACTIVED);
                 if (res.payload) {
-                    console.log("SealxSigner is active");
                     // If active, schedule next check
                     checkSealxSignerActive(messager);
                 }

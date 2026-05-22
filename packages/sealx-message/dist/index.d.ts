@@ -162,7 +162,9 @@ declare enum SealxTopic {
     /** Locate element in the page by data-key attribute */
     LOCATE_ELEMENT = "locate-element",
     /** All topics */
-    ALL = "*"
+    ALL = "*",
+    /** Panel close event — forwarded to web page when side panel is closed */
+    PANEL_CLOSE = "sealx-panel-close"
 }
 /**
  * Communication channels used in the SealX extension
@@ -836,7 +838,7 @@ declare class MessagerManager {
      *          The appropriate messager instance
      * @throws {Error} If the environment is not supported
      */
-    static getMessager(): ContentMessager | ExtensionMessager | BackgroundMessager | WindowMessager;
+    static getMessager(): WindowMessager | ContentMessager | BackgroundMessager | ExtensionMessager;
 }
 
 /**
