@@ -7,6 +7,7 @@ interface PasswordProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'onCh
     password?: string;
     readonly?: boolean;
     autoFocus?: boolean;
+    clickToType?: boolean;
 }
 
 export const Password = ({
@@ -15,6 +16,7 @@ export const Password = ({
     errorIndex = -1,
     password = '',
     autoFocus = false,
+    clickToType = false,
     ...props
 }: PasswordProps) => {
     const containerRef = useRef<HTMLDivElement | null>(null);
@@ -22,13 +24,20 @@ export const Password = ({
     const passwordRef = useRef(password.slice(0, 6));
     const [draftPassword, setDraftPassword] = useState(password.slice(0, 6));
     const [isFocused, setIsFocused] = useState(false);
+    const [hasUserActivated, setHasUserActivatedState] = useState(false);
+    const [latchedClickToType, setLatchedClickToType] = useState(clickToType);
+    const hasUserActivatedRef = useRef(false);
     const isFocusedRef = useRef(false);
     const observerRef = useRef<IntersectionObserver | null>(null);
     const retryCountRef = useRef(0);
     const retrySuccessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const userLeftRef = useRef(false);
+    const previousRequiresClickToTypeRef = useRef(false);
     const MAX_RETRY = 6;
     const displayPassword = draftPassword || password.slice(0, 6);
+    const requiresClickToType = latchedClickToType && autoFocus && !readonly;
+    const isActivationPending = requiresClickToType && !hasUserActivated && !displayPassword;
+    const shouldAutoFocus = autoFocus && !isActivationPending;
     const chars = useMemo(() => displayPassword.padEnd(6, '').split(''), [displayPassword]);
     const activeIndex = useMemo(() => {
         if (errorIndex > -1) return errorIndex;
@@ -36,14 +45,35 @@ export const Password = ({
         return firstEmpty !== -1 ? firstEmpty : Math.min(displayPassword.length, 5);
     }, [chars, displayPassword.length, errorIndex]);
 
+    const setUserActivated = useCallback((value: boolean) => {
+        hasUserActivatedRef.current = value;
+        setHasUserActivatedState(value);
+    }, []);
+
+    useEffect(() => {
+        if (clickToType) {
+            setLatchedClickToType(true);
+        }
+    }, [clickToType]);
+
     useEffect(() => {
         const normalizedPassword = password.slice(0, 6);
         passwordRef.current = normalizedPassword;
         setDraftPassword(normalizedPassword);
-    }, [password]);
+        const enteredClickToTypeMode = requiresClickToType && !previousRequiresClickToTypeRef.current;
+        if (!normalizedPassword && enteredClickToTypeMode) {
+            setUserActivated(false);
+            setIsFocused(false);
+            isFocusedRef.current = false;
+        } else if (!requiresClickToType || normalizedPassword) {
+            setUserActivated(true);
+        }
+        previousRequiresClickToTypeRef.current = requiresClickToType;
+    }, [password, requiresClickToType, setUserActivated]);
 
     const focusInput = useCallback(() => {
         if (readonly) return;
+        if (requiresClickToType && !hasUserActivatedRef.current) return;
         const input = inputRef.current;
         if (!input) return;
         window.focus();
@@ -55,10 +85,10 @@ export const Password = ({
                 isFocusedRef.current = true;
             }
         }
-    }, [readonly]);
+    }, [readonly, requiresClickToType]);
 
     useLayoutEffect(() => {
-        if (!autoFocus) return;
+        if (!shouldAutoFocus) return;
         // Initial staggered retries (fast attempts)
         const timers = [0, 50, 120, 250, 500].map(delay => setTimeout(focusInput, delay));
         const frame = requestAnimationFrame(focusInput);
@@ -81,14 +111,14 @@ export const Password = ({
             observerRef.current?.disconnect();
             observerRef.current = null;
         };
-    }, [autoFocus, focusInput]);
+    }, [shouldAutoFocus, focusInput]);
 
     // Keyboard relay for side panel in browser fullscreen:
     // The side panel doesn't receive keyboard events when the web page has focus.
     // Use chrome.storage.session — ALL tabs' content scripts hear onChanged,
     // so we don't need to know which tab has the content script.
     useEffect(() => {
-        if (!autoFocus || readonly) return;
+        if (!shouldAutoFocus || readonly) return;
         if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
         console.log('[Password:relay] requesting ARM via storage.session');
         chrome.storage.session.set({ sealxArmKeyRelay: Date.now() }).catch(() => {});
@@ -96,23 +126,23 @@ export const Password = ({
             console.log('[Password:relay] unmounting — setting STOP via storage.session');
             chrome.storage.session.set({ sealxArmKeyRelay: 0 }).catch(() => {});
         };
-    }, [autoFocus, readonly]);
+    }, [shouldAutoFocus, readonly]);
 
     // Fallback polling: retry focus every 500ms for 5s after mount
     // Covers Chrome side panel in browser fullscreen where events may not fire
     useEffect(() => {
-        if (!autoFocus) return;
+        if (!shouldAutoFocus) return;
         const interval = setInterval(focusInput, 500);
         const stopTimer = setTimeout(() => clearInterval(interval), 5000);
         return () => {
             clearInterval(interval);
             clearTimeout(stopTimer);
         };
-    }, [autoFocus, focusInput]);
+    }, [shouldAutoFocus, focusInput]);
 
     // Refocus on visibility change and window events
     useEffect(() => {
-        if (!autoFocus) return;
+        if (!shouldAutoFocus) return;
         const resetRetry = () => {
             retryCountRef.current = 0;
             userLeftRef.current = false;
@@ -143,12 +173,12 @@ export const Password = ({
             window.removeEventListener('pageshow', handlePageShow);
             window.removeEventListener('resize', handleResize);
         };
-    }, [autoFocus, focusInput]);
+    }, [shouldAutoFocus, focusInput]);
 
     // Blur-based re-focus firewall (side panel Chrome focus defense)
     const handleBlurRefocus = useCallback(() => {
         if (readonly) return;
-        if (!autoFocus) return;
+        if (!shouldAutoFocus) return;
         if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
         if (document.hidden) return;
         if (userLeftRef.current) return;
@@ -173,11 +203,11 @@ export const Password = ({
                 inputRef.current.focus({ preventScroll: true });
             }
         }, 50);
-    }, [autoFocus, readonly]);
+    }, [readonly, shouldAutoFocus]);
 
     // Pointerdown guard: detect user intentionally leaving the password area
     useEffect(() => {
-        if (!autoFocus || readonly) return;
+        if (!shouldAutoFocus || readonly) return;
         const handlePointerDown = (e: PointerEvent) => {
             const target = e.target as HTMLElement | null;
             if (target && containerRef.current?.contains(target)) {
@@ -188,7 +218,7 @@ export const Password = ({
         };
         document.addEventListener('pointerdown', handlePointerDown);
         return () => document.removeEventListener('pointerdown', handlePointerDown);
-    }, [autoFocus, readonly]);
+    }, [shouldAutoFocus, readonly]);
 
     // Stable-focus reset timer (cleaned on unmount)
     const scheduleStableReset = useCallback(() => {
@@ -207,11 +237,14 @@ export const Password = ({
     const emitPasswordChange = useCallback((value: string) => {
         if (readonly) return;
         const nextPassword = value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6);
+        if (nextPassword) {
+            setUserActivated(true);
+        }
         passwordRef.current = nextPassword;
         setDraftPassword(nextPassword);
         onChange?.(nextPassword);
         requestAnimationFrame(focusInput);
-    }, [focusInput, onChange, readonly]);
+    }, [focusInput, onChange, readonly, setUserActivated]);
 
     const appendCharacter = useCallback((char: string) => {
         emitPasswordChange(`${passwordRef.current}${char}`);
@@ -222,7 +255,7 @@ export const Password = ({
     }, [emitPasswordChange]);
 
     useEffect(() => {
-        if (!autoFocus || readonly) return;
+        if (!shouldAutoFocus || readonly) return;
         const handleRelayedKeyDown = (message: Record<string, unknown>) => {
             if (message?.type !== 'sealx-pin-keydown') return;
             const key = typeof message.key === 'string' ? message.key : '';
@@ -267,7 +300,7 @@ export const Password = ({
             chrome.runtime.onMessage.removeListener(handleRelayedKeyDown);
             window.removeEventListener('keydown', handleGlobalKeyDown, true);
         };
-    }, [appendCharacter, autoFocus, readonly, removeLastCharacter]);
+    }, [appendCharacter, readonly, removeLastCharacter, shouldAutoFocus]);
 
     const handlePaste = useCallback((e: React.ClipboardEvent) => {
         e.preventDefault();
@@ -280,19 +313,23 @@ export const Password = ({
 
     const isError = (index: number) => errorIndex > -1 && index <= errorIndex;
     const { className = '', onMouseDown, onClick, ...containerProps } = props;
+    const activateInput = useCallback(() => {
+        setUserActivated(true);
+        requestAnimationFrame(focusInput);
+    }, [focusInput, setUserActivated]);
 
     return (
         <div
             {...containerProps}
             ref={containerRef}
-            className={`password-container max-w-[436px] mx-auto flex justify-between ${className}`}
+            className={`password-container max-w-[436px] mx-auto flex justify-between ${isActivationPending ? 'password-container--activation-pending' : ''} ${className}`}
             onMouseDown={(event) => {
                 onMouseDown?.(event);
-                focusInput();
+                activateInput();
             }}
             onClick={(event) => {
                 onClick?.(event);
-                focusInput();
+                activateInput();
             }}
             onPaste={handlePaste}
         >
@@ -308,13 +345,15 @@ export const Password = ({
                 maxLength={6}
                 value={displayPassword}
                 readOnly={readonly}
-                autoFocus={autoFocus}
+                autoFocus={shouldAutoFocus}
                 tabIndex={readonly ? -1 : 0}
                 aria-label="PIN"
                 onFocus={(event) => {
                     event.currentTarget.setSelectionRange(displayPassword.length, displayPassword.length);
-                    setIsFocused(true);
-                    isFocusedRef.current = true;
+                    if (!requiresClickToType || hasUserActivatedRef.current) {
+                        setIsFocused(true);
+                        isFocusedRef.current = true;
+                    }
                     scheduleStableReset();
                 }}
                 onBlur={() => {
@@ -325,20 +364,33 @@ export const Password = ({
                 onChange={handleInputChange}
                 onPaste={handlePaste}
             />
-            {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                    key={i}
-                    className={`password bg-surface-secondary flex items-center justify-center
-                        ${i === activeIndex ? 'active' : ''}
-                        ${isError(i) ? 'error' : ''}`}
-                    aria-hidden="true"
-                >
-                    {chars[i] && <span className="password-mask-dot" />}
-                    {isFocused && i === activeIndex && displayPassword.length < 6 && (
-                        <span className="password-caret" />
-                    )}
+            {isActivationPending ? (
+                <div className="password-activation-target" aria-hidden="true">
+                    <div className="password-activation-content">
+                        <span className="password-activation-icon">
+                            <span />
+                            <span />
+                            <span />
+                        </span>
+                        <span>Click to enter PIN</span>
+                    </div>
                 </div>
-            ))}
+            ) : (
+                Array.from({ length: 6 }).map((_, i) => (
+                    <div
+                        key={i}
+                        className={`password bg-surface-secondary flex items-center justify-center
+                            ${i === activeIndex ? 'active' : ''}
+                            ${isError(i) ? 'error' : ''}`}
+                        aria-hidden="true"
+                    >
+                        {chars[i] && <span className="password-mask-dot" />}
+                        {isFocused && i === activeIndex && displayPassword.length < 6 && (
+                            <span className="password-caret" />
+                        )}
+                    </div>
+                ))
+            )}
         </div>
     );
 };

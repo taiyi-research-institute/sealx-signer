@@ -25,6 +25,12 @@ export default function Login() {
     // const setSession = useSessionStore.use.setSession()
     const { setSession, activeTabHost, request } = useRequestContext()
     const reply = useRef<ReplyFunc>(null)
+    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
+    useEffect(() => {
+        if (request?.header?.fullscreen) {
+            setClickToType(true)
+        }
+    }, [request?.header?.fullscreen])
     // useEffect(() => setError('Test error 5342523453453425234 4352345345 3453245345234 4352345234 345324523 34543534 345234534 popup!!!!!'), [setError])
     useEffect(() => {
         if (request.topic === SealxTopic.LOGIN || request.topic === SealxTopic.CONNECT) {
@@ -116,6 +122,7 @@ export default function Login() {
                         onChange={handlePasswordChange}
                         autoFocus
                         readonly={attempt === 0}
+                        clickToType={clickToType}
                     />
                 </div>
                 <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>

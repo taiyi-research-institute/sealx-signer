@@ -29,7 +29,7 @@ declare global {
 
 export const KeyExport = () => {
     const navigate = useSealXNavigate()
-    const { session } = useRequestContext()
+    const { request, session } = useRequestContext()
     const [tpPin, setTpPin] = useState<string>('') // 临时密码 - 改为用户输入
     const [confirmPin, setConfirmPin] = useState<string>('') // 确认密码
     const [closeEye, setCloseEye] = useState<boolean>(true)
@@ -43,6 +43,12 @@ export const KeyExport = () => {
     const [googleDriveStatus, setGoogleDriveStatus] = useState<'unauthenticated' | 'authenticated' | 'uploading' | 'error'>('unauthenticated')
     const setSuccess = useSuccessStore.use.setSuccess()
     const setError = useErrorStore.use.setError()
+    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
+    useEffect(() => {
+        if (request?.header?.fullscreen) {
+            setClickToType(true)
+        }
+    }, [request?.header?.fullscreen])
 
     // Validation states
     const [tpPinError, setTpPinError] = useState<string>('')
@@ -445,7 +451,7 @@ export const KeyExport = () => {
             title='Enter Your PIN'
             description='Please enter your 6-digit PIN to export the key'
             processingText='Exporting...'
-            instructionText='PIN entered. Export will start automatically...'
+            clickToType={clickToType}
           />
         )}
 

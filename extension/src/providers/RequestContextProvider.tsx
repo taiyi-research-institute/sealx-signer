@@ -36,7 +36,6 @@ const isSessionValid = (
 
 const REQUEST_ONLY_ROUTES = new Set(['/bind-pubkey', '/task-detail', '/task-home']);
 const PANEL_TRIGGER_MAX_AGE_MS = 2_000;
-const BLOCKING_SYNC_MS = 800;
 
 const normalizeRoute = (route: string) => {
     const normalizedRoute = route.replace(/^#/, '');
@@ -133,7 +132,7 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
         if (!isButtonTriggered) return;
         const unblockTimer = setTimeout(() => {
             setBlockingSync(false);
-        }, BLOCKING_SYNC_MS);
+        }, 800);
         const fallbackTimer = setTimeout(() => {
             if (loadingTimerRef.current) {
                 clearTimeout(loadingTimerRef.current);
@@ -553,20 +552,15 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
 
 const Loading: React.FC<{ compact?: boolean; blocking?: boolean }> = ({ compact, blocking }) => {
     if (compact && blocking) {
-        return (
-            <div className='fixed inset-0 z-50 flex items-center justify-center bg-white'>
-                <div className='flex items-center gap-[10px] rounded-[999px] border border-[var(--sx-border)] bg-white px-[14px] py-[10px] text-[12px] font-[800] text-[var(--sx-muted)] shadow-[0_10px_24px_rgba(16,24,32,0.10)]'>
-                    <span className='h-[8px] w-[8px] animate-pulse rounded-full bg-[var(--sx-brand)]'></span>
-                    Syncing
-                </div>
-            </div>
-        );
+        return <div className='fixed inset-0 z-50 bg-white' aria-hidden="true" />;
     }
+
+    if (compact) return null;
 
     return (
         <div className='pointer-events-none fixed right-[16px] top-[16px] z-50 flex items-center gap-[8px] rounded-[999px] border border-[var(--sx-border)] bg-white/92 px-[12px] py-[8px] text-[12px] font-[800] text-[var(--sx-muted)] shadow-[0_10px_24px_rgba(16,24,32,0.10)]'>
             <span className='h-[8px] w-[8px] animate-pulse rounded-full bg-[var(--sx-brand)]'></span>
-            {compact ? 'Syncing' : 'Loading'}
+            Loading
         </div>
     );
 };

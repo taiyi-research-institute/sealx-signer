@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { type ChangeEvent, useCallback, useEffect, useRef, useState } from "react"
 import { useSealXNavigate } from "../../hooks/useSealXNavigate"
 import { PinPopup } from "./PinPopup"
 import './styles.css'
@@ -7,7 +7,7 @@ import OpenEye from '@assets/svg/open-eye.svg?react'
 
 import Warning from '@assets/svg/warning.svg?react'
 import { importKey, verifyTempCode } from "@src/core/background"
-import { useErrorStore, useSuccessStore } from "@src/core/state"
+import { useErrorStore } from "@src/core/state"
 import { useGlobalContext } from "@src/hooks/useGlobalContext"
 import { useRequestContext } from "@src/hooks/useRequestContextHook"
 import Radio from "@src/components/radio"
@@ -15,30 +15,12 @@ import Button from "@src/components/button"
 import GoogleDriveAuthMask from "@src/components/google-drive-auth-mask"
 import { GoogleDrive } from "@src/core/google/drive"
 
-declare global {
-    interface Window {
-        showDirectoryPicker: (options?: {
-            id?: string
-            mode?: 'read' | 'readwrite'
-            startIn?: FileSystemHandle | 'desktop' | 'documents' | 'downloads' | 'music' | 'pictures' | 'videos'
-        }) => Promise<FileSystemDirectoryHandle>
-        showOpenFilePicker: (options?: {
-            multiple?: boolean
-            excludeAcceptAllOption?: boolean
-            types?: Array<{
-                description?: string
-                accept: Record<string, string[]>
-            }>
-        }) => Promise<FileSystemFileHandle[]>
-    }
-}
-
-
 export const KeyImport = () => {
     const navigate = useSealXNavigate()
     const { setAddress } = useGlobalContext();
-    const { setSession } = useRequestContext()
+    const { request, setSession } = useRequestContext()
     const [ecSession, setEcSession] = useState<string>('')
+    const [selectedFileName, setSelectedFileName] = useState<string>('')
     const [tpPin, setTpPin] = useState<string>('') // Temporary code
     const [closeEye, setCloseEye] = useState<boolean>(true)
     const [showPinModal, setShowPinModal] = useState<boolean>(false)
@@ -50,7 +32,23 @@ export const KeyImport = () => {
     const setError = useErrorStore.use.setError()
     const [progressTitle, setProgressTitle] = useState<string>('')
     const [progressDesc, setProgressDesc] = useState('')
-    const setSuccess = useSuccessStore.use.setSuccess()
+    const fileInputRef = useRef<HTMLInputElement | null>(null)
+    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
+    useEffect(() => {
+        if (request?.header?.fullscreen) {
+            setClickToType(true)
+        }
+    }, [request?.header?.fullscreen])
+
+    const getFileReadErrorMessage = useCallback((err: unknown) => {
+        if (err instanceof DOMException) {
+            return `Failed to read selected file (${err.name}). Please select the backup file again.`
+        }
+        if (err instanceof Error) {
+            return `Failed to read selected file: ${err.message}`
+        }
+        return 'Failed to read selected file. Please select the backup file again.'
+    }, [])
 
 
     // Helper function to verify temp code and show PIN modal
@@ -85,19 +83,33 @@ export const KeyImport = () => {
             mountedRef.current = false
         }
     }, [])
-    // Handle local file selection
-    const onSelectFile = useCallback(async () => {
+    const onSelectFile = useCallback(() => {
+        fileInputRef.current?.click()
+    }, [])
+
+    const onLocalFileChange = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0]
+        event.target.value = ''
+        if (!file) return
+
         try {
-            const [fileHandle] = await window.showOpenFilePicker()
-            const file = await fileHandle.getFile()
-            setFile(file.name)
-            setEcSession(await file.text())
-            setSuccess('File selected successfully')
+            const content = await file.text()
+            if (!content.trim()) {
+                setSelectedFileName(file.name)
+                setEcSession('')
+                setError('Selected file is empty. Please select a valid SealX backup file.')
+                return
+            }
+            setSelectedFileName(file.name)
+            setEcSession(content)
+            setError('')
         } catch (err) {
-            console.error('Error selecting file:', err)
-            setError('Failed to select file. Please try again.')
+            console.error('Error reading import file:', err)
+            setSelectedFileName('')
+            setEcSession('')
+            setError(getFileReadErrorMessage(err))
         }
-    }, [setError, setSuccess])
+    }, [getFileReadErrorMessage, setError])
 
     // Verify temporary code
     const onVerifyTempCode = useCallback(async () => {
@@ -191,7 +203,6 @@ export const KeyImport = () => {
             const res = await importKey(userPin, ecSession, tpPin)
             if (res) {
                 setAddress(res)
-                setSuccess('Import successful')
                 setShowPinModal(false)
                 navigate('/login')
                 setSession(null)
@@ -208,7 +219,7 @@ export const KeyImport = () => {
             setShowPinModal(false)
             throw err // Re-throw to let PinPopup handle the error
         }
-    }, [setError, ecSession, tpPin, setAddress, setSuccess, navigate, setSession])
+    }, [setError, ecSession, tpPin, setAddress, navigate, setSession])
 
     // Handle PIN input via PinPopup
     const handleImportWithPin = useCallback(async (userPin: string) => {
@@ -243,9 +254,17 @@ export const KeyImport = () => {
                   </div>
                   <div className='w-full mt-[1rem] wrap-break-word hyphens-auto text-left font-[500] text-[1.5rem] leading-[1.8125] flex items-center'>
                     <input
+                      ref={fileInputRef}
+                      type='file'
+                      accept='.key,text/plain,application/octet-stream'
+                      className='hidden'
+                      onChange={onLocalFileChange}
+                      aria-label='Select import file'
+                    />
+                    <input
                       type='text'
                       onClick={onSelectFile}
-                      value={ecSession ? file : ''}
+                      value={selectedFileName}
                       readOnly
                       placeholder='Select import file'
                       className='w-2/3 text-[1rem] px-[0.75rem] pt-[0.5rem] focus:border-0! pb-[0.5625rem] rounded-[12px] bg-[var(--sx-surface-soft)] border-[var(--sx-border)] focus:border-[var(--sx-focus)] focus:outline-none border cursor-pointer'
@@ -334,7 +353,7 @@ export const KeyImport = () => {
             title='Enter Your Login PIN'
             description='Please enter your 6-digit login PIN to import the key'
             processingText='Importing...'
-            instructionText='PIN entered. Import will start automatically...'
+            clickToType={clickToType}
           />
         )}
 

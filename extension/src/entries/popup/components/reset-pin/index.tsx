@@ -7,7 +7,7 @@ import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
 // import { localStorageWrapper } from 'sealx-core';
 import { lockLogin } from '../../state/session';
-// import { useRequestContext } from '@src/hooks/useRequestContextHook';
+import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { useSessionStore } from '@src/core/state/session';
 
 export default function ResetPin() {
@@ -21,9 +21,15 @@ export default function ResetPin() {
     const { setAddress } = useGlobalContext()
     const { attempt, setAttempt, lockTime, setLockTime, maxAttempt, maxLockTime } = useGlobalContext()
     const [countdown, setCountdown] = useState<string>(''); // Store formatted countdown
-    // const { activeTabHost, request } = useRequestContext()
+    const { request } = useRequestContext()
     const { address } = useGlobalContext()
     const logout = useSessionStore.use.logout()
+    const [clickToType, setClickToType] = useState(() => !!request?.header?.fullscreen)
+    useEffect(() => {
+        if (request?.header?.fullscreen) {
+            setClickToType(true)
+        }
+    }, [request?.header?.fullscreen])
 
 
     // Update countdown every second when locked
@@ -139,6 +145,7 @@ export default function ResetPin() {
                                 className='w-full password-input-wrapper'
                                 onChange={handlePasswordChange}
                                 autoFocus
+                                clickToType={clickToType}
                             />
                         ) : (
                             <Password
@@ -148,6 +155,7 @@ export default function ResetPin() {
                                 errorIndex={errorIndex}
                                 onChange={handleConfirmPassword}
                                 autoFocus
+                                clickToType={clickToType}
                             />
                         )
                     }

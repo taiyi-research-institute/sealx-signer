@@ -10,61 +10,26 @@ interface PinPopupProps {
     title?: string
     description?: string
     processingText?: string
-    instructionText?: string
+    clickToType?: boolean
 }
 
-export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", description = "Please enter your 6-digit PIN to export the key", processingText = "Exporting...", instructionText = "PIN entered. Export will start automatically..." }: PinPopupProps) => {
+export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", description = "Please enter your 6-digit PIN to export the key", processingText = "Exporting...", clickToType = false }: PinPopupProps) => {
     const [pin, setPin] = useState<string>('')
     const [isProcessing, setIsProcessing] = useState<boolean>(false)
-    const [progress, setProgress] = useState<number>(0)
     const setError = useErrorStore.use.setError()
 
     const handleSubmit = useCallback(async () => {
         if (pin.length < 6 || isProcessing) return
 
         setIsProcessing(true)
-        setProgress(0)
 
         try {
-            // Generate random duration between 3-5 seconds
-            const duration = 3000 + Math.random() * 2000
-            const startTime = Date.now()
-            const updateInterval = 50 // Update every 50ms
-
-            // Start the progress bar animation
-            const progressInterval = setInterval(() => {
-                const elapsed = Date.now() - startTime
-                const currentProgress = Math.min((elapsed / duration) * 100, 100)
-                setProgress(currentProgress)
-
-                if (currentProgress >= 100) {
-                    clearInterval(progressInterval)
-                    setProgress(100)
-                }
-            }, updateInterval)
-            // Submit the PIN
-            onSubmit(pin).then(() => {
-                clearInterval(progressInterval)
-                setProgress(100)
-            }).catch(() => {
-                clearInterval(progressInterval)
-                setError('Pin error')
-            })
-            // Wait for the progress bar to complete, then submit
-            await new Promise(resolve => setTimeout(resolve, duration))
-
-            // Clear interval just in case
-            clearInterval(progressInterval)
-            setProgress(100)
-
-
-
+            await onSubmit(pin)
         } catch (error) {
-            console.error('Export failed:', error)
-            // Error handling should be done in the parent component
+            console.error('PIN submit failed:', error)
+            setError('Pin error')
         } finally {
             setIsProcessing(false)
-            setProgress(0)
         }
     }, [pin, isProcessing, onSubmit, setError])
 
@@ -107,7 +72,7 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
 
 
 
-                {/* Progress bar for export mask */}
+                {/* PIN input */}
                 {!isProcessing ? (<>
                     <div className="text-[1.5rem] font-[500] mb-[1.5rem] text-center">
                     {title}
@@ -117,28 +82,19 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                         <div className="text-[1rem] font-[500] mb-[0.75rem] text-[#000]/60">
                         {description}
                     </div>
-                    <Password
+                        <Password
                         password={pin}
                         onChange={setPin}
                         readonly={isProcessing}
                             className="w-full gap-x-[0.75rem]"
                             autoFocus
+                            clickToType={clickToType}
                     />
                 </div>
                 </>) : (
                         <div className="mt-[2rem]">
                         <div className="flex flex-col items-center w-full">
-                                <div className="w-full text-[1rem] max-w-[300px] mb-4">
-                                    <div className="text-[#00BE78] text-[0.875rem] text-center mt-2">
-                                    {Math.round(progress)}%
-                                </div>
-                                    <div className="w-full h-[8px] bg-[#000]/10 rounded-full overflow-hidden">
-                                    <div
-                                        className="h-full bg-[#00BE78] transition-all duration-100 ease-linear"
-                                        style={{ width: `${progress}%` }}
-                                    />
-                                </div>
-                            </div>
+                                <div className="h-[32px] w-[32px] animate-spin rounded-full border-[3px] border-[#00BE78]/25 border-t-[#00BE78] mb-[1rem]" />
                                 <div className="text-[#000]/80 text-[1.125rem] font-[500] animate-pulse">
                                 {processingText}
                             </div>
@@ -146,12 +102,6 @@ export const PinPopup = ({ onSubmit, onClose, title = "Enter Your PIN", descript
                     </div>
                 )}
 
-                {/* Instruction text */}
-                {!isProcessing && pin.length === 6 && (
-                    <div className="mt-[1.5rem] text-[#00BE78] text-[0.875rem] text-center animate-pulse">
-                        {instructionText}
-                    </div>
-                )}
             </div>
         </div>
     )
