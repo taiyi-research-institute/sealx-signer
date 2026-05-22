@@ -188,15 +188,34 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
     // Password component requests keyboard relay (needed for fullscreen side panel)
     if (message?.type === 'request-arm-key-relay') {
         const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
+        console.log('[BG:relay] ARM requested — processingTabId:', PanelManager.processingTabId, 'msg.tabId:', message.tabId, '→ using tabId:', tabId);
         if (tabId) {
+            console.log('[BG:relay] sending arm-pin-key-relay to tab', tabId);
             PanelManager.armKeyRelay(tabId)
+        } else {
+            console.log('[BG:relay] no tabId, falling back to chrome.tabs.query');
+            chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+                if (tabs[0]?.id !== undefined) {
+                    console.log('[BG:relay] found active tab', tabs[0].id);
+                    PanelManager.armKeyRelay(tabs[0].id)
+                } else {
+                    console.warn('[BG:relay] no active tab found');
+                }
+            }).catch((err) => { console.warn('[BG:relay] query failed:', err?.message); })
         }
         return true
     }
     if (message?.type === 'request-stop-key-relay') {
         const tabId = typeof message.tabId === 'number' ? message.tabId : PanelManager.processingTabId
+        console.log('[BG:relay] STOP requested — tabId:', tabId);
         if (tabId) {
             chrome.tabs.sendMessage(tabId, { type: 'stop-pin-key-relay' }).catch(() => { })
+        } else {
+            chrome.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
+                if (tabs[0]?.id !== undefined) {
+                    chrome.tabs.sendMessage(tabs[0].id, { type: 'stop-pin-key-relay' }).catch(() => { })
+                }
+            }).catch(() => { })
         }
         return true
     }

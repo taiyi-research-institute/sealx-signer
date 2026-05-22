@@ -57,19 +57,33 @@ function handlePinKeyRelay(event: KeyboardEvent) {
     event.preventDefault();
     event.stopImmediatePropagation();
 
+    console.log('[CS:keydown] intercepted:', event.key);
     chrome.runtime.sendMessage({ type: PIN_KEY_RELAY_MESSAGE, key: event.key }).catch((err) => {
-        console.warn('[SealX] Failed to relay PIN key:', err?.message);
+        console.warn('[CS:keydown] send failed:', err?.message);
     });
 }
 
-function armPinKeyRelay() {
+function armPinKeyRelay(stopOnPointerdown = true) {
     stopPinKeyRelay();
     window.addEventListener('keydown', handlePinKeyRelay, true);
     pinKeyRelayTimer = setTimeout(stopPinKeyRelay, PIN_KEY_RELAY_TIMEOUT_MS);
 
-    setTimeout(() => {
-        window.addEventListener('pointerdown', stopPinKeyRelay, true);
-    }, 0);
+    if (stopOnPointerdown) {
+        setTimeout(() => {
+            window.addEventListener('pointerdown', stopPinKeyRelay, true);
+        }, 0);
+    }
+}
+
+// Called by sealx button click: relay stops on pointerdown
+function armPinKeyRelayForButton() {
+    armPinKeyRelay(true);
+}
+
+// Called by background message: relay persists across pointerdown (fullscreen side panel)
+function armPinKeyRelayForPanel() {
+    console.log('[CS:relay] ARM for panel — no pointerdown stop');
+    armPinKeyRelay(false);
 }
 
 function waitForBody(callback: () => void) {
@@ -166,9 +180,11 @@ observer.observe(document.documentElement, { childList: true, subtree: true });
 // to arm the PIN key relay so keyboard events on the web page are forwarded to the panel.
 chrome.runtime.onMessage.addListener((message: Record<string, unknown>) => {
     if (message?.type === 'arm-pin-key-relay') {
-        armPinKeyRelay();
+        console.log('[CS:msg] received arm-pin-key-relay');
+        armPinKeyRelayForPanel();
     }
     if (message?.type === 'stop-pin-key-relay') {
+        console.log('[CS:msg] received stop-pin-key-relay');
         stopPinKeyRelay();
     }
 });

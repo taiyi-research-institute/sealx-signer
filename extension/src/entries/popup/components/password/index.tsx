@@ -89,8 +89,12 @@ export const Password = ({
     useEffect(() => {
         if (!autoFocus || readonly) return;
         if (document.body.getAttribute('popup-mode') !== 'sidepanel') return;
-        chrome.runtime.sendMessage({ type: 'request-arm-key-relay' }).catch(() => {});
+        console.log('[Password:relay] requesting ARM — sidepanel + autoFocus, doc.hasFocus:', document.hasFocus());
+        chrome.runtime.sendMessage({ type: 'request-arm-key-relay' }).catch((err) => {
+            console.warn('[Password:relay] ARM request failed:', err?.message);
+        });
         return () => {
+            console.log('[Password:relay] unmounting — requesting STOP');
             chrome.runtime.sendMessage({ type: 'request-stop-key-relay' }).catch(() => {});
         };
     }, [autoFocus, readonly]);
@@ -223,6 +227,7 @@ export const Password = ({
         const handleRelayedKeyDown = (message: Record<string, unknown>) => {
             if (message?.type !== 'sealx-pin-keydown') return;
             const key = typeof message.key === 'string' ? message.key : '';
+            console.log('[Password:relayedKey] received via relay:', key);
 
             if (/^[a-zA-Z0-9]$/.test(key)) {
                 appendCharacter(key);

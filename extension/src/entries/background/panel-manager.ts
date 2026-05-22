@@ -246,8 +246,9 @@ export default class PanelManager {
      * 全屏模式下 side panel 无法接收键盘事件，通过 content script 拦截并转发
      */
     static armKeyRelay(tabId: number): void {
-        chrome.tabs.sendMessage(tabId, { type: 'arm-pin-key-relay' }).catch(() => {
-            // Content script may not be loaded on this tab — safe to ignore
+        console.log('[PM:relay] armKeyRelay → sending arm-pin-key-relay to tab', tabId);
+        chrome.tabs.sendMessage(tabId, { type: 'arm-pin-key-relay' }).catch((err) => {
+            console.warn('[PM:relay] armKeyRelay failed for tab', tabId, ':', err?.message);
         })
     }
 
