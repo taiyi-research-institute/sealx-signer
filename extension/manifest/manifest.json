@@ -34,6 +34,9 @@
         "alarms",
         "sidePanel"
     ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
     "commands": {
         "enable-pin-input": {
             "suggested_key": {
