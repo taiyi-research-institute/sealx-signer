@@ -494,17 +494,97 @@ messager.on(SealxTopic.SIGN, async (request: SealxRequest<{ host: string, userId
 }, MessageChannel.POPUP)
 //
 
-// ========== Global shortcut: enable PIN input in side panel ==========
-// In browser fullscreen mode, the side panel doesn't have focus and can't
-// receive keyboard events. This command gives the user a reliable way to
-// activate keyboard input via Chrome's commands API.
-chrome.commands.onCommand.addListener((command, tab) => {
-    if (command !== 'enable-pin-input' || !tab?.id) return;
-    console.log('[CMD] enable-pin-input triggered for tab', tab.id);
-    // Notify all content scripts to arm the key relay
-    chrome.tabs.sendMessage(tab.id, { type: 'arm-pin-key-relay' }).catch((err) => {
-        console.warn('[CMD] failed to arm relay on tab', tab.id, ':', err?.message);
+// ========== Global shortcut: inject PIN input overlay ==========
+// In browser fullscreen mode, the side panel can't receive keyboard events
+// because it doesn't have focus. The user presses Ctrl/Cmd+Shift+K to open
+// a focused input overlay directly on the web page (which DOES have focus).
+// Keystrokes typed into this overlay are forwarded to the side panel.
+
+/**
+ * Injected into the web page via chrome.scripting.executeScript.
+ * This function runs in the ISOLATED world and has access to chrome.* APIs.
+ * It creates a small focused input overlay, captures keystrokes, and forwards
+ * them to the side panel via the background service worker.
+ */
+async function injectPinInputOverlay() {
+    // Avoid duplicate overlays
+    const existing = document.querySelector('#sealx-pin-overlay');
+    if (existing) {
+        const input = existing.querySelector('input');
+        input?.focus();
+        return;
+    }
+
+    // Create overlay container
+    const overlay = document.createElement('div');
+    overlay.id = 'sealx-pin-overlay';
+    overlay.style.cssText = `
+        position: fixed; left: 50%; top: 60px; transform: translateX(-50%);
+        z-index: 2147483647; display: flex; align-items: center; gap: 8px;
+        background: white; border: 1.5px solid #0aa06e; border-radius: 12px;
+        padding: 10px 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+        font-family: system-ui, sans-serif;
+    `;
+
+    // Hint label
+    const label = document.createElement('span');
+    label.textContent = 'PIN:';
+    label.style.cssText = 'font-size:14px; font-weight:700; color:#5a6677;';
+
+    // Hidden real input — captures keyboard events
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.maxLength = 6;
+    input.autocomplete = 'off';
+    input.style.cssText = `
+        width: 120px; font-size: 18px; font-weight: 800; border: none;
+        outline: none; letter-spacing: 4px; color: #17202a;
+    `;
+
+    // Dismiss on Escape
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            overlay.remove();
+        }
     });
-    // Also notify side panel to prepare to receive input
-    chrome.runtime.sendMessage({ type: 'sealx-pin-input-ready' }).catch(() => {});
+
+    // Forward each keystroke to side panel via background
+    input.addEventListener('input', () => {
+        const val = input.value;
+        // Send the latest character
+        const lastChar = val[val.length - 1];
+        if (lastChar && /^[a-zA-Z0-9]$/.test(lastChar)) {
+            chrome.runtime.sendMessage({
+                type: 'sealx-pin-relay-keydown',
+                key: lastChar,
+            }).catch(() => {});
+        }
+        // Auto-dismiss after 6 chars
+        if (val.length >= 6) {
+            setTimeout(() => overlay.remove(), 600);
+        }
+    });
+
+    overlay.appendChild(label);
+    overlay.appendChild(input);
+
+    // Find the best parent: prefer the fullscreen element, body, or documentElement
+    const root = document.fullscreenElement || document.body || document.documentElement;
+    root.appendChild(overlay);
+
+    input.focus();
+}
+
+chrome.commands.onCommand.addListener(async (command, tab) => {
+    if (command !== 'enable-pin-input' || !tab?.id) return;
+    console.log('[CMD] enable-pin-input triggered for tab', tab.id, tab.url);
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            func: injectPinInputOverlay,
+        });
+        console.log('[CMD] pin overlay injected');
+    } catch (err) {
+        console.warn('[CMD] script injection failed:', (err as Error)?.message);
+    }
 });
