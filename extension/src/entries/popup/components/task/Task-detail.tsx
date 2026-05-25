@@ -147,7 +147,7 @@ export const TaskDetail = memo(() => {
                     >
                         <ArrowLeft className="w-[18px] text-[var(--sx-text)] h-[18px]" />
                     </button>
-                    <span className="font-[800] text-[1.125rem] leading-[1.35] text-[var(--sx-text)]">Task Details</span>
+                    <span className="font-[800] text-[1.125rem] leading-[1.35] text-(--sx-text)">Task Details</span>
                 </div>
                 <div className="font-[800] text-[0.875rem] leading-[1.35] text-[var(--sx-muted)]">
                     {currentIndex + 1} / {totalSubTasks}

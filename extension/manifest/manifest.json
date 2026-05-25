@@ -1,76 +1,73 @@
 {
-    "manifest_version": 3,
-    "name": "SealX: Secure Review & Sign What You See for Crypto Assets",
-    "version": "1.0.0",
-    "description": "SealX is a secure plugin for crypto custody, enabling trusted review, signatures, and full transaction visibility across platforms.",
-    "action": {
-        "default_title": "SealX"
-    },
-    "side_panel": {
-        "default_path": "src/entries/popup/index.html"
-    },
-    "icons": {
-        "16": "public/logo/sealx-logo-icon-16.png",
-        "32": "public/logo/sealx-logo-icon-32.png",
-        "48": "public/logo/sealx-logo-icon-48.png",
-        "128": "public/logo/sealx-logo-icon-128.png"
-    },
-    "background": {
-        "service_worker": "src/entries/background/index.js",
-        "type": "module"
-    },
-    "sandbox": {
-        "pages": ["src/entries/sandbox/index.html"]
-    },
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'"
-    },
-    "permissions": [
-        "activeTab",
-        "storage",
-        "scripting",
-        "tabs",
-        "identity",
-        "alarms",
-        "sidePanel"
-    ],
-    "host_permissions": [
-        "<all_urls>"
-    ],
-    "commands": {
-        "enable-pin-input": {
-            "suggested_key": {
-                "default": "Ctrl+Shift+K",
-                "mac": "Command+Shift+K"
-            },
-            "description": "Enable PIN input in side panel (for fullscreen mode)"
-        }
-    },
-    "oauth2": {
-        "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
-        "scopes": ["https://www.googleapis.com/auth/drive.file"]
-    },
-    "content_scripts": [
-        {
-            "matches": ["http://*/*", "https://*/*"],
-            "js": ["src/entries/content/index.tsx"],
-            "run_at": "document_start",
-            "all_frames": true
-        }
-    ],
-    "web_accessible_resources": [
-        {
-            "resources": [
-                "inpage.js",
-                "sandbox.js",
-                "public/logo/sealx-logo-icon-16.png",
-                "public/logo/sealx-logo-icon-32.png",
-                "public/logo/sealx-logo-icon-48.png",
-                "public/logo/sealx-logo-icon-128.png",
-                "public/logo/sealx-logo.svg",
-                "assets/*.js"
-            ],
-            "matches": ["<all_urls>"]
-        }
-    ]
+  "manifest_version": 3,
+  "name": "SealX: Secure Review & Sign What You See for Crypto Assets",
+  "version": "1.0.0",
+  "description": "SealX is a secure plugin for crypto custody, enabling trusted review, signatures, and full transaction visibility across platforms.",
+  "action": {
+    "default_title": "SealX"
+  },
+  "side_panel": {
+    "default_path": "src/entries/popup/index.html"
+  },
+  "icons": {
+    "16": "public/logo/sealx-logo-icon-16.png",
+    "32": "public/logo/sealx-logo-icon-32.png",
+    "48": "public/logo/sealx-logo-icon-48.png",
+    "128": "public/logo/sealx-logo-icon-128.png"
+  },
+  "background": {
+    "service_worker": "src/entries/background/index.js",
+    "type": "module"
+  },
+  "sandbox": {
+    "pages": ["src/entries/sandbox/index.html"]
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "tabs",
+    "identity",
+    "alarms",
+    "sidePanel"
+  ],
+  "commands": {
+    "enable-pin-input": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "Enable PIN input in side panel (for fullscreen mode)"
+    }
+  },
+  "oauth2": {
+    "client_id": "978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/drive.file"]
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/entries/content/index.tsx"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "inpage.js",
+        "sandbox.js",
+        "public/logo/sealx-logo-icon-16.png",
+        "public/logo/sealx-logo-icon-32.png",
+        "public/logo/sealx-logo-icon-48.png",
+        "public/logo/sealx-logo-icon-128.png",
+        "public/logo/sealx-logo.svg",
+        "assets/*.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
 }

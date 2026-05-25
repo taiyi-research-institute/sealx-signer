@@ -13,37 +13,37 @@ import { MessagerManager, SealxTopic, MessageChannel } from 'sealx-message';
 import type { LocateElementMessage } from 'sealx-message';
 
 export const handleLocateElement = async (event: React.MouseEvent<HTMLElement>): Promise<void> => {
-    // 阻止默认行为（防止打开新窗口）
-    event.preventDefault();
-    event.stopPropagation();
+  // 阻止默认行为（防止打开新窗口）
+  event.preventDefault();
+  event.stopPropagation();
 
-    const target = event.currentTarget;
-    const dataKey = target.getAttribute('data-key');
+  const target = event.currentTarget;
+  const dataKey = target.getAttribute('data-key');
 
-    // 如果没有 data-key 属性，则不处理
-    if (!dataKey) {
-        return;
-    }
+  // 如果没有 data-key 属性，则不处理
+  if (!dataKey) {
+    return;
+  }
 
-    // 获取显示内容作为 value
-    const value = target.textContent?.trim() || '';
+  // 获取显示内容作为 value
+  const value = target.textContent?.trim() || '';
 
-    // 将数组下标如 #1, #2 或 item1, item2 替换为 [*]，便于业务系统匹配
-    // 匹配 #数字 或 item数字 格式
-    const normalizedKey = dataKey.replace(/(#\d+|item\d+)/g, '[*]');
+  // 将数组下标如 #1, #2 或 item1, item2 替换为 [1], [2]，保留下标数字
+  // 匹配 #数字 或 item数字 格式
+  const normalizedKey = dataKey.replace(/(?:#|item)(\d+)/g, '[$1]');
 
-    try {
-        // 使用 Messager 发送定位消息到 Content Script
-        const messager = MessagerManager.getMessager();
+  try {
+    // 使用 Messager 发送定位消息到 Content Script
+    const messager = MessagerManager.getMessager();
 
-        const payload: LocateElementMessage = {
-            key: normalizedKey,
-            value: value
-        };
+    const payload: LocateElementMessage = {
+      key: normalizedKey,
+      value: value,
+    };
 
-        // 发送消息到 INPAGE（业务系统页面）
-        messager.send(payload, SealxTopic.LOCATE_ELEMENT, MessageChannel.INPAGE);
-    } catch (error) {
-        console.warn('[LocateElement] Failed to send message:', error);
-    }
+    // 发送消息到 INPAGE（业务系统页面）
+    messager.send(payload, SealxTopic.LOCATE_ELEMENT, MessageChannel.INPAGE);
+  } catch (error) {
+    console.warn('[LocateElement] Failed to send message:', error);
+  }
 };
