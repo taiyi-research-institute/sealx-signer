@@ -82,11 +82,18 @@ const onReview = async (preViewUrl: string) => {
         height: 810
     })
 }
+const extractTasks = (payload: unknown): SealxSignTask[] => {
+    if (!payload) return [];
+    const items = (payload instanceof Array ? payload : [payload]) as SealxSignTask[];
+    return items.filter(task => Number(task.validUntilTime) > Date.now());
+};
 export const TaskHome = () => {
-    const [total, setTotal] = useState<number>(0)
-    const templateFactory = useRef<HTMLDivElement>(null)
     const { request } = useRequestContext()
-    const [list, setList] = useState<Array<SealxSignTask>>([])
+    const initialList = (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN)
+        ? extractTasks(request.payload)
+        : [];
+    const [list, setList] = useState<Array<SealxSignTask>>(initialList)
+    const templateFactory = useRef<HTMLDivElement>(null)
     const [signing, setSigning] = useState(false)
     const [signTimeout, setSignTimeout] = useState(false)
     const [signProgress, setSignProgress] = useState<number>(0)
@@ -150,10 +157,7 @@ export const TaskHome = () => {
     // SIGN/BATCH_SIGN request: store task list and origin tabId mapping
     useEffect(() => {
         if (request.topic === SealxTopic.BATCH_SIGN || request.topic === SealxTopic.SIGN) {
-            const items = ((request.payload instanceof Array ? request.payload : [request.payload]) as SealxSignTask[]).filter((task) => {
-                return Number(task.validUntilTime) > Date.now()
-            })
-            setTotal(items.length)
+            const items = extractTasks(request.payload)
             setList(items)
             replyRef.current = request.reply ?? null
             // Store tabId per taskId for later SIGN_RESPONSE routing
@@ -209,7 +213,6 @@ export const TaskHome = () => {
                     }
                 }
                 const items = currentList.filter(a => a.taskId !== payload.taskId)
-                setTotal(items.length)
                 if (items.length === 0) {
                     setTimeout(() => {
                         // 通知 background 处理队列中的下一个请求
@@ -304,7 +307,6 @@ export const TaskHome = () => {
             }
 
             const items = currentList.filter(a => a.taskId !== taskId)
-            setTotal(items.length)
             if (items.length === 0) {
                 setTimeout(() => {
                     chrome.runtime.sendMessage({ type: 'panel-process-queue' })
@@ -377,7 +379,7 @@ export const TaskHome = () => {
     return <>
         {/* <button onClick={onTest}>Test</button> */}
         <div className="sx-signing-list-page w-full h-full flex flex-col" data-tasks={JSON.stringify(tasks)}>
-            {total === 0 ? (
+            {list.length === 0 ? (
                 <NoPendingTasks />
             ) : (
                     map(tasks, (t: unknown[], day: string | number) => {

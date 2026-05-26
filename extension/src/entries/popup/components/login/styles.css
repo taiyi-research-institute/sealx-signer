@@ -2,3 +2,41 @@
     width: 100%;
     min-height: 100%;
 }
+
+.login-anim-overlay {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.login-anim-pulse {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    margin-bottom: 24px;
+    background:
+        radial-gradient(circle at 35% 35%, rgba(255,255,255,0.35) 0%, transparent 55%),
+        radial-gradient(circle, var(--sx-brand) 0%, #0ccb8a 60%, #0aa06e 100%);
+    box-shadow:
+        0 0 20px rgba(10, 160, 110, 0.45),
+        0 0 50px rgba(10, 160, 110, 0.2);
+    animation: sealx-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sealx-pulse {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(0.92);
+        box-shadow:
+            0 0 12px rgba(10, 160, 110, 0.3),
+            0 0 30px rgba(10, 160, 110, 0.1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.06);
+        box-shadow:
+            0 0 30px rgba(10, 160, 110, 0.6),
+            0 0 65px rgba(10, 160, 110, 0.3);
+    }
+}

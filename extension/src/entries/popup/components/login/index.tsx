@@ -11,12 +11,11 @@ import { lockLogin } from '../../state/session';
 import { SealxTopic } from 'sealx-message';
 import type { ReplyFunc } from 'sealx-message';
 import { usePinInputMode } from '../../utils/pinInputMode';
-// import { useErrorStore } from '@src/core/state';
-// import messager from '@src/core/messager';
-// import { useSessionStore } from '@src/core/state';
-// import { useSessionStore } from '@src/core/state/session';
+import { useSessionStore } from '@src/core/state';
+import type { ConnectionRequest } from 'sealx-message';
+import { loginAnimatingRef, loginAnimatingMeta } from '@src/core/state/login-animating';
 
-const CONNECT_FALLBACK_DELAY_MS = 2_000;
+const LOGGING_IN_DURATION_MS = 2_000;
 
 const getPostLoginRoute = (topic?: SealxTopic) => {
     if (topic === SealxTopic.BIND_PK) return '/bind-pubkey';
@@ -27,37 +26,95 @@ const getPostLoginRoute = (topic?: SealxTopic) => {
 export default function Login() {
     const navigate = useSealXNavigate()
     const [password, setPassword] = useState<string>('');
-    const [countdown, setCountdown] = useState<string>(''); // Store formatted countdown
-    const { userId } = useRequestContext()
-    // const setError = useErrorStore.use.setError()
+    const [countdown, setCountdown] = useState<string>('');
+    const { userId } = useRequestContext();
     const { attempt, setAttempt, lockTime, setLockTime, maxAttempt, maxLockTime } = useGlobalContext()
-    // const setSession = useSessionStore.use.setSession()
-    const { setSession, activeTabHost, request } = useRequestContext()
+    const { setSession, activeTabHost, setActiveTabHost, request, session } =
+      useRequestContext();
+    // const {setUserId} = useSession()
+    const setUserId = useSessionStore.use.setUserId();
     const reply = useRef<ReplyFunc>(null)
     const latestTopicRef = useRef<SealxTopic | undefined>(request.topic)
-    const connectFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const { clickToType, clickToTypeKey } = usePinInputMode(request)
-    // useEffect(() => setError('Test error 5342523453453425234 4352345345 3453245345234 4352345234 345324523 34543534 345234534 popup!!!!!'), [setError])
-    useEffect(() => {
-        latestTopicRef.current = request.topic
-        if (request.topic !== SealxTopic.CONNECT && connectFallbackTimerRef.current) {
-            clearTimeout(connectFallbackTimerRef.current)
-            connectFallbackTimerRef.current = null
-        }
-        if (request.topic === SealxTopic.LOGIN || request.topic === SealxTopic.CONNECT) {
-            reply.current = request.reply ?? null
-            // alert(reply.current ? 'settup reply' : 'skip')
-        }
-    }, [request.topic, request.reply])
+    const loginCallCountRef = useRef(0);
+    const loginDoneRef = useRef(false);
+    const passwordChangeCountRef = useRef(0);
+    const [loggingIn, setLoggingIn] = useState(false);
+
+    console.warn('[TRACE-CONNECT:LOGIN] +++ component render +++', {
+      mountTopic: request.topic,
+      userId,
+      activeTabHost,
+      hasSession: !!session,
+      sessionUserId: session?.userId,
+      passwordChangeCount: passwordChangeCountRef.current,
+    });
 
     useEffect(() => {
-        return () => {
-            if (connectFallbackTimerRef.current) {
-                clearTimeout(connectFallbackTimerRef.current)
-                connectFallbackTimerRef.current = null
-            }
+      console.warn('[TRACE-CONNECT:LOGIN] request.topic changed', {
+        from: latestTopicRef.current,
+        to: request.topic,
+        hasReply: !!request.reply,
+        loginDone: loginDoneRef.current,
+      });
+      latestTopicRef.current = request.topic;
+      if (
+        request.topic === SealxTopic.LOGIN ||
+        request.topic === SealxTopic.CONNECT
+      ) {
+        reply.current = request.reply ?? null;
+        const connectRequest = request as ConnectionRequest;
+        if (!userId) {
+          const inferredUserId =
+            connectRequest.payload?.userId || connectRequest.header?.userId;
+          console.warn(
+            '[TRACE-CONNECT:LOGIN] WARNING: no userId in context for LOGIN/CONNECT topic',
+            request,
+            inferredUserId,
+          );
+
+          setUserId(inferredUserId || '');
         }
-    }, [])
+        if (!activeTabHost) {
+          const inferredHost =
+            connectRequest.payload?.host || connectRequest.header?.host;
+          console.warn(
+            '[TRACE-CONNECT:LOGIN] WARNING: no activeTabHost in context for LOGIN/CONNECT topic',
+            request,
+            inferredHost,
+          );
+          setActiveTabHost(inferredHost || '');
+        }
+      }
+    }, [
+      request.topic,
+      request.reply,
+      setUserId,
+      userId,
+      request,
+      setActiveTabHost,
+      activeTabHost,
+    ]);
+
+    // Handle deferred navigation after logging-in animation completes
+    useEffect(() => {
+        if (!loggingIn) return;
+        const timer = setTimeout(() => {
+            loginAnimatingRef.current = false;
+            setLoggingIn(false);
+            const finalTopic = latestTopicRef.current;
+            const targetRoute = getPostLoginRoute(finalTopic);
+            if (targetRoute) {
+                navigate(targetRoute, { replace: true });
+            } else {
+                navigate('/', { replace: true });
+            }
+        }, LOGGING_IN_DURATION_MS);
+        return () => {
+            clearTimeout(timer);
+            loginAnimatingRef.current = false;
+        };
+    }, [loggingIn, navigate]);
 
     // Update countdown every second when locked
     useEffect(() => {
@@ -87,13 +144,52 @@ export default function Login() {
 
 
     const handlePasswordChange = useCallback(async (value: string) => {
+        passwordChangeCountRef.current++;
+        const callIndex = passwordChangeCountRef.current;
+        console.warn(
+          `[TRACE-CONNECT:LOGIN] handlePasswordChange #${callIndex}`,
+          {
+            value,
+            valueLen: value.length,
+            loginRequestTopic: request.topic,
+            userId,
+            activeTabHost,
+            hasReply: !!reply.current,
+            loginDone: loginDoneRef.current,
+          },
+        );
         setPassword(value);
         if (value.length >= 6) {
+            if (loginDoneRef.current) {
+              console.warn(
+                `[TRACE-CONNECT:LOGIN] SKIP — already logged in (call #${callIndex})`,
+              );
+              return;
+            }
+            loginCallCountRef.current++;
+            const loginCallIndex = loginCallCountRef.current;
             const loginRequestTopic = request.topic
+            console.warn(
+              `[TRACE-CONNECT:LOGIN] login attempt #${loginCallIndex}`,
+              {
+                loginRequestTopic,
+                userId,
+                activeTabHost,
+              },
+            );
             try {
                 const res = await login(value, userId, activeTabHost)
+                console.warn(
+                  `[TRACE-CONNECT:LOGIN] login result #${loginCallIndex}`,
+                  {
+                    resUserId: res?.userId,
+                    resHost: res?.host,
+                    resSessionId: res?.sessionId,
+                    resExpire: res?.expire,
+                  },
+                );
                 if (res) {
-                    // console.log(res)
+                    loginDoneRef.current = true;
                     setSession(res)
                     reply.current?.({
                         session: res, account: {
@@ -102,28 +198,30 @@ export default function Login() {
                             pk: res.pk
                         }
                     } as never)
-                    const targetRoute = getPostLoginRoute(loginRequestTopic)
-                    if (targetRoute) {
-                        navigate(targetRoute, { replace: true })
-                    } else if (loginRequestTopic === SealxTopic.CONNECT) {
-                        setPassword('')
-                        if (connectFallbackTimerRef.current) {
-                            clearTimeout(connectFallbackTimerRef.current)
-                        }
-                        connectFallbackTimerRef.current = setTimeout(() => {
-                            connectFallbackTimerRef.current = null
-                            if (latestTopicRef.current === SealxTopic.CONNECT) {
-                                navigate('/', { replace: true })
-                            }
-                        }, CONNECT_FALLBACK_DELAY_MS)
-                    } else {
-                        navigate('/', { replace: true })
-                    }
+                    console.warn(
+                      `[TRACE-CONNECT:LOGIN] reply sent #${loginCallIndex}`,
+                      {
+                        sessionUserId: res.userId,
+                        sessionHost: res.host,
+                        sessionPk: res.pk,
+                      },
+                    );
+                    // Show logging-in animation — navigation deferred to animation-end effect
+                    loginAnimatingRef.current = true;
+                    loginAnimatingMeta.setAt = Date.now();
+                    setLoggingIn(true);
                     // alert(request.topic)
                 } else {
+                    console.warn(
+                      `[TRACE-CONNECT:LOGIN] login FAILED #${loginCallIndex} — setPassword("")`,
+                    );
                     setPassword('')
                 }
             } catch (e) {
+                console.warn(
+                  `[TRACE-CONNECT:LOGIN] login ERROR #${loginCallIndex}`,
+                  e,
+                );
                 setPassword('')
                 reply.current?.({ error: e })
                 const t = attempt - 1
@@ -145,24 +243,33 @@ export default function Login() {
                 <div className='sealx-logo w-full mt-[7.5rem] '>
                     <img className='m-auto w-[190px] h-[184px]' src="/public/logo/sealx-logo.svg" alt="SealX Logo" />
                 </div>
-                <div className='mx-auto px-[1.5rem] w-full flex mt-[5.7231rem] mb-[1.5rem]'>
-                    <Password
-                        key="password-input"
-                        password={password}
-                        className='w-full password-input-wrapper'
-                        onChange={handlePasswordChange}
-                        autoFocus
-                        readonly={attempt === 0}
-                        clickToType={clickToType}
-                        clickToTypeKey={clickToTypeKey}
-                    />
-                </div>
-                <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>
-                    {
-                        attempt === 0 ? (`Too many incorrect attempts. Your account is locked for ${maxLockTime} minutes. ${countdown} left.`) :
-                            (`You have ${attempt} attempt${attempt !== 1 ? 's' : ''} remaining. `)
-                    }
-                </div>
+                {loggingIn ? (
+                    <div className='login-anim-overlay mx-auto px-[1.5rem] w-full flex flex-col items-center mt-[5.7231rem] mb-[1.5rem]'>
+                        <div className='login-anim-pulse' />
+                        <span className='text-[1.125rem] font-[600] text-[var(--sx-muted)]'>Verifying...</span>
+                    </div>
+                ) : (
+                    <>
+                        <div className='mx-auto px-[1.5rem] w-full flex mt-[5.7231rem] mb-[1.5rem]'>
+                            <Password
+                                key="password-input"
+                                password={password}
+                                className='w-full password-input-wrapper'
+                                onChange={handlePasswordChange}
+                                autoFocus
+                                readonly={attempt === 0}
+                                clickToType={clickToType}
+                                clickToTypeKey={clickToTypeKey}
+                            />
+                        </div>
+                        <div className={(attempt === 0 ? 'text-[#F0231E] ' : 'text-[#000]/60 ') + ' text-center w-full px-[1.5rem] text-[1.3125rem] leading-[1.75]'}>
+                            {
+                                attempt === 0 ? (`Too many incorrect attempts. Your account is locked for ${maxLockTime} minutes. ${countdown} left.`) :
+                                    (`You have ${attempt} attempt${attempt !== 1 ? 's' : ''} remaining. `)
+                            }
+                        </div>
+                    </>
+                )}
                 <div className=' text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
                     What you see is what you sign
                 </div>

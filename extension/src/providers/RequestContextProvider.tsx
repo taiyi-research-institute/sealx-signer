@@ -9,6 +9,7 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
+import { loginAnimatingRef, loginAnimatingMeta, LOGIN_ANIMATING_TIMEOUT_MS } from '@src/core/state/login-animating';
 // import { MessageChannel } from 'sealx-message';
 
 /**
@@ -60,7 +61,8 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     // Keep loading brief so it does not cover already-rendered signing details.
     const loadingStartRef = useRef(0);
     const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const MIN_LOADING_MS = 450;
+    const buttonFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const MIN_LOADING_MS = 500;
 
     // Clear loading only after minimum duration has elapsed
     const finishLoading = useCallback(() => {
@@ -149,13 +151,20 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
     }, [isButtonTriggered, navigate, pathname, request.topic]);
 
     // Keep button-triggered panel blank only until the real request arrives.
+    // Loading is cleared by routeByRequest after navigation completes.
     useEffect(() => {
         if (!isButtonTriggered) return;
         if (!request.topic) return;
-
         setBlockingSync(false);
-        finishLoading();
-    }, [request.topic, isButtonTriggered, finishLoading]);
+    }, [request.topic, isButtonTriggered]);
+
+    // Clear button fallback timer when request arrives
+    useEffect(() => {
+        if (request.topic && buttonFallbackTimerRef.current) {
+            clearTimeout(buttonFallbackTimerRef.current);
+            buttonFallbackTimerRef.current = null;
+        }
+    }, [request.topic]);
 
     useEffect(() => {
         if (isButtonTriggered) return;
@@ -270,14 +279,35 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
      */
     const routeByRequest = useCallback(
         (req: SealxRequest) => {
+            // Don't navigate during the logging-in animation — Login handles it
+            if (loginAnimatingRef.current) {
+                if (Date.now() - loginAnimatingMeta.setAt > LOGIN_ANIMATING_TIMEOUT_MS) {
+                    loginAnimatingRef.current = false;
+                } else {
+                    return;
+                }
+            }
+
             const currentSession = useSessionStore.getState().session;
             const targetRoute = getTargetRoute(req, currentSession);
+
+            console.warn('[TRACE-CONNECT:PANEL] routeByRequest', {
+              topic: req.topic,
+              pathname,
+              targetRoute,
+              hasSession: !!currentSession,
+              sessionUserId: currentSession?.userId,
+              sessionHost: currentSession?.host,
+            });
 
             if (targetRoute && targetRoute !== pathname) {
                 navigate(targetRoute, { replace: true });
             }
+            // Clear loading after navigation — reset start to ensure full MIN_LOADING_MS delay
+            loadingStartRef.current = Date.now();
+            finishLoading();
         },
-        [pathname, getTargetRoute, navigate]
+        [pathname, getTargetRoute, navigate, finishLoading]
     );
 
     /**
@@ -289,7 +319,15 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                 const newHost = req.payload?.host ?? '';
                 const newUserId = req.payload?.userId ?? '';
                 const newTitle = req.payload?.title ?? 'Sealx Sign What You See';
-
+                console.warn(
+                  '[TRACE-CONNECT:PANEL] updateHostAndUserId CONNECT',
+                  {
+                    newHost,
+                    newUserId,
+                    newTitle,
+                    payloadKeys: req.payload ? Object.keys(req.payload) : [],
+                  },
+                );
                 setHost(newHost);
                 setUserId(newUserId);
                 setTitle(newTitle);
@@ -355,13 +393,35 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
                     if (reply) reply(res, end);
                 };
 
+                console.warn('[TRACE-CONNECT:PANEL] handleRequest received', {
+                  topic: req.topic,
+                  payloadHost: (req.payload as any)?.host,
+                  payloadUserId: (req.payload as any)?.userId,
+                  headerHost: req.header?.host,
+                  headerUserId: req.header?.userId,
+                  currentRequestTopic: request.topic,
+                });
+
                 // Update host and userId from request
                 updateHostAndUserId(req);
                 // Skip duplicate request IDs
                 if (req.header?.requestId === request.header?.requestId) {
+                    console.warn(
+                      '[TRACE-CONNECT:PANEL] handleRequest SKIP duplicate',
+                      { requestId: req.header?.requestId },
+                    );
                     return;
                 }
                 // Set request state and trigger routing
+                console.warn(
+                  '[TRACE-CONNECT:PANEL] handleRequest → setRequest',
+                  {
+                    newTopic: req.topic,
+                    oldTopic: request.topic,
+                    newPayloadHost: (req.payload as any)?.host,
+                    newPayloadUserId: (req.payload as any)?.userId,
+                  },
+                );
                 setRequest(req);
             } catch (error) {
                 console.error('Error handling SealX request:', error);
@@ -375,9 +435,21 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
      * Initialize application based on current state
      */
     const initializeApplication = useCallback(async () => {
+        console.warn('[TRACE-CONNECT:PANEL] initializeApplication START', {
+          alreadyInit: initializedRef.current,
+          pathname,
+          openedByButton: buttonTriggeredRef.current,
+        });
         if (initializedRef.current) return;
 
         const openedByButton = await consumePanelTriggerSource();
+        console.warn(
+          '[TRACE-CONNECT:PANEL] initializeApplication after consumeTrigger',
+          {
+            openedByButton,
+            pathname,
+          },
+        );
 
         setLoading(true);
         loadingStartRef.current = Date.now();
@@ -419,13 +491,20 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             // Check for cached request data with polling retry
             // (handles race: background wrote to storage but async propagation hasn't completed)
             let storeRequest = useRequestStore.getState().request;
-            for (let attempt = 0; attempt < 3 && !storeRequest; attempt++) {
+            for (let attempt = 0; attempt < 10 && !storeRequest; attempt++) {
                 if (attempt > 0) {
-                    await new Promise(r => setTimeout(r, 100));
+                    await new Promise(r => setTimeout(r, attempt * 100));
                 }
                 storeRequest = useRequestStore.getState().request;
             }
             if (storeRequest) {
+                console.warn(
+                  '[TRACE-CONNECT:PANEL] initializeApplication found storeRequest',
+                  {
+                    storeRequestTopic: storeRequest.topic,
+                    storeRequestId: storeRequest.header?.requestId,
+                  },
+                );
                 // Restore request with reply function binding
                 if (storeRequest.once) {
                     storeRequest.reply = (res, end?: boolean) => {
@@ -443,7 +522,23 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
         const currentSession = useSessionStore.getState().session;
         const sessionValid = isSessionValid(currentSession);
 
+        console.warn(
+          '[TRACE-CONNECT:PANEL] initializeApplication session check',
+          {
+            hasSession: !!currentSession,
+            sessionValid,
+            sessionUserId: currentSession?.userId,
+            sessionHost: currentSession?.host,
+            pathname,
+            openedByButton,
+            currentSession,
+          },
+        );
+
         if (!sessionValid) {
+            console.warn(
+              '[TRACE-CONNECT:PANEL] initializeApplication → navigate /login (no valid session)',
+            );
             setHost('')
             setUserId('')
             // Clear session if invalid
@@ -463,7 +558,22 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             } else if (!openedByButton && REQUEST_ONLY_ROUTES.has(pathname)) {
                 navigate('/', { replace: true });
             }
-            // Otherwise stay on current page
+            // Button-triggered + valid session: keep loading until SIGN/BIND_PK arrives.
+            // The request will arrive shortly (SDK sends it after connectSealx) and
+            // routeByRequest will drive navigation. Loading is cleared by the
+            // request.topic effect, preventing a flash of the initial route.
+            if (openedByButton) {
+                initializedRef.current = true;
+                // 3s fallback: if request never arrives, navigate home and clear loading
+                buttonFallbackTimerRef.current = setTimeout(() => {
+                    buttonFallbackTimerRef.current = null;
+                    if (!request.topic) {
+                        finishLoading();
+                        navigate('/', { replace: true });
+                    }
+                }, 3_000);
+                return;
+            }
         }
 
         if (!openedByButton) {
@@ -502,6 +612,10 @@ export const RequestContextProvider: React.FC<RequestContextProps> = ({
             if (loadingTimerRef.current) {
                 clearTimeout(loadingTimerRef.current);
                 loadingTimerRef.current = null;
+            }
+            if (buttonFallbackTimerRef.current) {
+                clearTimeout(buttonFallbackTimerRef.current);
+                buttonFallbackTimerRef.current = null;
             }
         };
     }, []);
