@@ -1,7 +1,7 @@
 {
     "type": "module",
     "name": "sealx-sdk",
-    "version": "1.0.31",
+    "version": "1.0.32",
     "description": "JavaScript/TypeScript SDK for interacting with the SealX browser extension",
     "keywords": [
         "sealx",

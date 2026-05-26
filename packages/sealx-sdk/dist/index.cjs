@@ -18249,23 +18249,35 @@ const connectSealx = async (uId = '') => {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
     const userId = sealxSigner.account.userId;
-    if (!sealxSigner.session ||
-        sealxSigner.session.expire < Date.now() ||
-        !sealxSigner.account || !sealxSigner.session.sessionId
-        || sealxSigner.session.userId !== sealxSigner.account.userId) {
-        try {
-            const res = await messager.send({ userId, title }, exports.SealxTopic.CONNECT, CHANNEL_BACKGROUND);
-            if (!res?.payload?.session || !res?.payload?.account) {
-                throw new SessionException('Invalid connection response');
-            }
-            sealxSigner.connected = true;
-            await sealxSigner.initializeSession(res.payload.session);
-            await sealxSigner.initializeAccount(res.payload.account);
+    console.warn('[TRACE-CONNECT:SDK] connectSealx sending', {
+        payloadUserId: userId,
+        headerHost: messager.host,
+        title,
+        hasSession: !!sealxSigner.session,
+        sessionUserId: sealxSigner.session?.userId,
+        sessionHost: sealxSigner.session?.host,
+        sessionExpire: sealxSigner.session?.expire,
+    });
+    try {
+        const res = await messager.send({ userId, title }, exports.SealxTopic.CONNECT, CHANNEL_BACKGROUND);
+        if (!res?.payload?.session || !res?.payload?.account) {
+            console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', { payload: res?.payload });
+            throw new SessionException('Invalid connection response');
         }
-        catch (error) {
-            console.error('Connection failed:', error);
-            throw new SessionException('Failed to connect to SealX extension');
-        }
+        console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
+            sessionUserId: res.payload.session?.userId,
+            sessionHost: res.payload.session?.host,
+            sessionExpire: res.payload.session?.expire,
+            accountUserId: res.payload.account?.userId,
+            accountHost: res.payload.account?.host,
+        });
+        sealxSigner.connected = true;
+        await sealxSigner.initializeSession(res.payload.session);
+        await sealxSigner.initializeAccount(res.payload.account);
+    }
+    catch (error) {
+        console.error('Connection failed:', error);
+        throw new SessionException('Failed to connect to SealX extension');
     }
     if (sealxSigner.session) {
         messager.session = sealxSigner.session;
@@ -18321,15 +18333,8 @@ const bindSealx = async (userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    if (!sealxSigner.session ||
-        !sealxSigner.account ||
-        sealxSigner.session.expire < Date.now()
-        || sealxSigner.session.userId != userId
-        || !sealxSigner.session.sessionId) {
-        await connectSealx();
-    }
-    if (sealxSigner.session)
-        messager.session = sealxSigner.session;
+    await connectSealx();
+    messager.session = sealxSigner.session;
     if (sealxSigner.account) {
         try {
             const res = await messager.send(sealxSigner.account.userId, exports.SealxTopic.BIND_PK, CHANNEL_POPUP);
@@ -18429,12 +18434,8 @@ const signBySealx = async (task, userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()
-        || sealxSigner.session.userId != userId || !sealxSigner.session.sessionId) {
-        await connectSealx();
-    }
-    if (sealxSigner.session)
-        messager.session = sealxSigner.session;
+    await connectSealx();
+    messager.session = sealxSigner.session;
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
         throw new PkException('Public key mismatch - new key does not match registered key');
