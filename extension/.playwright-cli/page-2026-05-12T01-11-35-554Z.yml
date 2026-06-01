@@ -1,0 +1,126 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary "Skip links" [ref=e5]:
+        - link "Skip to main content" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: Skip to main content
+        - button "Keyboard shortcuts" [ref=e8]:
+          - generic [ref=e9]: Keyboard shortcuts
+        - link "Accessibility Help external, opens new window" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=en_US
+          - generic [ref=e11]:
+            - text: Accessibility Help
+            - generic "external, opens new window" [ref=e12]:
+              - img "external, opens new window" [ref=e13]:
+                - img [ref=e14]
+        - link "Accessibility Feedback external, opens new window" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=en_US
+          - generic [ref=e17]:
+            - text: Accessibility Feedback
+            - generic "external, opens new window" [ref=e18]:
+              - img "external, opens new window" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "Navigation menu (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform Home" [ref=e32] [cursor=pointer]:
+            - /url: /
+            - generic:
+              - img
+        - link "Sign into Google Cloud Platform" [ref=e36]:
+          - button "Sign into Google Cloud Platform" [ref=e37]: SIGN IN
+    - main [ref=e58]:
+      - generic [ref=e77]:
+        - generic [ref=e80]:
+          - button "Back to previous page" [ref=e84] [cursor=pointer]:
+            - img [ref=e86]
+          - heading "Product details" [level=1] [ref=e90]:
+            - generic [ref=e91]: Product details
+        - generic [ref=e95]:
+          - generic [ref=e100]:
+            - img [ref=e103]
+            - generic [ref=e104]:
+              - heading "Chrome Web Store API" [level=1] [ref=e105]
+              - paragraph [ref=e106]:
+                - link "Google" [ref=e108] [cursor=pointer]:
+                  - /url: /marketplace/browse?filter=partner:Google
+              - paragraph [ref=e109]: The Chrome Web Store API provides access to data about apps and extensions, as well as developer…
+              - generic [ref=e112]:
+                - button "enable this API" [ref=e116]:
+                  - generic [ref=e117]: Enable
+                - link "try this API, with an external link" [ref=e121]:
+                  - generic [ref=e122]:
+                    - text: Try this API
+                    - img "external" [ref=e123]:
+                      - img [ref=e124]:
+                        - img [ref=e125]
+          - navigation "Product Information" [ref=e127]:
+            - generic [ref=e128]:
+              - tablist [ref=e129]:
+                - generic [ref=e132]:
+                  - tab "Overview" [selected] [ref=e133] [cursor=pointer]:
+                    - generic [ref=e135]: Overview
+                  - tab "Documentation" [ref=e136] [cursor=pointer]:
+                    - generic [ref=e138]: Documentation
+              - tabpanel "Overview"
+          - generic [ref=e139]:
+            - generic [ref=e140]:
+              - heading "Overview" [level=2] [ref=e141]
+              - generic [ref=e142]:
+                - generic [ref=e145]:
+                  - generic [ref=e146]: The Chrome Web Store API provides access to data about apps and extensions, as well as developer tools for managing them.
+                  - generic [ref=e147]:
+                    - heading "About Google" [level=3] [ref=e148]
+                    - generic [ref=e149]: Google's mission is to organize the world's information and make it universally accessible and useful. Through products and platforms like Search, Maps, Gmail, Android, Google Play, Chrome and YouTube, Google plays a meaningful role in the daily lives of billions of people.
+                - generic [ref=e151]:
+                  - heading "Additional details" [level=3] [ref=e152]
+                  - list [ref=e153]:
+                    - listitem [ref=e154]:
+                      - generic [ref=e155]:
+                        - generic [ref=e156]: "Type:"
+                        - link "Browse all SaaS & APIs products" [ref=e158] [cursor=pointer]:
+                          - /url: /apis/library/browse?filter=solution-type:saas
+                          - text: SaaS & APIs
+                    - listitem [ref=e159]:
+                      - generic [ref=e160]:
+                        - generic [ref=e161]: "Last product update:"
+                        - text: 10/22/25
+                    - listitem [ref=e162]:
+                      - generic [ref=e163]:
+                        - generic [ref=e164]: "Category:"
+                        - link "Browse all Other products" [ref=e166] [cursor=pointer]:
+                          - /url: /apis/library/browse?filter=category:others
+                          - text: Other
+                    - listitem [ref=e167]:
+                      - generic [ref=e168]:
+                        - generic [ref=e169]: "Service name:"
+                        - generic [ref=e170]: chromewebstore.googleapis.com
+                    - listitem
+            - generic [ref=e172]:
+              - heading "Tutorials and documentation" [level=3] [ref=e173]
+              - link "Learn more external, opens new window" [ref=e176] [cursor=pointer]:
+                - /url: https://developer.chrome.com/docs/webstore/api
+                - generic [ref=e177]: Learn more
+                - img "external, opens new window" [ref=e178]:
+                  - img [ref=e179]
+            - generic [ref=e182]:
+              - heading "Terms of Service" [level=3] [ref=e183]
+              - paragraph [ref=e185]:
+                - text: "By using this product you agree to the terms and conditions of the following licenses:"
+                - generic [ref=e186]:
+                  - link "Google APIs Terms of Service" [ref=e187] [cursor=pointer]:
+                    - /url: /tos?id=universal
+                  - text: ","
+                - generic [ref=e188]:
+                  - link "Chrome Web Store API" [ref=e189] [cursor=pointer]:
+                    - /url: /tos?id=chromewebstore
+                  - text: .
+            - img "Loading" [ref=e192]:
+              - img [ref=e194]
+  - iframe [ref=e197]:
+    
+  - iframe [ref=e198]:
+    

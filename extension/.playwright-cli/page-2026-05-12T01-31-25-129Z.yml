@@ -1,0 +1,252 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - alertdialog "“免费试用”对话框" [ref=e506]:
+      - generic [ref=e507]:
+        - generic [ref=e508]:
+          - img [ref=e511]
+          - generic [ref=e514]:
+            - text: 获享 $300 赠金，开始免费试用。请放心，如果您的赠金用尽，我们不会向您收取费用。
+            - link "详细了解免费试用程序。 外部链接（在新窗口中打开）" [ref=e515] [cursor=pointer]:
+              - /url: https://cloud.google.com/free/?hl=zh_CN
+              - text: 了解详情
+              - img "外部链接（在新窗口中打开）" [ref=e516]:
+                - img [ref=e517]
+        - generic [ref=e519]:
+          - button "关闭整个账号激活横幅" [ref=e520]:
+            - generic [ref=e521]: 关闭
+          - button "免费开始使用吧" [ref=e522]:
+            - generic [ref=e523]: 免费开始使用吧
+    - generic [ref=e4]:
+      - complementary "跳过链接" [ref=e5]:
+        - link "跳至主要内容" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: 跳至主要内容
+        - button "键盘快捷键" [ref=e8]:
+          - generic [ref=e9]: 键盘快捷键
+        - link "无障碍功能帮助 外部链接，在新窗口中打开" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=zh_CN
+          - generic [ref=e11]:
+            - text: 无障碍功能帮助
+            - generic "外部链接，在新窗口中打开" [ref=e12]:
+              - img "外部链接，在新窗口中打开" [ref=e13]:
+                - img [ref=e14]
+        - link "无障碍功能反馈 外部链接，在新窗口中打开" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=zh_CN
+          - generic [ref=e17]:
+            - text: 无障碍功能反馈
+            - generic "外部链接，在新窗口中打开" [ref=e18]:
+              - img "外部链接，在新窗口中打开" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "导航菜单 (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform 首页" [ref=e32] [cursor=pointer]:
+            - /url: /?project=extended-cable-432310-m8
+            - generic:
+              - img
+          - button "目前正在 My First Project 中执行操作。按 Enter 键即可切换项目、文件夹或组织" [ref=e40]:
+            - generic [ref=e41]:
+              - img [ref=e43]
+              - generic [ref=e46]: My First Project
+        - search "Google云端平台" [ref=e52]:
+          - combobox [ref=e53]:
+            - searchbox "输入查询以搜索资源、文档、产品等" [ref=e54]
+          - button "查看所有搜索结果" [disabled]:
+            - generic:
+              - img
+            - generic: 搜索
+        - generic [ref=e55]:
+          - generic [ref=e56]:
+            - button "打开或关闭 Gemini Cloud Assist 对话 (Option G)" [ref=e60] [cursor=pointer]:
+              - img [ref=e62]
+            - button "激活 Cloud Shell (G then S)" [ref=e524] [cursor=pointer]:
+              - img [ref=e526]
+            - button "1 条未读通知。 打开通知" [ref=e70] [cursor=pointer]:
+              - generic [ref=e73]: "1"
+            - button "设置与实用工具" [ref=e78] [cursor=pointer]:
+              - img [ref=e80]
+          - button "账号：han wang (skyandsunning@gmail.com)" [ref=e530]:
+            - img [ref=e531]
+    - generic [ref=e93]:
+      - navigation "路径" [ref=e98]:
+        - link "Google Auth Platform" [ref=e101] [cursor=pointer]:
+          - /url: /auth?project=extended-cable-432310-m8
+          - img [ref=e104]
+          - generic [ref=e108]: Google Auth Platform
+        - list [ref=e109]:
+          - listitem [ref=e110]:
+            - generic [ref=e111]: /
+            - link "客户端" [ref=e114] [cursor=pointer]:
+              - /url: /auth/clients?project=extended-cable-432310-m8
+              - generic [ref=e116]: 客户端
+          - listitem [ref=e547]:
+            - generic [ref=e548]: /
+            - link "创建客户端" [ref=e551] [cursor=pointer]:
+              - /url: /auth/clients/create?project=extended-cable-432310-m8
+              - generic [ref=e553]: 创建客户端
+      - generic [ref=e127]:
+        - navigation "Google Auth Platform" [ref=e134]:
+          - generic [ref=e135]:
+            - list "概览，1/7 更多选项 品牌塑造，2/7 更多选项 目标对象，3/7 更多选项 客户端，4/7 更多选项 数据访问，5/7 更多选项 验证中心，6/7 更多选项 设置，7/7 更多选项" [ref=e139]:
+              - listitem [ref=e140]:
+                - generic [ref=e143]:
+                  - link "概览，1/7" [ref=e144] [cursor=pointer]:
+                    - /url: /auth/overview?project=extended-cable-432310-m8
+                    - generic [ref=e145]:
+                      - img [ref=e148]
+                      - generic [ref=e150]: 概览
+                  - button "更多选项" [ref=e152] [cursor=pointer]:
+                    - img [ref=e154]
+              - listitem [ref=e156]:
+                - generic [ref=e159]:
+                  - link "品牌塑造，2/7" [ref=e160] [cursor=pointer]:
+                    - /url: /auth/branding?project=extended-cable-432310-m8
+                    - generic [ref=e161]:
+                      - img [ref=e164]
+                      - generic [ref=e170]: 品牌塑造
+                  - button "更多选项" [ref=e172] [cursor=pointer]:
+                    - img [ref=e174]
+              - listitem [ref=e176]:
+                - generic [ref=e179]:
+                  - link "目标对象，3/7" [ref=e180] [cursor=pointer]:
+                    - /url: /auth/audience?project=extended-cable-432310-m8
+                    - generic [ref=e181]:
+                      - img [ref=e184]
+                      - generic [ref=e186]: 目标对象
+                  - button "更多选项" [ref=e188] [cursor=pointer]:
+                    - img [ref=e190]
+              - listitem [ref=e192]:
+                - generic [ref=e195]:
+                  - link "客户端，4/7" [ref=e196] [cursor=pointer]:
+                    - /url: /auth/clients?project=extended-cable-432310-m8
+                    - generic [ref=e197]:
+                      - img [ref=e200]
+                      - generic [ref=e202]: 客户端
+                  - button "更多选项" [ref=e204] [cursor=pointer]:
+                    - img [ref=e206]
+              - listitem [ref=e208]:
+                - generic [ref=e211]:
+                  - link "数据访问，5/7" [ref=e212] [cursor=pointer]:
+                    - /url: /auth/scopes?project=extended-cable-432310-m8
+                    - generic [ref=e213]:
+                      - img [ref=e216]
+                      - generic [ref=e219]: 数据访问
+                  - button "更多选项" [ref=e221] [cursor=pointer]:
+                    - img [ref=e223]
+              - listitem [ref=e225]:
+                - generic [ref=e228]:
+                  - link "验证中心，6/7" [ref=e229] [cursor=pointer]:
+                    - /url: /auth/verification?project=extended-cable-432310-m8
+                    - generic [ref=e230]:
+                      - img [ref=e233]
+                      - generic [ref=e236]: 验证中心
+                  - button "更多选项" [ref=e238] [cursor=pointer]:
+                    - img [ref=e240]
+              - listitem [ref=e242]:
+                - generic [ref=e245]:
+                  - link "设置，7/7" [ref=e246] [cursor=pointer]:
+                    - /url: /auth/settings?project=extended-cable-432310-m8
+                    - generic [ref=e247]:
+                      - img [ref=e250]
+                      - generic [ref=e252]: 设置
+                  - button "更多选项" [ref=e254] [cursor=pointer]:
+                    - img [ref=e256]
+            - button "展开/收起Google Auth Platform导航菜单" [pressed] [ref=e259] [cursor=pointer]:
+              - img [ref=e262]
+        - main [ref=e265]:
+          - generic [ref=e559]:
+            - generic [ref=e562]:
+              - button "返回上一页" [ref=e566] [cursor=pointer]:
+                - img [ref=e568]
+              - heading "创建 OAuth 客户端 ID" [level=1] [ref=e572]:
+                - generic [ref=e573]: 创建 OAuth 客户端 ID
+            - generic [ref=e575]:
+              - paragraph [ref=e576]:
+                - text: 客户端 ID 用于向 Google 的 OAuth 服务器标识单个应用。如果您的应用在多个平台上运行，那么每个平台都需要有自己的客户端 ID。如需了解详情，请参阅
+                - link "设置 OAuth 2.0 外部链接（在新窗口中打开）" [ref=e577] [cursor=pointer]:
+                  - /url: https://developers.google.com/identity/protocols/oauth2/?hl=zh_CN
+                  - text: 设置 OAuth 2.0
+                  - img "外部链接（在新窗口中打开）" [ref=e578]:
+                    - img [ref=e579]
+                - text: 。
+                - link "详细了解 OAuth 客户端类型 外部链接（在新窗口中打开）" [ref=e581] [cursor=pointer]:
+                  - /url: https://support.google.com/cloud/answer/6158849?hl=zh_CN
+                  - text: 详细了解
+                  - img "外部链接（在新窗口中打开）" [ref=e582]:
+                    - img [ref=e583]
+                - text: OAuth 客户端类型。
+              - generic [ref=e585]:
+                - generic [ref=e588] [cursor=pointer]:
+                  - generic [ref=e589]:
+                    - text: 应用类型
+                    - generic [ref=e590]: "*"
+                  - combobox "应用类型" [active] [ref=e592]:
+                    - generic [ref=e593]:
+                      - generic [ref=e617]: Web 应用
+                      - img [ref=e596]
+                - generic [ref=e619]:
+                  - generic [ref=e621]:
+                    - generic [ref=e622]:
+                      - generic [ref=e624] [cursor=pointer]:
+                        - generic [ref=e625]:
+                          - text: 名称
+                          - generic [ref=e626]: "*"
+                        - textbox "名称" [ref=e628]: Web 客户端 2
+                      - generic [ref=e631]: OAuth 2.0 客户端的名称。此名称仅用于在控制台中标识客户端，而不会显示给最终用户。
+                    - generic [ref=e633]:
+                      - generic [ref=e635]:
+                        - img "信息" [ref=e636]:
+                          - img [ref=e637]
+                        - generic [ref=e641]:
+                          - text: 您在下面添加的 URI 的网域将自动添加到
+                          - link "OAuth 权限请求页面" [ref=e642] [cursor=pointer]:
+                            - /url: /auth/branding?project=extended-cable-432310-m8
+                          - text: 作为
+                          - link "已获授权的网域 外部链接（在新窗口中打开）" [ref=e643] [cursor=pointer]:
+                            - /url: https://support.google.com/cloud/answer/6158849?hl=zh_CN#authorized-domains
+                            - text: 已获授权的网域
+                            - img "外部链接（在新窗口中打开）" [ref=e644]:
+                              - img [ref=e645]
+                          - text: 。
+                      - group "已获授权的 JavaScript 来源" [ref=e648]:
+                        - generic "已获授权的 JavaScript 来源" [ref=e650]:
+                          - heading "已获授权的 JavaScript 来源" [level=2] [ref=e652]
+                          - button "关于 JavaScript 来源的帮助" [ref=e654] [cursor=pointer]:
+                            - img [ref=e656]
+                        - generic [ref=e659]: 适用于来自浏览器的请求
+                        - group "已获授权的 JavaScript 来源" [ref=e661]:
+                          - button "添加 URI" [ref=e663]:
+                            - generic [ref=e665]:
+                              - img [ref=e667]
+                              - text: 添加 URI
+                      - group "已获授权的重定向 URI" [ref=e670]:
+                        - generic "已获授权的重定向 URI" [ref=e672]:
+                          - heading "已获授权的重定向 URI" [level=2] [ref=e674]
+                          - button "关于重定向 URI 的帮助" [ref=e676] [cursor=pointer]:
+                            - img [ref=e678]
+                        - generic [ref=e681]: 适用于来自 Web 服务器的请求
+                        - group "已获授权的重定向 URI" [ref=e683]:
+                          - button "添加 URI" [ref=e685]:
+                            - generic [ref=e687]:
+                              - img [ref=e689]
+                              - text: 添加 URI
+                  - paragraph [ref=e691]: 注意：设置可能需要 5 分钟到几小时才会生效
+                  - button "创建" [ref=e694]:
+                    - generic [ref=e695]: 创建
+                  - button "取消" [ref=e696]:
+                    - generic [ref=e697]: 取消
+  - iframe [ref=e502]:
+    
+  - iframe [ref=e503]:
+    
+  - dialog "“帮助”已移至他处" [ref=e534]:
+    - generic [ref=e535]:
+      - generic [ref=e536]:
+        - heading "“帮助”已移至他处" [level=2] [ref=e539]:
+          - generic [ref=e540]: “帮助”已移至他处
+        - paragraph [ref=e541]: 文档、支持和教程现在位于上面的菜单中
+      - button "关闭标注" [ref=e542] [cursor=pointer]:
+        - img [ref=e544]:
+          - img [ref=e545]

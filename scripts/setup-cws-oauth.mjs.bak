@@ -1,0 +1,262 @@
+#!/usr/bin/env node
+/**
+ * Playwright script: Set up Google Cloud OAuth credentials for Chrome Web Store API
+ *
+ * Uses your existing Chrome profile to reuse Google login session.
+ * Steps:
+ * 1. Open Google Cloud Console
+ * 2. Enable Chrome Web Store API
+ * 3. Create OAuth 2.0 Client ID
+ * 4. Get Refresh Token via OAuth Playground
+ * 5. Save credentials to .env file
+ */
+const { chromium } = require('playwright');
+const path = require('path');
+const os = require('os');
+const fs = require('fs');
+const readline = require('readline');
+
+const CHROME_PROFILE = path.join(os.homedir(), 'Library/Application Support/Google/Chrome/Default');
+
+function ask(question) {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  return new Promise(resolve => rl.question(question, ans => { rl.close(); resolve(ans); }));
+}
+
+async function run() {
+  // Don't use system Chrome profile if Chrome is running (lock conflict)
+  // Instead use Playwright's Chromium with a fresh persistent context
+  console.log('Launching browser...');
+  const userDataDir = path.join(__dirname, '.playwright-profile');
+
+  const context = await chromium.launchPersistentContext(userDataDir, {
+    headless: false, // Google login requires visible browser for 2FA/captcha
+    channel: 'chrome', // Use system Chrome
+    args: [
+      '--disable-blink-features=AutomationControlled',
+    ],
+    viewport: { width: 1280, height: 900 },
+  });
+
+  const page = context.pages()[0] || await context.newPage();
+
+  try {
+    // ========================================================
+    // Step 1: Login to Google (user must do this manually)
+    // ========================================================
+    console.log('\n=== Step 1: Login to Google Cloud Console ===');
+    console.log('The browser will open Google Cloud Console.');
+    console.log('Please log in with your Google account that owns the Chrome Web Store listing.');
+    console.log('After login, the script will continue automatically.\n');
+
+    await page.goto('https://console.cloud.google.com/apis/credentials', {
+      waitUntil: 'networkidle',
+      timeout: 60000,
+    });
+
+    // Wait for login to complete (detect we're past the auth screen)
+    console.log('Waiting for login...');
+    try {
+      await page.waitForURL('https://console.cloud.google.com/**', { timeout: 300000 });
+      console.log('Login detected! Continuing...\n');
+    } catch {
+      console.log('Login timeout - please ensure you are logged in.');
+      console.log('Press Enter after logging in...');
+      await ask('');
+    }
+
+    // ========================================================
+    // Step 2: Enable Chrome Web Store API
+    // ========================================================
+    console.log('=== Step 2: Enable Chrome Web Store API ===');
+    await page.goto('https://console.cloud.google.com/apis/library/chromewebstore.googleapis.com', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+    await page.waitForTimeout(2000);
+
+    // Check if API is already enabled
+    const enableBtn = page.locator('button').filter({ hasText: /ENABLE|ENABLED/i });
+    if (await enableBtn.count() > 0) {
+      const text = await enableBtn.first().textContent();
+      if (text.includes('ENABLED')) {
+        console.log('Chrome Web Store API is already enabled.\n');
+      } else {
+        console.log('Clicking ENABLE...');
+        await enableBtn.first().click();
+        await page.waitForTimeout(3000);
+        console.log('Chrome Web Store API enabled!\n');
+      }
+    }
+
+    // ========================================================
+    // Step 3: Create OAuth 2.0 Client ID
+    // ========================================================
+    console.log('=== Step 3: Create OAuth 2.0 Client ID ===');
+    await page.goto('https://console.cloud.google.com/apis/credentials', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+    await page.waitForTimeout(2000);
+
+    // Click "CREATE CREDENTIALS" button
+    const createBtn = page.locator('button, a, span').filter({ hasText: /CREATE CREDENTIALS/i });
+    if (await createBtn.count() > 0) {
+      await createBtn.first().click();
+      await page.waitForTimeout(1000);
+
+      // Select "OAuth client ID"
+      const oauthOption = page.locator('*').filter({ hasText: /OAuth client ID/i }).first();
+      await oauthOption.click();
+      await page.waitForTimeout(2000);
+
+      console.log('Now in OAuth client creation form. Filling in details...');
+
+      // Application type: Web application
+      const appTypeSelect = page.locator('*').filter({ hasText: /Application type/i });
+      // Select "Web application" from the dropdown
+      const webAppOption = page.locator('*').filter({ hasText: /Web application/i }).first();
+      try {
+        await webAppOption.click();
+        await page.waitForTimeout(500);
+      } catch {}
+
+      // Name
+      const nameInput = page.locator('input').filter({ hasText: /Name/i });
+      if (await nameInput.count() === 0) {
+        // Try finding any visible text input
+        const inputs = page.locator('input[type="text"]:visible');
+        const count = await inputs.count();
+        if (count > 0) {
+          await inputs.first().fill('SealX Extension Publisher');
+          await page.waitForTimeout(500);
+        }
+      }
+
+      // Authorized redirect URIs - Add https://developers.google.com/oauthplayground
+      const addUriBtn = page.locator('button, span').filter({ hasText: /ADD URI/i });
+      if (await addUriBtn.count() > 0) {
+        await addUriBtn.first().click();
+        await page.waitForTimeout(500);
+        // Fill URI input
+        const uriInput = page.locator('input').filter({ hasText: /URIs/ });
+        const allInputs = page.locator('input[type="text"]:visible');
+        const inputCount = await allInputs.count();
+        if (inputCount >= 2) {
+          await allInputs.nth(inputCount - 1).fill('https://developers.google.com/oauthplayground');
+        }
+      }
+
+      console.log('\n--- PLEASE COMPLETE THE FORM MANUALLY ---');
+      console.log('1. Application type: Web application');
+      console.log('2. Name: SealX Extension Publisher');
+      console.log('3. Authorized redirect URIs: https://developers.google.com/oauthplayground');
+      console.log('4. Click CREATE');
+      console.log('5. Copy the Client ID and Client Secret from the popup');
+      console.log('6. Click OK to close the popup\n');
+
+      console.log('Press Enter after you have copied the Client ID and Client Secret...');
+      await ask('');
+    } else {
+      console.log('Could not find CREATE CREDENTIALS button.');
+      console.log('Please manually create OAuth credentials:\n');
+      console.log('1. Click + CREATE CREDENTIALS -> OAuth client ID');
+      console.log('2. Application type: Web application');
+      console.log('3. Name: SealX Extension Publisher');
+      console.log('4. Authorized redirect URIs: https://developers.google.com/oauthplayground');
+      console.log('5. Click CREATE');
+      console.log('6. Copy Client ID and Client Secret\n');
+    }
+
+    const clientId = await ask('\nClient ID: ');
+    const clientSecret = await ask('Client Secret: ');
+
+    if (!clientId || !clientSecret) {
+      console.log('Client ID and Client Secret are required!');
+      await context.close();
+      process.exit(1);
+    }
+
+    console.log(`\nClient ID: ${clientId}`);
+    console.log(`Client Secret: ${clientSecret}\n`);
+
+    // ========================================================
+    // Step 4: Get Refresh Token via OAuth Playground
+    // ========================================================
+    console.log('=== Step 4: Get Refresh Token ===');
+    console.log('Opening OAuth Playground...\n');
+
+    await page.goto('https://developers.google.com/oauthplayground', {
+      waitUntil: 'networkidle',
+      timeout: 30000,
+    });
+    await page.waitForTimeout(2000);
+
+    // Open settings
+    const settingsBtn = page.locator('*').filter({ hasText: /⚙|Settings|gear/i }).first();
+    try {
+      await settingsBtn.click();
+      await page.waitForTimeout(1000);
+    } catch {
+      console.log('Please open settings manually (gear icon, top right)');
+    }
+
+    console.log('\n--- PLEASE CONFIGURE OAUTH PLAYGROUND MANUALLY ---');
+    console.log('1. Click the gear icon (top right)');
+    console.log('2. Check "Use your own OAuth credentials"');
+    console.log(`3. Enter Client ID: ${clientId}`);
+    console.log(`4. Enter Client Secret: ${clientSecret}`);
+    console.log('5. Close settings');
+    console.log('6. Left panel: Find "Chrome Web Store API v1.1"');
+    console.log('7. Expand and check: https://www.googleapis.com/auth/chromewebstore');
+    console.log('8. Click "Authorize APIs"');
+    console.log('9. Log in with your Chrome Web Store developer account');
+    console.log('10. Click "Exchange authorization code for tokens"');
+    console.log('11. Copy the "Refresh token"\n');
+
+    console.log('Press Enter after you have the Refresh Token...');
+    await ask('');
+
+    const refreshToken = await ask('Refresh Token: ');
+
+    if (!refreshToken) {
+      console.log('Refresh Token is required!');
+      await context.close();
+      process.exit(1);
+    }
+
+    // ========================================================
+    // Step 5: Save credentials
+    // ========================================================
+    console.log('\n=== Step 5: Save Credentials ===');
+    const extensionId = 'hmbomiamklobhahajggcniphlaipnnib';
+
+    const envContent = [
+      `# Chrome Web Store API Credentials`,
+      `CHROME_EXTENSION_ID=${extensionId}`,
+      `CHROME_CLIENT_ID=${clientId}`,
+      `CHROME_CLIENT_SECRET=${clientSecret}`,
+      `CHROME_REFRESH_TOKEN=${refreshToken}`,
+    ].join('\n');
+
+    const outputPath = path.join(__dirname, '.cws-credentials.env');
+    fs.writeFileSync(outputPath, envContent);
+    console.log(`Credentials saved to: ${outputPath}`);
+    console.log(`\nExtension ID: ${extensionId}`);
+    console.log(`Client ID: ${clientId}`);
+    console.log(`Client Secret: ${clientSecret}`);
+    console.log(`Refresh Token: ${refreshToken}\n`);
+    console.log('Done! Now set these as GitHub Secrets:');
+    console.log('  gh secret set CHROME_CLIENT_ID --body "..."');
+    console.log('  gh secret set CHROME_CLIENT_SECRET --body "..."');
+    console.log('  gh secret set CHROME_REFRESH_TOKEN --body "..."');
+
+  } catch (error) {
+    console.error('Error:', error.message);
+  } finally {
+    console.log('\nClosing browser...');
+    await context.close();
+  }
+}
+
+run();

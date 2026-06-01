@@ -1,0 +1,131 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary "跳过链接" [ref=e5]:
+        - link "跳至主要内容" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: 跳至主要内容
+        - button "键盘快捷键" [ref=e8]:
+          - generic [ref=e9]: 键盘快捷键
+        - link "无障碍功能帮助 外部链接，在新窗口中打开" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=zh_CN
+          - generic [ref=e11]:
+            - text: 无障碍功能帮助
+            - generic "外部链接，在新窗口中打开" [ref=e12]:
+              - img "外部链接，在新窗口中打开" [ref=e13]:
+                - img [ref=e14]
+        - link "无障碍功能反馈 外部链接，在新窗口中打开" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=zh_CN
+          - generic [ref=e17]:
+            - text: 无障碍功能反馈
+            - generic "外部链接，在新窗口中打开" [ref=e18]:
+              - img "外部链接，在新窗口中打开" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "导航菜单 (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform 首页" [ref=e32] [cursor=pointer]:
+            - /url: /
+            - generic:
+              - img
+          - button "未选择任何项目。按 Enter 键即可选择项目、文件夹或组织。" [ref=e40]
+        - search "Google云端平台" [ref=e46]:
+          - combobox [ref=e47]:
+            - searchbox "输入查询以搜索资源、文档、产品等" [ref=e48]
+          - button "查看所有搜索结果" [disabled]:
+            - generic:
+              - img
+            - generic: 搜索
+        - generic [ref=e49]:
+          - generic [ref=e50]:
+            - generic [ref=e53]:
+              - button "激活 Cloud Shell (G then S)" [disabled]:
+                - generic:
+                  - img
+            - button "1 条未读通知。 打开通知" [ref=e57] [cursor=pointer]:
+              - generic [ref=e60]: "1"
+            - button "设置与实用工具" [ref=e65] [cursor=pointer]:
+              - img [ref=e67]
+          - img [ref=e71]
+    - generic [ref=e91]:
+      - navigation "Google Auth Platform" [ref=e98]:
+        - generic [ref=e99]:
+          - heading "Google Auth Platform" [level=2] [ref=e101]:
+            - link "Google Auth Platform" [ref=e102] [cursor=pointer]:
+              - /url: /auth
+              - img [ref=e105]
+              - generic [ref=e109]: Google Auth Platform
+          - list "概览，1/7 更多选项 品牌塑造，2/7 更多选项 目标对象，3/7 更多选项 客户端，4/7 更多选项 数据访问，5/7 更多选项 验证中心，6/7 更多选项 设置，7/7 更多选项" [ref=e113]:
+            - listitem [ref=e114]:
+              - generic [ref=e117]:
+                - link "概览，1/7" [ref=e118] [cursor=pointer]:
+                  - /url: /auth/overview
+                  - generic [ref=e119]:
+                    - img [ref=e122]
+                    - generic [ref=e124]: 概览
+                - button "更多选项" [ref=e126] [cursor=pointer]:
+                  - img [ref=e128]
+            - listitem [ref=e130]:
+              - generic [ref=e133]:
+                - link "品牌塑造，2/7" [ref=e134] [cursor=pointer]:
+                  - /url: /auth/branding
+                  - generic [ref=e135]:
+                    - img [ref=e138]
+                    - generic [ref=e144]: 品牌塑造
+                - button "更多选项" [ref=e146] [cursor=pointer]:
+                  - img [ref=e148]
+            - listitem [ref=e150]:
+              - generic [ref=e153]:
+                - link "目标对象，3/7" [ref=e154] [cursor=pointer]:
+                  - /url: /auth/audience
+                  - generic [ref=e155]:
+                    - img [ref=e158]
+                    - generic [ref=e160]: 目标对象
+                - button "更多选项" [ref=e162] [cursor=pointer]:
+                  - img [ref=e164]
+            - listitem [ref=e166]:
+              - generic [ref=e169]:
+                - link "客户端，4/7" [ref=e170] [cursor=pointer]:
+                  - /url: /auth/clients
+                  - generic [ref=e171]:
+                    - img [ref=e174]
+                    - generic [ref=e176]: 客户端
+                - button "更多选项" [ref=e178] [cursor=pointer]:
+                  - img [ref=e180]
+            - listitem [ref=e182]:
+              - generic [ref=e185]:
+                - link "数据访问，5/7" [ref=e186] [cursor=pointer]:
+                  - /url: /auth/scopes
+                  - generic [ref=e187]:
+                    - img [ref=e190]
+                    - generic [ref=e193]: 数据访问
+                - button "更多选项" [ref=e195] [cursor=pointer]:
+                  - img [ref=e197]
+            - listitem [ref=e199]:
+              - generic [ref=e202]:
+                - link "验证中心，6/7" [ref=e203] [cursor=pointer]:
+                  - /url: /auth/verification
+                  - generic [ref=e204]:
+                    - img [ref=e207]
+                    - generic [ref=e210]: 验证中心
+                - button "更多选项" [ref=e212] [cursor=pointer]:
+                  - img [ref=e214]
+            - listitem [ref=e216]:
+              - generic [ref=e219]:
+                - link "设置，7/7" [ref=e220] [cursor=pointer]:
+                  - /url: /auth/settings
+                  - generic [ref=e221]:
+                    - img [ref=e224]
+                    - generic [ref=e226]: 设置
+                - button "更多选项" [ref=e228] [cursor=pointer]:
+                  - img [ref=e230]
+          - button "展开/收起Google Auth Platform导航菜单" [pressed] [ref=e233] [cursor=pointer]:
+            - img [ref=e236]
+      - main [ref=e239]
+  - iframe [ref=e253]:
+    
+  - paragraph
+  - iframe [ref=e255]:
+    

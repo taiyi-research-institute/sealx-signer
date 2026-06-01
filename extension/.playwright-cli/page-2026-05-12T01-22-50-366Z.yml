@@ -1,0 +1,58 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - complementary "跳过链接" [ref=e5]:
+        - link "跳至主要内容" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: 跳至主要内容
+        - button "键盘快捷键" [ref=e8]:
+          - generic [ref=e9]: 键盘快捷键
+        - link "无障碍功能帮助 外部链接，在新窗口中打开" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=zh_CN
+          - generic [ref=e11]:
+            - text: 无障碍功能帮助
+            - generic "外部链接，在新窗口中打开" [ref=e12]:
+              - img "外部链接，在新窗口中打开" [ref=e13]:
+                - img [ref=e14]
+        - link "无障碍功能反馈 外部链接，在新窗口中打开" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=zh_CN
+          - generic [ref=e17]:
+            - text: 无障碍功能反馈
+            - generic "外部链接，在新窗口中打开" [ref=e18]:
+              - img "外部链接，在新窗口中打开" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "导航菜单 (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform 首页" [ref=e32] [cursor=pointer]:
+            - /url: /
+            - generic:
+              - img
+          - button "未选择任何项目。按 Enter 键即可选择项目、文件夹或组织。" [ref=e40]:
+            - generic [ref=e43]: 选择项目
+        - button "打开搜索" [ref=e50] [cursor=pointer]:
+          - img [ref=e52]
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - button "打开或关闭 Gemini Cloud Assist 对话 (Option G)" [ref=e59] [cursor=pointer]:
+              - img [ref=e61]
+            - generic [ref=e65]:
+              - button "激活 Cloud Shell (G then S)" [disabled]:
+                - generic:
+                  - img
+            - button "打开通知" [ref=e69] [cursor=pointer]:
+              - img [ref=e71]
+            - button "设置与实用工具" [ref=e77] [cursor=pointer]:
+              - img [ref=e79]
+          - img [ref=e83]
+    - main [ref=e104]:
+      - progressbar [ref=e112]:
+        - img [ref=e114]
+        - generic [ref=e117]:
+          - img [ref=e119]
+          - img [ref=e122]
+          - img [ref=e125]
+  - iframe [ref=e128]:
+    

@@ -1,0 +1,376 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - alertdialog "“免费试用”对话框" [ref=e131]:
+      - generic [ref=e132]:
+        - generic [ref=e133]:
+          - img [ref=e136]
+          - generic [ref=e139]:
+            - text: 获享 $300 赠金，开始免费试用。请放心，如果您的赠金用尽，我们不会向您收取费用。
+            - link "详细了解免费试用程序。 外部链接（在新窗口中打开）" [ref=e140] [cursor=pointer]:
+              - /url: https://cloud.google.com/free/?hl=zh_CN
+              - text: 了解详情
+              - img "外部链接（在新窗口中打开）" [ref=e141]:
+                - img [ref=e142]
+        - generic [ref=e144]:
+          - button "关闭整个账号激活横幅" [ref=e145]:
+            - generic [ref=e146]: 关闭
+          - button "免费开始使用吧" [ref=e147]:
+            - generic [ref=e148]: 免费开始使用吧
+    - generic [ref=e4]:
+      - complementary "跳过链接" [ref=e5]:
+        - link "跳至主要内容" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: 跳至主要内容
+        - button "键盘快捷键" [ref=e8]:
+          - generic [ref=e9]: 键盘快捷键
+        - link "无障碍功能帮助 外部链接，在新窗口中打开" [ref=e10] [cursor=pointer]:
+          - /url: https://cloud.google.com/docs/accessibility?hl=zh_CN
+          - generic [ref=e11]:
+            - text: 无障碍功能帮助
+            - generic "外部链接，在新窗口中打开" [ref=e12]:
+              - img "外部链接，在新窗口中打开" [ref=e13]:
+                - img [ref=e14]
+        - link "无障碍功能反馈 外部链接，在新窗口中打开" [ref=e16] [cursor=pointer]:
+          - /url: https://support.google.com/accessibility/contact/feedback?hl=zh_CN
+          - generic [ref=e17]:
+            - text: 无障碍功能反馈
+            - generic "外部链接，在新窗口中打开" [ref=e18]:
+              - img "外部链接，在新窗口中打开" [ref=e19]:
+                - img [ref=e20]
+      - banner [ref=e23]:
+        - generic [ref=e24]:
+          - navigation [ref=e27]:
+            - button "导航菜单 (.)" [ref=e28] [cursor=pointer]:
+              - img [ref=e30]
+          - link "Google Cloud Platform 首页" [ref=e32] [cursor=pointer]:
+            - /url: /
+            - generic:
+              - img
+          - button "目前正在 My First Project 中执行操作。按 Enter 键即可切换项目、文件夹或组织" [ref=e149]:
+            - generic [ref=e41]:
+              - img [ref=e151]
+              - generic [ref=e43]: My First Project
+        - search "Google云端平台" [ref=e153]:
+          - combobox [ref=e154]:
+            - searchbox "输入查询以搜索资源、文档、产品等" [ref=e155]
+          - button "查看所有搜索结果" [disabled]:
+            - generic:
+              - img
+            - generic: 搜索
+        - generic [ref=e54]:
+          - generic [ref=e55]:
+            - button "打开或关闭 Gemini Cloud Assist 对话 (Option G)" [ref=e59] [cursor=pointer]:
+              - img [ref=e61]
+            - button "激活 Cloud Shell (G then S)" [ref=e156] [cursor=pointer]:
+              - img [ref=e158]
+            - button "1 条未读通知。 打开通知" [ref=e160] [cursor=pointer]:
+              - generic [ref=e163]: "1"
+            - button "设置与实用工具" [ref=e77] [cursor=pointer]:
+              - img [ref=e79]
+          - button "账号：han wang (skyandsunning@gmail.com)" [ref=e166]:
+            - img [ref=e167]
+    - generic [ref=e103]:
+      - navigation "API 和服务" [ref=e174]:
+        - generic [ref=e175]:
+          - heading "API 和服务" [level=2] [ref=e177]:
+            - link "API 和服务" [ref=e178] [cursor=pointer]:
+              - /url: /apis?project=extended-cable-432310-m8
+              - img [ref=e181]
+              - generic [ref=e185]: API 和服务
+          - list "已启用的 API 和服务，1/5 更多选项 库，2/5 更多选项 凭证，3/5 更多选项 OAuth 权限请求页面，4/5 更多选项 页面使用协议，5/5 更多选项" [ref=e189]:
+            - listitem [ref=e190]:
+              - generic [ref=e193]:
+                - link "已启用的 API 和服务，1/5" [ref=e194] [cursor=pointer]:
+                  - /url: /apis/dashboard?project=extended-cable-432310-m8
+                  - generic [ref=e195]:
+                    - img [ref=e198]
+                    - generic [ref=e200]: 已启用的 API 和服务
+                - button "更多选项" [ref=e202] [cursor=pointer]:
+                  - img [ref=e204]
+            - listitem [ref=e206]:
+              - generic [ref=e209]:
+                - link "库，2/5" [ref=e210] [cursor=pointer]:
+                  - /url: /apis/library?project=extended-cable-432310-m8
+                  - generic [ref=e211]:
+                    - img [ref=e214]
+                    - generic [ref=e216]: 库
+                - button "更多选项" [ref=e218] [cursor=pointer]:
+                  - img [ref=e220]
+            - listitem [ref=e222]:
+              - generic [ref=e225]:
+                - link "凭证，3/5" [ref=e226] [cursor=pointer]:
+                  - /url: /apis/credentials?project=extended-cable-432310-m8
+                  - generic [ref=e227]:
+                    - img [ref=e230]
+                    - generic [ref=e232]: 凭证
+                - button "更多选项" [ref=e234] [cursor=pointer]:
+                  - img [ref=e236]
+            - listitem [ref=e238]:
+              - generic [ref=e241]:
+                - link "OAuth 权限请求页面，4/5" [ref=e242] [cursor=pointer]:
+                  - /url: /apis/credentials/consent?project=extended-cable-432310-m8
+                  - generic [ref=e243]:
+                    - img [ref=e246]
+                    - generic [ref=e248]: OAuth 权限请求页面
+                - button "更多选项" [ref=e250] [cursor=pointer]:
+                  - img [ref=e252]
+            - listitem [ref=e254]:
+              - generic [ref=e257]:
+                - link "页面使用协议，5/5" [ref=e258] [cursor=pointer]:
+                  - /url: /apis/agreements?project=extended-cable-432310-m8
+                  - generic [ref=e259]:
+                    - img [ref=e262]
+                    - generic [ref=e265]: 页面使用协议
+                - button "更多选项" [ref=e267] [cursor=pointer]:
+                  - img [ref=e269]
+          - button "展开/收起API 和服务导航菜单" [pressed] [ref=e272] [cursor=pointer]:
+            - img [ref=e275]
+      - main [ref=e104]:
+        - generic [ref=e283]:
+          - generic [ref=e286]:
+            - heading "凭证" [level=1] [ref=e289]:
+              - generic [ref=e290]: 凭证
+            - generic [ref=e294]:
+              - generic [ref=e295]:
+                - button "创建凭据" [expanded] [active] [ref=e297] [cursor=pointer]:
+                  - generic [ref=e298]:
+                    - img [ref=e300]:
+                      - img [ref=e301]
+                    - text: 创建凭证
+                  - img [ref=e304]
+                - button "删除凭据" [disabled] [ref=e308]:
+                  - img [ref=e310]:
+                    - img [ref=e311]
+                  - generic [ref=e313]: 删除
+              - button "恢复已删除的凭证" [ref=e314] [cursor=pointer]:
+                - generic [ref=e315]:
+                  - img [ref=e317]:
+                    - img [ref=e318]
+                  - text: 恢复已删除的凭证
+          - generic [ref=e327]:
+            - paragraph [ref=e329]:
+              - text: 创建凭证，以访问您已启用的 API。
+              - link "详细了解此功能 外部链接（在新窗口中打开）" [ref=e330] [cursor=pointer]:
+                - /url: https://cloud.google.com/docs/authentication?hl=zh_CN
+                - text: 了解详情
+                - img "外部链接（在新窗口中打开）" [ref=e331]:
+                  - img [ref=e332]
+            - generic [ref=e334]:
+              - heading "API 密钥" [level=2] [ref=e336]
+              - grid "API 密钥 , 按箭头键可在表中导航。按 Enter 键可与单元格交互。按 Tab 键可在单元格内导航。按 Esc 键可退出单元格。" [ref=e340]:
+                - rowgroup [ref=e349]:
+                  - row "行选择 状态 名称 已绑定的账号 创建日期 限制 操作" [ref=e350] [cursor=pointer]:
+                    - gridcell "行选择" [ref=e351]:
+                      - checkbox "选择所有行" [disabled] [ref=e352]
+                    - columnheader "状态" [ref=e353]:
+                      - img [ref=e357]
+                    - columnheader "名称" [ref=e359]:
+                      - generic [ref=e361]:
+                        - generic [ref=e362]: 名称
+                        - button "排序依据：名称" [ref=e363]:
+                          - img [ref=e365]
+                    - columnheader "已绑定的账号" [ref=e367]:
+                      - generic [ref=e369]:
+                        - generic [ref=e370]:
+                          - text: Bound account
+                          - button "关于已绑定账号的帮助" [ref=e372]:
+                            - img [ref=e374]
+                        - button "排序依据：已绑定的账号" [ref=e376]:
+                          - img [ref=e378]
+                    - columnheader "创建日期" [ref=e380]:
+                      - generic [ref=e382]:
+                        - generic [ref=e383]: 创建日期
+                        - button "排序依据：创建日期" [ref=e384]:
+                          - img [ref=e386]
+                    - columnheader "限制" [ref=e388]:
+                      - generic [ref=e390]:
+                        - generic [ref=e391]: 限制
+                        - button "排序依据：限制" [ref=e392]:
+                          - img [ref=e394]
+                    - columnheader "操作" [ref=e396]:
+                      - generic [ref=e398]: 操作
+                - rowgroup [ref=e399]:
+                  - row "没有要显示的 API 密钥" [ref=e400] [cursor=pointer]:
+                    - gridcell "没有要显示的 API 密钥" [ref=e401]
+            - generic [ref=e402]:
+              - heading "OAuth 2.0 客户端 ID" [level=2] [ref=e404]
+              - grid "OAuth 2.0 客户端 ID , 按箭头键可在表中导航。按 Enter 键可与单元格交互。按 Tab 键可在单元格内导航。按 Esc 键可退出单元格。" [ref=e408]:
+                - rowgroup [ref=e416]:
+                  - row "行选择 名称 创建日期 类型 客户端 ID 操作" [ref=e417] [cursor=pointer]:
+                    - gridcell "行选择" [ref=e418]:
+                      - checkbox "选择所有行" [ref=e419]
+                    - columnheader "名称" [ref=e420]:
+                      - generic [ref=e422]:
+                        - generic [ref=e423]: 名称
+                        - button "排序依据：名称" [ref=e424]:
+                          - img [ref=e426]
+                    - columnheader "创建日期" [ref=e428]:
+                      - generic [ref=e430]:
+                        - generic [ref=e431]: 创建日期
+                        - button "排序依据：创建日期" [ref=e432]:
+                          - img [ref=e434]
+                    - columnheader "类型" [ref=e436]:
+                      - generic [ref=e438]:
+                        - generic [ref=e439]: 类型
+                        - button "排序依据：类型" [ref=e440]:
+                          - img [ref=e442]
+                    - columnheader "客户端 ID" [ref=e444]:
+                      - generic [ref=e446]:
+                        - generic [ref=e447]: 客户端 ID
+                        - button "排序依据：客户端 ID" [ref=e448]:
+                          - img [ref=e450]
+                    - columnheader "操作" [ref=e452]:
+                      - generic [ref=e454]: 操作
+                - rowgroup [ref=e455]:
+                  - row "sealx publish sealx publish 2026年5月12日 Chrome 扩展程序 978435840566-eqgc... 点击即可复制 OAuth 客户端 点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e456] [cursor=pointer]:
+                    - gridcell "sealx publish" [ref=e457]:
+                      - checkbox "sealx publish" [ref=e459]
+                    - rowheader "sealx publish" [ref=e460]:
+                      - link "sealx publish" [ref=e461]:
+                        - /url: /apis/credentials/oauthclient/978435840566-eqgcta2jr8u48dk4f0tstc4ncm3injjq.apps.googleusercontent.com?project=extended-cable-432310-m8
+                    - gridcell "2026年5月12日" [ref=e462]
+                    - gridcell "Chrome 扩展程序" [ref=e463]
+                    - gridcell "978435840566-eqgc... 点击即可复制 OAuth 客户端" [ref=e464]:
+                      - code [ref=e465]: 978435840566-eqgc...
+                      - button "点击即可复制 OAuth 客户端" [ref=e466]:
+                        - img [ref=e468]:
+                          - img [ref=e469]
+                    - gridcell "点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e471]:
+                      - link "点击即可修改 OAuth 客户端" [ref=e472]:
+                        - /url: /apis/credentials/oauthclient/978435840566-eqgcta2jr8u48dk4f0tstc4ncm3injjq.apps.googleusercontent.com?project=extended-cable-432310-m8
+                        - img [ref=e474]:
+                          - img [ref=e475]
+                      - button "点击即可删除 OAuth 客户端" [ref=e479]:
+                        - img [ref=e481]:
+                          - img [ref=e482]
+                      - button "下载 OAuth 客户端" [ref=e484]:
+                        - img [ref=e486]:
+                          - img [ref=e487]
+                  - row "sealx-dev1 sealx-dev1 2025年12月8日 Chrome 扩展程序 978435840566-nldv... 点击即可复制 OAuth 客户端 点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e489] [cursor=pointer]:
+                    - gridcell "sealx-dev1" [ref=e490]:
+                      - checkbox "sealx-dev1" [ref=e492]
+                    - rowheader "sealx-dev1" [ref=e493]:
+                      - link "sealx-dev1" [ref=e494]:
+                        - /url: /apis/credentials/oauthclient/978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com?project=extended-cable-432310-m8
+                    - gridcell "2025年12月8日" [ref=e495]
+                    - gridcell "Chrome 扩展程序" [ref=e496]
+                    - gridcell "978435840566-nldv... 点击即可复制 OAuth 客户端" [ref=e497]:
+                      - code [ref=e498]: 978435840566-nldv...
+                      - button "点击即可复制 OAuth 客户端" [ref=e499]:
+                        - img [ref=e501]:
+                          - img [ref=e502]
+                    - gridcell "点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e504]:
+                      - link "点击即可修改 OAuth 客户端" [ref=e505]:
+                        - /url: /apis/credentials/oauthclient/978435840566-nldvgmusenvfde6oacj076u28829fa6q.apps.googleusercontent.com?project=extended-cable-432310-m8
+                        - img [ref=e507]:
+                          - img [ref=e508]
+                      - button "点击即可删除 OAuth 客户端" [ref=e512]:
+                        - img [ref=e514]:
+                          - img [ref=e515]
+                      - button "下载 OAuth 客户端" [ref=e517]:
+                        - img [ref=e519]:
+                          - img [ref=e520]
+                  - row "sealx-dev 未使用的客户端警告sealx-dev 2025年12月8日 Web 应用 978435840566-62vk... 点击即可复制 OAuth 客户端 点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端" [ref=e522] [cursor=pointer]:
+                    - gridcell "sealx-dev" [ref=e523]:
+                      - checkbox "sealx-dev" [ref=e525]
+                    - rowheader "未使用的客户端警告sealx-dev" [ref=e526]:
+                      - generic "未使用的客户端警告" [ref=e527]:
+                        - img "警告。按 Enter 键即可了解详情" [ref=e529]:
+                          - img [ref=e530]
+                      - link "sealx-dev" [ref=e532]:
+                        - /url: /apis/credentials/oauthclient/978435840566-62vk9r0pnd1ih7dktlr6msbnq5t27kvb.apps.googleusercontent.com?project=extended-cable-432310-m8
+                    - gridcell "2025年12月8日" [ref=e533]
+                    - gridcell "Web 应用" [ref=e534]
+                    - gridcell "978435840566-62vk... 点击即可复制 OAuth 客户端" [ref=e535]:
+                      - code [ref=e536]: 978435840566-62vk...
+                      - button "点击即可复制 OAuth 客户端" [ref=e537]:
+                        - img [ref=e539]:
+                          - img [ref=e540]
+                    - gridcell "点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端" [ref=e542]:
+                      - link "点击即可修改 OAuth 客户端" [ref=e543]:
+                        - /url: /apis/credentials/oauthclient/978435840566-62vk9r0pnd1ih7dktlr6msbnq5t27kvb.apps.googleusercontent.com?project=extended-cable-432310-m8
+                        - img [ref=e545]:
+                          - img [ref=e546]
+                      - button "点击即可删除 OAuth 客户端" [ref=e550]:
+                        - img [ref=e552]:
+                          - img [ref=e553]
+                  - row "sealx sealx 2025年12月8日 Chrome 扩展程序 978435840566-lvcq... 点击即可复制 OAuth 客户端 点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e555] [cursor=pointer]:
+                    - gridcell "sealx" [ref=e556]:
+                      - checkbox "sealx" [ref=e558]
+                    - rowheader "sealx" [ref=e559]:
+                      - link "sealx" [ref=e560]:
+                        - /url: /apis/credentials/oauthclient/978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com?project=extended-cable-432310-m8
+                    - gridcell "2025年12月8日" [ref=e561]
+                    - gridcell "Chrome 扩展程序" [ref=e562]
+                    - gridcell "978435840566-lvcq... 点击即可复制 OAuth 客户端" [ref=e563]:
+                      - code [ref=e564]: 978435840566-lvcq...
+                      - button "点击即可复制 OAuth 客户端" [ref=e565]:
+                        - img [ref=e567]:
+                          - img [ref=e568]
+                    - gridcell "点击即可修改 OAuth 客户端 点击即可删除 OAuth 客户端 下载 OAuth 客户端" [ref=e570]:
+                      - link "点击即可修改 OAuth 客户端" [ref=e571]:
+                        - /url: /apis/credentials/oauthclient/978435840566-lvcqv4m845l01lv9oj79k3gphdv24dc2.apps.googleusercontent.com?project=extended-cable-432310-m8
+                        - img [ref=e573]:
+                          - img [ref=e574]
+                      - button "点击即可删除 OAuth 客户端" [ref=e578]:
+                        - img [ref=e580]:
+                          - img [ref=e581]
+                      - button "下载 OAuth 客户端" [ref=e583]:
+                        - img [ref=e585]:
+                          - img [ref=e586]
+            - generic [ref=e588]:
+              - generic [ref=e589]:
+                - heading "服务账号" [level=2] [ref=e590]
+                - link "管理服务账号" [ref=e594] [cursor=pointer]:
+                  - /url: /iam-admin/serviceaccounts?project=extended-cable-432310-m8
+              - grid "服务账号 , 按箭头键可在表中导航。按 Enter 键可与单元格交互。按 Tab 键可在单元格内导航。按 Esc 键可退出单元格。" [ref=e598]:
+                - rowgroup [ref=e604]:
+                  - row "行选择 电子邮件 名称 操作" [ref=e605] [cursor=pointer]:
+                    - gridcell "行选择" [ref=e606]:
+                      - checkbox "选择所有行" [disabled] [ref=e607]
+                    - columnheader "电子邮件" [ref=e608]:
+                      - generic [ref=e610]:
+                        - generic [ref=e611]: 电子邮件
+                        - button "排序依据：电子邮件" [ref=e612]:
+                          - img [ref=e614]
+                    - columnheader "名称" [ref=e616]:
+                      - generic [ref=e618]:
+                        - generic [ref=e619]: 名称
+                        - button "排序依据：名称" [ref=e620]:
+                          - img [ref=e622]
+                    - columnheader "操作" [ref=e624]:
+                      - generic [ref=e626]: 操作
+                - rowgroup [ref=e627]:
+                  - row "没有要显示的服务账号" [ref=e628] [cursor=pointer]:
+                    - gridcell "没有要显示的服务账号" [ref=e629]
+  - iframe [ref=e128]:
+    
+  - iframe [ref=e631]:
+    
+  - iframe [ref=e632]:
+    
+  - menu "创建凭据" [ref=e637]:
+    - generic [ref=e638]:
+      - generic [ref=e640]:
+        - menuitem "API 密钥 . 使用简单的 API 密钥来标识您的项目，以便检查配额和访问权限" [ref=e642] [cursor=pointer]:
+          - generic [ref=e645]:
+            - generic [ref=e647]: API 密钥
+            - generic [ref=e648]: .
+            - generic [ref=e650]: 使用简单的 API 密钥来标识您的项目，以便检查配额和访问权限
+        - menuitem "OAuth 客户端 ID . 征得用户同意，让您的应用有权访问用户数据" [ref=e652] [cursor=pointer]:
+          - generic [ref=e655]:
+            - generic [ref=e657]: OAuth 客户端 ID
+            - generic [ref=e658]: .
+            - generic [ref=e660]: 征得用户同意，让您的应用有权访问用户数据
+        - menuitem "服务账号 . 利用机器人账号实现服务器到服务器的应用级身份验证" [ref=e662] [cursor=pointer]:
+          - generic [ref=e665]:
+            - generic [ref=e667]: 服务账号
+            - generic [ref=e668]: .
+            - generic [ref=e670]: 利用机器人账号实现服务器到服务器的应用级身份验证
+      - menuitem "帮我选择 . 询问几个问题以帮助您决定要使用的凭证类型" [ref=e674] [cursor=pointer]:
+        - generic [ref=e677]:
+          - generic [ref=e679]: 帮我选择
+          - generic [ref=e680]: .
+          - generic [ref=e682]: 询问几个问题以帮助您决定要使用的凭证类型
+  - iframe [ref=e634]:
+    
