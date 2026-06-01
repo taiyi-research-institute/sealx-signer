@@ -349,13 +349,17 @@ export const connectSealx = async (
 
     const userId = sealxSigner.account.userId;
 
-    if (
-        !sealxSigner.session ||
-        sealxSigner.session.expire < Date.now() ||
-        !sealxSigner.account || !sealxSigner.session.sessionId
-        || sealxSigner.session.userId !== sealxSigner.account.userId
-    ) {
-        try {
+    console.warn('[TRACE-CONNECT:SDK] connectSealx sending', {
+        payloadUserId: userId,
+        headerHost: messager.host,
+        title,
+        hasSession: !!sealxSigner.session,
+        sessionUserId: sealxSigner.session?.userId,
+        sessionHost: sealxSigner.session?.host,
+        sessionExpire: sealxSigner.session?.expire,
+    });
+
+    try {
             const res = await messager.send(
                 { userId, title },
                 SealxTopic.CONNECT,
@@ -363,8 +367,16 @@ export const connectSealx = async (
             );
 
             if (!res?.payload?.session || !res?.payload?.account) {
+                console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', { payload: res?.payload })
                 throw new SessionException('Invalid connection response');
             }
+            console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
+                sessionUserId: res.payload.session?.userId,
+                sessionHost: res.payload.session?.host,
+                sessionExpire: res.payload.session?.expire,
+                accountUserId: res.payload.account?.userId,
+                accountHost: res.payload.account?.host,
+            });
             sealxSigner.connected = true;
             await sealxSigner.initializeSession(res.payload.session);
             await sealxSigner.initializeAccount(res.payload.account);
@@ -372,7 +384,6 @@ export const connectSealx = async (
             console.error('Connection failed:', error);
             throw new SessionException('Failed to connect to SealX extension');
         }
-    }
 
     if (sealxSigner.session) {
         messager.session = sealxSigner.session;
@@ -436,17 +447,8 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
         );
     }
 
-    if (
-        !sealxSigner.session ||
-        !sealxSigner.account ||
-        sealxSigner.session.expire < Date.now()
-        || sealxSigner.session.userId != userId
-        || !sealxSigner.session.sessionId
-    ) {
-        await connectSealx();
-    }
-    if (sealxSigner.session)
-        messager.session = sealxSigner.session
+    await connectSealx();
+    messager.session = sealxSigner.session!;
     if (sealxSigner.account) {
         try {
             const res = await messager.send(
@@ -564,11 +566,8 @@ export const signBySealx = async <T = unknown>(
         );
     }
 
-    if (!sealxSigner.session || sealxSigner.session.expire < Date.now()
-        || sealxSigner.session.userId != userId || !sealxSigner.session.sessionId) {
-        await connectSealx();
-    }
-    if (sealxSigner.session) messager.session = sealxSigner.session
+    await connectSealx();
+    messager.session = sealxSigner.session!;
     if (
         sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk

@@ -96,6 +96,14 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
     const userId = request.payload.userId
     const title = request.payload.title
     const host = request.header.host
+    console.warn('[TRACE-CONNECT:BG] received CONNECT', {
+        payloadUserId: userId,
+        headerHost: host,
+        title,
+        hasSession: !!sessionStore.getState().session,
+        sessionUserId: sessionStore.getState().session?.userId,
+        sessionHost: sessionStore.getState().session?.host,
+    })
     const state = sessionStore.getState()
     state.setHost(host)
     state.setUserId(userId)
@@ -129,6 +137,11 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         }
 
         try {
+            console.warn('[TRACE-CONNECT:BG] sending to panel', {
+                sentUserId: userId,
+                sentHost: host,
+                sentTitle: title,
+            })
             const res = await messager.send(
                 { userId, host, title },
                 SealxTopic.CONNECT,
@@ -139,6 +152,13 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
                     tabId: request.header.tabId,
                 }
             )
+            console.warn('[TRACE-CONNECT:BG] panel response', {
+                resPayload: res?.payload,
+                resSessionUserId: (res?.payload as any)?.session?.userId,
+                resSessionHost: (res?.payload as any)?.session?.host,
+                resAccountUserId: (res?.payload as any)?.account?.userId,
+                resAccountHost: (res?.payload as any)?.account?.host,
+            })
             await getUser(userId, host)
             // 直接返回 res.payload
             return res.payload
@@ -150,6 +170,12 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
 })
 
 messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
+    console.warn('[TRACE-CONNECT:BG] onForward POPUP', {
+        topic: request.topic,
+        headerHost: request.header?.host,
+        headerUserId: request.header?.userId,
+        tabId: request.header?.tabId,
+    })
     if (!request.header.tabId && TabManager.getInstance().currentTabId) {
         request.header.tabId = TabManager.getInstance().currentTabId
     }
@@ -304,10 +330,21 @@ messager.on(SealxTopic.INITIALIZE, async (request: SealxRequest<string>) => {
  * @returns Promise resolving to the generated session
  */
 messager.on(SealxTopic.LOGIN, async (request: SealxRequest<{ userId?: string, host?: string, pin: string }>) => {
+    console.warn('[TRACE-CONNECT:BG] LOGIN handler', {
+        payloadHost: request.payload.host,
+        payloadUserId: request.payload.userId,
+        hasPin: !!request.payload.pin,
+    })
     if (request.payload.host && request.payload.userId) {
         await addUser(request.payload.userId, request.payload.host)
     }
-    return await generateSession(request.payload.pin, request.payload.host ?? '', request.payload.userId ?? '')
+    const session = await generateSession(request.payload.pin, request.payload.host ?? '', request.payload.userId ?? '')
+    console.warn('[TRACE-CONNECT:BG] LOGIN session generated', {
+        sessionUserId: session.userId,
+        sessionHost: session.host,
+        sessionId: session.sessionId,
+    })
+    return session
 })
 
 messager.on(SealxTopic.IMPORT_KEY, async (request: SealxRequest<{

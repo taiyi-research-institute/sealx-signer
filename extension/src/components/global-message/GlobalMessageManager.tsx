@@ -7,53 +7,54 @@ import { useErrorStore, useSuccessStore } from '@src/core/state';
  * This component should be placed at the root level of the application.
  */
 const GlobalMessageManager: React.FC = () => {
-    const error = useErrorStore.use.error();
-    const setError = useErrorStore.use.setError();
-    const success = useSuccessStore.use.success();
-    const setSuccess = useSuccessStore.use.setSuccess();
+  const error = useErrorStore.use.error();
+  const setError = useErrorStore.use.setError();
+  const success = useSuccessStore.use.success();
+  const setSuccess = useSuccessStore.use.setSuccess();
 
-    // Determine if we should show error or success message
-    const hasError = !!error;
-    const hasSuccess = !!success;
+  // Determine if we should show error or success message
+  const hasError = !!error;
+  const hasSuccess = !!success;
 
-    // Get error message text
-    const errorMessage = error
-        ? typeof error === 'string'
-            ? error
-            : error?.message || 'An unknown error occurred'
-        : '';
+  // Get error message text
+  const errorMessage = error
+    ? typeof error === 'string'
+      ? error
+      : error?.message || 'An unknown error occurred'
+    : '';
 
-    // Determine which message to show (priority: error > success)
-    const showError = hasError;
-    const showSuccess = hasSuccess && !hasError;
+  // Determine which message to show (priority: error > success)
+  const showError = hasError;
+  const showSuccess = hasSuccess && !hasError;
+  const autoDismissDuration = Math.random() * 1000 + 300; // Duration in milliseconds for auto-dismissal
 
-    return (
-        <>
-            {showError && (
-                <GlobalMessage
-                    message={errorMessage}
-                    type="error"
-                    visible={true}
-                    onDismiss={() => setError(null)}
-                    autoDismissDuration={5000}
-                    showProgress={true}
-                    showCloseButton={true}
-                />
-            )}
-            {showSuccess && (
-                <GlobalMessage
-                    message={success}
-                    type="success"
-                    mode='top'
-                    visible={true}
-                    onDismiss={() => setSuccess('')}
-                    autoDismissDuration={5000}
-                    showProgress={true}
-                    showCloseButton={true}
-                />
-            )}
-        </>
-    );
+  return (
+    <>
+      {showError && (
+        <GlobalMessage
+          message={errorMessage}
+          type='error'
+          visible={true}
+          onDismiss={() => setError(null)}
+          autoDismissDuration={autoDismissDuration}
+          showProgress={true}
+          showCloseButton={true}
+        />
+      )}
+      {showSuccess && (
+        <GlobalMessage
+          message={success}
+          type='success'
+          mode='top'
+          visible={true}
+          onDismiss={() => setSuccess('')}
+          autoDismissDuration={autoDismissDuration}
+          showProgress={true}
+          showCloseButton={true}
+        />
+      )}
+    </>
+  );
 };
 
 export default GlobalMessageManager;

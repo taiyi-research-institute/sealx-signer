@@ -31,6 +31,11 @@ const RootLayout = () => {
     const checkRoute = useCallback(async () => {
         const session = useSessionStore.getState().session
         const address = useInitializedStore.getState().address
+        console.warn('[TRACE-CONNECT:ROUTE] checkRoute', {
+            pathname, hasAddress: !!address, lockTime,
+            hasSession: !!session, sessionExpire: session?.expire,
+            sessionUserId: session?.userId, sessionHost: session?.host,
+        })
         if (!address) {
             if (pathname !== '/initialize' && pathname !== '/initialized')
                 navigate('/initialize', { replace: true });

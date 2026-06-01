@@ -93,6 +93,12 @@ export const Password = ({
 
   useEffect(() => {
     const normalizedPassword = password.slice(0, 6);
+    console.warn('[TRACE-CONNECT:PWD] password prop changed', {
+      from: passwordRef.current,
+      to: normalizedPassword,
+      requiresClickToType,
+      isActivationPending,
+    });
     passwordRef.current = normalizedPassword;
     setDraftPassword(normalizedPassword);
     const enteredClickToTypeMode =
@@ -290,6 +296,7 @@ export const Password = ({
       }
       passwordRef.current = nextPassword;
       setDraftPassword(nextPassword);
+      //   console.warn('[TRACE-CONNECT:PWD] emitPasswordChange', { value, nextPassword, readonly, isActivationPending })
       onChange?.(nextPassword);
       requestAnimationFrame(focusInput);
     },
@@ -335,6 +342,15 @@ export const Password = ({
 
       if (isOwnInput) return;
       if (isEditableTarget && !isInsidePassword) return;
+
+      console.warn('[TRACE-CONNECT:PWD] handleGlobalKeyDown', {
+        key: event.key,
+        currentPassword: passwordRef.current,
+        isOwnInput,
+        isInsidePassword,
+        isEditableTarget,
+        targetTag: target?.tagName,
+      });
 
       if (/^[a-zA-Z0-9]$/.test(event.key)) {
         event.preventDefault();

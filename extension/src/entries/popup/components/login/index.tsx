@@ -15,7 +15,7 @@ import { useSessionStore } from '@src/core/state';
 import type { ConnectionRequest } from 'sealx-message';
 import { loginAnimatingRef, loginAnimatingMeta } from '@src/core/state/login-animating';
 
-const LOGGING_IN_DURATION_MS = 2_000;
+const LOGGING_IN_DURATION_MS = 1_000;
 
 const getPostLoginRoute = (topic?: SealxTopic) => {
     if (topic === SealxTopic.BIND_PK) return '/bind-pubkey';
