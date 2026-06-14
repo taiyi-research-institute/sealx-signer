@@ -21,7 +21,9 @@ import messager from '@src/core/messager'
 import { MessageChannel } from 'sealx-message'
 import type { ReplyFunc } from 'sealx-message'
 import { closeWindow } from '@src/core/background'
+import { useSessionStore } from '@src/core/state';
 import { useLocation } from 'react-router-dom'
+import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { SIGN_OVERLAY_DISMISS_MS } from './constants';
 
 const NoPendingTasks = () => {
@@ -89,6 +91,7 @@ const extractTasks = (payload: unknown): SealxSignTask[] => {
 };
 export const TaskHome = () => {
     const { request } = useRequestContext()
+    const navigate = useSealXNavigate()
     const initialList = (request.topic === SealxTopic.SIGN || request.topic === SealxTopic.BATCH_SIGN)
         ? extractTasks(request.payload)
         : [];
@@ -120,8 +123,10 @@ export const TaskHome = () => {
             setSignProgress(0)
             currentSigningTaskIdRef.current = state.result.taskId
             const reply = replyRef.current ? replyRef.current : request.reply
+            const currentSession = useSessionStore.getState().session
+            if (currentSession) messager.session = currentSession
             try {
-                reply?.(state)
+                reply?.(state.result)
                 messager.send(state.result, SealxTopic.SIGN_RESPONSE, MessageChannel.INPAGE)
             } catch {
                 // Reply channel may already be closed; signing state fallback handles timeout.
@@ -388,7 +393,7 @@ export const TaskHome = () => {
                             {
                                     t.map((task: unknown) => {
                                     const taskProps = task as unknown as SignTaskRenderProps;
-                                    return <SignTaskRender key={taskProps.taskId} {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing}></SignTaskRender>
+                                    return <SignTaskRender key={taskProps.taskId} {...taskProps} onSign={onSign} onReview={onReview} setSigning={setSigning} signing={signing} onSessionExpired={() => navigate('/login', { replace: true })}></SignTaskRender>
                                 })
                             }
                         </div>

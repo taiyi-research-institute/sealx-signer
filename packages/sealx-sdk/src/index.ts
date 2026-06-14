@@ -60,6 +60,17 @@ messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) 
 const CHANNEL_POPUP = MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
 
+const syncSignerSessionFromResponse = async (response?: {
+  session?: typeof sealxSigner.session;
+}) => {
+  if (!response?.session) return;
+  sealxSigner.connected = true;
+  await sealxSigner.initializeSession(response.session);
+  messager.session = sealxSigner.session!;
+};
+
+(messager as typeof messager & { addAfterSendHook: (hook: typeof syncSignerSessionFromResponse) => () => void }).addAfterSendHook(syncSignerSessionFromResponse);
+
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
  * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
@@ -447,7 +458,6 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
         );
     }
 
-    await connectSealx();
     messager.session = sealxSigner.session!;
     if (sealxSigner.account) {
         try {
@@ -566,7 +576,6 @@ export const signBySealx = async <T = unknown>(
         );
     }
 
-    await connectSealx();
     messager.session = sealxSigner.session!;
     if (
         sealxSigner.account?.newPk &&
@@ -600,9 +609,8 @@ export const signBySealx = async <T = unknown>(
                 CHANNEL_POPUP
             );
             if (!res?.payload) {
-                throw new SignException(res?.error ?? '');
+              throw new SignException(res?.error ?? '');
             }
-            // if(res.header.){}
             return res.payload as T;
         }
     } catch (error) {

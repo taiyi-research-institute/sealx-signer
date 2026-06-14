@@ -3,6 +3,7 @@ import './styles.css';
 import { Password } from '../password';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { login } from '@src/core/background';
+import messager from '@src/core/messager';
 // import { localStorageWrapper } from 'sealx-core';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
@@ -191,13 +192,18 @@ export default function Login() {
                 if (res) {
                     loginDoneRef.current = true;
                     setSession(res)
-                    reply.current?.({
-                        session: res, account: {
-                            userId: res.userId,
-                            host: res.host,
-                            pk: res.pk
-                        }
-                    } as never)
+                    messager.session = res
+                    // 仅 CONNECT/LOGIN topic 才 reply session 给 Background
+                    // SIGN/BIND_PK 的 reply 留给业务组件（task-home / bind-pubkey），携带最终结果
+                    if (request.topic === SealxTopic.CONNECT || request.topic === SealxTopic.LOGIN) {
+                        reply.current?.({
+                            session: res, account: {
+                                userId: res.userId,
+                                host: res.host,
+                                pk: res.pk
+                            }
+                        } as never)
+                    }
                     console.warn(
                       `[TRACE-CONNECT:LOGIN] reply sent #${loginCallIndex}`,
                       {

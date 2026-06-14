@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useGlobalContext } from "@src/hooks/useGlobalContext"
 import AddressCardIcon from '@assets/svg/address-card.svg?react'
 import { useRequestContext } from "@src/hooks/useRequestContextHook"
+import { useSessionStore } from '@src/core/state';
 import { bindKey, closeWindow } from "@src/core/background"
 import { SealxTopic, type ReplyFunc } from "sealx-message"
 import messager from "@src/core/messager"
@@ -47,6 +48,8 @@ export const BindPubKey = () => {
         setSigning(true)
         try {
             await bindKey(request.header.userId, request.header.host, address)
+            const currentSession = useSessionStore.getState().session
+            if (currentSession) messager.session = currentSession
             reply.current?.(address as never)
             messager.reply(address, request)
         } finally {

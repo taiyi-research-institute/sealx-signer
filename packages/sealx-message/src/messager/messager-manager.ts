@@ -3,7 +3,7 @@ import ExtensionMessager from './extension-messager';
 import ContentMessager from './content-messager';
 import BackgroundMessager from './background-messager';
 import WindowMessager from './window-messager';
-// import { Messager } from '../contracts';
+import { type Messager } from '../contracts';
 
 /**
  * Manages creation of appropriate message channels based on the current execution environment.
@@ -43,7 +43,7 @@ export default class MessagerManager {
      *          The appropriate messager instance
      * @throws {Error} If the environment is not supported
      */
-    public static getMessager() {
+    public static getMessager(): Messager {
         const env = this.detectEnvironment();
         switch (env) {
             case 'extension':

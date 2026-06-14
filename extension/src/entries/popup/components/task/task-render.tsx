@@ -68,6 +68,8 @@ export interface SignTaskRenderProps extends Omit<
   rejecting?: boolean;
   /** Timestamp when the task expires */
   validUntilTime: number;
+  /** Callback when session expires during signing — should navigate to /login */
+  onSessionExpired?: () => void;
   onSign: (
     taskId: string,
     signatures: string | { taskId: string; signature: string }[] | null,
@@ -457,8 +459,13 @@ const onApproval = async (
           request.header.userId,
           request.header.host,
           signContent.signContent,
-        )) as { signature: string } | null;
+        )) as { signature: string; errorCode?: string } | null;
         if (!res?.signature) {
+          if ((res as any)?.errorCode === 'SESSION_EXPIRED') {
+            props.setSigning?.(false);
+            props.onSessionExpired?.();
+            return;
+          }
           throw new Error(getSigningFailureMessage(res));
         }
         signatures.push({
@@ -476,8 +483,13 @@ const onApproval = async (
         request.header.userId,
         request.header.host,
         props.signContent,
-      )) as { signature: string } | null;
+      )) as { signature: string; errorCode?: string } | null;
       if (!res?.signature) {
+        if ((res as any)?.errorCode === 'SESSION_EXPIRED') {
+          props.setSigning?.(false);
+          props.onSessionExpired?.();
+          return;
+        }
         throw new Error(getSigningFailureMessage(res));
       }
       props.onSign(props.taskId, res.signature);

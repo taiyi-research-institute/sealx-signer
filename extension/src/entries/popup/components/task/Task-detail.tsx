@@ -175,6 +175,7 @@ export const TaskDetail = memo(() => {
                         setSigning={setSigning}
                         rejecting={rejecting}
                         onSign={handleSign}
+                        onSessionExpired={() => navigate('/login', { replace: true })}
                         confirmText={isLastSubTask ? 'Sign To Approve' : 'Next'}
                         extenals={taskData.extenals}
                     />
