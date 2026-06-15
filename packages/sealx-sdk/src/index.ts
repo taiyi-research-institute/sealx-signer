@@ -11,22 +11,30 @@ import { SealxRequest } from 'sealx-message';
 export * from 'sealx-core';
 export * from 'sealx-message';
 
+export {
+	SealxUnavailableException,
+	SealxUninitializedException,
+	PkException,
+	SignException,
+	SessionException,
+};
+
 /**
  * @file SealX SDK main module
  * @module sealx-sdk
  * @description Provides core functionality for interacting with SealX browser extension
  * including session management, account initialization, public key binding, and document signing.
- * 
+ *
  * @example
  * ```typescript
  * import { initSealx, bindSealx, signBySealx } from 'sealx-sdk';
- * 
+ *
  * // Initialize session
  * await initSealx('user-123');
- * 
+ *
  * // Bind public key
  * const publicKey = await bindSealx();
- * 
+ *
  * // Sign a document
  * const signature = await signBySealx({
  *   taskId: 'doc-123',
@@ -44,14 +52,18 @@ SealxProvider.register();
 const sealxSigner = window.sealxSigner;
 const messager = MessagerManager.getMessager();
 
-messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
-    // callback(request.payload)
-    if (request.payload) {
-        sealxSigner.activate()
-    } else {
-        sealxSigner.deactivate()
-    }
-}, MessageChannel.BACKGROUND)
+messager.on(
+	SealxTopic.CHECK_INITIALIZED,
+	async (request: SealxRequest<string>) => {
+		// callback(request.payload)
+		if (request.payload) {
+			sealxSigner.activate();
+		} else {
+			sealxSigner.deactivate();
+		}
+	},
+	MessageChannel.BACKGROUND,
+);
 
 /**
  * Message channel constants for communication with SealX extension
@@ -61,15 +73,21 @@ const CHANNEL_POPUP = MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
 
 const syncSignerSessionFromResponse = async (response?: {
-  session?: typeof sealxSigner.session;
+	session?: typeof sealxSigner.session;
 }) => {
-  if (!response?.session) return;
-  sealxSigner.connected = true;
-  await sealxSigner.initializeSession(response.session);
-  messager.session = sealxSigner.session!;
+	if (!response?.session) return;
+	sealxSigner.connected = true;
+	await sealxSigner.initializeSession(response.session);
+	messager.session = sealxSigner.session!;
 };
 
-(messager as typeof messager & { addAfterSendHook: (hook: typeof syncSignerSessionFromResponse) => () => void }).addAfterSendHook(syncSignerSessionFromResponse);
+(
+	messager as typeof messager & {
+		addAfterSendHook: (
+			hook: typeof syncSignerSessionFromResponse,
+		) => () => void;
+	}
+).addAfterSendHook(syncSignerSessionFromResponse);
 
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
@@ -80,85 +98,100 @@ const SEALX_ACTION_VALUE = 'open';
 const SEALX_SOURCE_ATTR = 'sealx-component';
 
 export const setupSealxActions = () => {
-    document.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
-        if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
-            el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
-        }
-    });
+	document.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
+		if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
+			el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+		}
+	});
 };
 
 // DOMContentLoaded 时扫描已渲染的元素
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupSealxActions);
+	document.addEventListener('DOMContentLoaded', setupSealxActions);
 } else {
-    setupSealxActions();
+	setupSealxActions();
 }
 
 const sealxId = () => {
-  const time = Date.now().toString(16);
-  const random = Math.floor(Math.random() * 1e6).toString(16);
-  return `sealx-${time}-${random}`;
+	const time = Date.now().toString(16);
+	const random = Math.floor(Math.random() * 1e6).toString(16);
+	return `sealx-${time}-${random}`;
 };
 // MutationObserver: 监听后续动态添加的 sealx 元素
 const sealxObserver = new MutationObserver((mutations) => {
-    for (const mutation of mutations) {
-        mutation.addedNodes.forEach((node) => {
-            if (node instanceof HTMLElement) {
-                if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
-                    if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
-                        node.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
-                        node.setAttribute('data-sealx-id', sealxId());
-                        window.postMessage(
-                          {
-                            type: 'sealx-element-updated',
-                            'data-sealx-id': node.getAttribute('data-sealx-id'),
-                          },
-                          '*',
-                        );
-                    }
-                }
-                // 同时扫描子节点
-                if (node.querySelectorAll) {
-                    node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
-                        if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
-                            el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
-                            el.setAttribute('data-sealx-id', sealxId());
-                            window.postMessage(
-                              {
-                                type: 'sealx-element-updated',
-                                'data-sealx-id':
-                                  el.getAttribute('data-sealx-id'),
-                              },
-                              '*',
-                            );
-                        }
-                    });
-                }
-            }
-        });
-        // 属性变更也可能添加 sealx
-        if (mutation.type === 'attributes' && mutation.attributeName === SEALX_SOURCE_ATTR) {
-            const el = mutation.target as HTMLElement;
-            if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
-                el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
-                el.setAttribute('data-sealx-id', sealxId());
-                window.postMessage(
-                  {
-                    type: 'sealx-element-updated',
-                    'data-sealx-id': el.getAttribute('data-sealx-id'),
-                  },
-                  '*',
-                );
-            }
-        }
-    }
+	for (const mutation of mutations) {
+		mutation.addedNodes.forEach((node) => {
+			if (node instanceof HTMLElement) {
+				if (node.hasAttribute && node.hasAttribute(SEALX_SOURCE_ATTR)) {
+					if (!node.hasAttribute(SEALX_ACTION_ATTR)) {
+						node.setAttribute(
+							SEALX_ACTION_ATTR,
+							SEALX_ACTION_VALUE,
+						);
+						node.setAttribute('data-sealx-id', sealxId());
+						window.postMessage(
+							{
+								type: 'sealx-element-updated',
+								'data-sealx-id':
+									node.getAttribute('data-sealx-id'),
+							},
+							'*',
+						);
+					}
+				}
+				// 同时扫描子节点
+				if (node.querySelectorAll) {
+					node.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach(
+						(el) => {
+							if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
+								el.setAttribute(
+									SEALX_ACTION_ATTR,
+									SEALX_ACTION_VALUE,
+								);
+								el.setAttribute('data-sealx-id', sealxId());
+								window.postMessage(
+									{
+										type: 'sealx-element-updated',
+										'data-sealx-id':
+											el.getAttribute('data-sealx-id'),
+									},
+									'*',
+								);
+							}
+						},
+					);
+				}
+			}
+		});
+		// 属性变更也可能添加 sealx
+		if (
+			mutation.type === 'attributes' &&
+			mutation.attributeName === SEALX_SOURCE_ATTR
+		) {
+			const el = mutation.target as HTMLElement;
+			if (
+				el.hasAttribute(SEALX_SOURCE_ATTR) &&
+				!el.hasAttribute(SEALX_ACTION_ATTR)
+			) {
+				el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
+				el.setAttribute('data-sealx-id', sealxId());
+				window.postMessage(
+					{
+						type: 'sealx-element-updated',
+						'data-sealx-id': el.getAttribute('data-sealx-id'),
+					},
+					'*',
+				);
+			}
+		}
+	}
 });
 
 sealxObserver.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: [SEALX_SOURCE_ATTR],
+	childList: true,
+	subtree: true,
+	attributes: true,
+	attributeFilter: [SEALX_SOURCE_ATTR],
 });
 
 /**
@@ -166,21 +199,21 @@ sealxObserver.observe(document.documentElement, {
  * @private
  */
 let sealxStatusCache: {
-    isActive: boolean;
-    timestamp: number;
+	isActive: boolean;
+	timestamp: number;
 } | null = null;
 const CACHE_TTL = 5000; // 5 seconds cache TTL
 
 /**
  * Checks if SealX browser extension is installed and active
- * 
+ *
  * @remarks
  * This function verifies that the SealX extension is both installed in the browser
  * and currently active. It should be called before attempting any SealX operations.
  * Uses caching to reduce redundant checks (5-second TTL).
- * 
+ *
  * @returns {Promise<boolean>} True if the SealX extension is installed and active, false otherwise
- * 
+ *
  * @example
  * ```typescript
  * if (await isSealxActive()) {
@@ -192,31 +225,31 @@ const CACHE_TTL = 5000; // 5 seconds cache TTL
  * ```
  */
 export const isSealxActive = async (): Promise<boolean> => {
-    // Check cache first
-    const now = Date.now();
-    if (sealxStatusCache && (now - sealxStatusCache.timestamp) < CACHE_TTL) {
-        return sealxStatusCache.isActive;
-    }
+	// Check cache first
+	const now = Date.now();
+	if (sealxStatusCache && now - sealxStatusCache.timestamp < CACHE_TTL) {
+		return sealxStatusCache.isActive;
+	}
 
-    const isActive = (await checkSealx()) !== null;
-    sealxSigner.active = isActive;
-    if (isActive && !sealxSigner.installed) {
-        sealxSigner.installed = true;
-        void sealxSigner.storageWrapper.setItem('installed', true);
-    }
+	const isActive = (await checkSealx()) !== null;
+	sealxSigner.active = isActive;
+	if (isActive && !sealxSigner.installed) {
+		sealxSigner.installed = true;
+		void sealxSigner.storageWrapper.setItem('installed', true);
+	}
 
-    // Update cache
-    sealxStatusCache = {
-        isActive,
-        timestamp: now
-    };
+	// Update cache
+	sealxStatusCache = {
+		isActive,
+		timestamp: now,
+	};
 
-    return isActive;
+	return isActive;
 };
 
 /**
  * Initializes the SealX session for a user
- * 
+ *
  * @remarks
  * This function sets up the initial session with the SealX browser extension.
  * It should be called before any other SealX operations. The function will:
@@ -224,13 +257,13 @@ export const isSealxActive = async (): Promise<boolean> => {
  * - Initialize the session if it doesn't exist or has expired
  * - Set up the user account with the provided user ID
  * - Configure the message session for communication
- * 
+ *
  * @param {string | number} userId - The unique identifier for the user. This ID will be associated with the SealX session.
  * @returns {Promise<void>} A promise that resolves when initialization is complete
  * @throws {SealxUnavailableException} If SealX extension is not installed or not active
  * @throws {SessionException} If session initialization fails due to communication issues
  * @throws {Error} If the user ID is not provided or other unexpected errors occur
- * 
+ *
  * @example
  * ```typescript
  * try {
@@ -248,61 +281,62 @@ export const isSealxActive = async (): Promise<boolean> => {
  * ```
  */
 export const initSealx = async (userId: string | number): Promise<void> => {
-    if (!userId) {
-        throw new Error(
-            'User ID is required to initialize SealX session. Please provide a valid user ID.'
-        );
-    }
-    sealxSigner.active = (await checkSealx()) !== null;
-    // Check if SealX is active first
-    if (!(await isSealxActive())) {
-        throw new SealxUnavailableException(
-            'SealX extension is not installed or not active. Please install the SealX browser extension.'
-        );
-    }
+	if (!userId) {
+		throw new Error(
+			'User ID is required to initialize SealX session. Please provide a valid user ID.',
+		);
+	}
+	sealxSigner.active = (await checkSealx()) !== null;
+	// Check if SealX is active first
+	if (!(await isSealxActive())) {
+		throw new SealxUnavailableException(
+			'SealX extension is not installed or not active. Please install the SealX browser extension.',
+		);
+	}
 
-    try {
-        if (
-            !sealxSigner.session ||
-            sealxSigner.session.expire < Date.now() ||
-            !sealxSigner.account
-        ) {
-            await sealxSigner.initialize();
-        }
+	try {
+		if (
+			!sealxSigner.session ||
+			sealxSigner.session.expire < Date.now() ||
+			!sealxSigner.account
+		) {
+			await sealxSigner.initialize();
+		}
 
-        if (!sealxSigner.account || sealxSigner.account.userId != userId) {
-            await sealxSigner.initializeAccount({
-                userId,
-                email: '',
-                userName: '',
-            });
-        }
+		if (!sealxSigner.account || sealxSigner.account.userId != userId) {
+			await sealxSigner.initializeAccount({
+				userId,
+				email: '',
+				userName: '',
+			});
+		}
 
-        if (
-            sealxSigner.session &&
-            sealxSigner.session.expire > Date.now() &&
-            sealxSigner.session.userId
-        ) {
-            messager.session = sealxSigner.session;
-        }
-    } catch (error) {
-        console.error('SealX initialization failed:', error);
-        if (
-            error instanceof SealxUnavailableException ||
-            error instanceof SessionException
-        ) {
-            throw error;
-        }
-        throw new Error(
-            `SealX initialization failed: ${error instanceof Error ? error.message : String(error)
-            }`
-        );
-    }
+		if (
+			sealxSigner.session &&
+			sealxSigner.session.expire > Date.now() &&
+			sealxSigner.session.userId
+		) {
+			messager.session = sealxSigner.session;
+		}
+	} catch (error) {
+		console.error('SealX initialization failed:', error);
+		if (
+			error instanceof SealxUnavailableException ||
+			error instanceof SessionException
+		) {
+			throw error;
+		}
+		throw new Error(
+			`SealX initialization failed: ${
+				error instanceof Error ? error.message : String(error)
+			}`,
+		);
+	}
 };
 
 /**
  * Connects to SealX extension and establishes a session
- * 
+ *
  * @remarks
  * This function establishes a connection with the SealX browser extension and creates a session.
  * It should be called when you need to re-establish a connection or when the session has expired.
@@ -311,14 +345,14 @@ export const initSealx = async (userId: string | number): Promise<void> => {
  * - Send a connection request to the extension background
  * - Initialize the session and account with the response data
  * - Configure the message session for communication
- * 
+ *
  * @param {string | number} [uId=''] - Optional user ID to use if the account is not already initialized.
  * If provided and different from the current account, it will update the account user ID.
  * @returns {Promise<void>} A promise that resolves when the connection is established
  * @throws {SealxUnavailableException} If SealX extension is not installed or not active
  * @throws {SealxUninitializedException} If SealX plugin is not properly initialized
  * @throws {SessionException} If connection fails due to communication issues or invalid response
- * 
+ *
  * @example
  * ```typescript
  * try {
@@ -336,74 +370,76 @@ export const initSealx = async (userId: string | number): Promise<void> => {
  * ```
  */
 export const connectSealx = async (
-    uId: string | number = ''
+	uId: string | number = '',
 ): Promise<void> => {
-    const title = document.title;
-    // const userId = sealxSigner.account?.userId ?? uId;
-    if (uId && uId != sealxSigner.account?.userId) {
-        sealxSigner.account = {
-            userId: uId,
-        };
-    }
-    if (!(await isSealxActive())) {
-        throw new SealxUnavailableException(
-            'SealX extension is not installed or not active'
-        );
-    }
+	const title = document.title;
+	// const userId = sealxSigner.account?.userId ?? uId;
+	if (uId && uId != sealxSigner.account?.userId) {
+		sealxSigner.account = {
+			userId: uId,
+		};
+	}
+	if (!(await isSealxActive())) {
+		throw new SealxUnavailableException(
+			'SealX extension is not installed or not active',
+		);
+	}
 
-    // Initialize if needed
-    if (!sealxSigner.account?.userId) {
-        throw new SealxUninitializedException(
-            'SealX plugin not initialized. Please call initSealx() or connectSealx() first.'
-        );
-    }
+	// Initialize if needed
+	if (!sealxSigner.account?.userId) {
+		throw new SealxUninitializedException(
+			'SealX plugin not initialized. Please call initSealx() or connectSealx() first.',
+		);
+	}
 
-    const userId = sealxSigner.account.userId;
+	const userId = sealxSigner.account.userId;
 
-    console.warn('[TRACE-CONNECT:SDK] connectSealx sending', {
-        payloadUserId: userId,
-        headerHost: messager.host,
-        title,
-        hasSession: !!sealxSigner.session,
-        sessionUserId: sealxSigner.session?.userId,
-        sessionHost: sealxSigner.session?.host,
-        sessionExpire: sealxSigner.session?.expire,
-    });
+	console.warn('[TRACE-CONNECT:SDK] connectSealx sending', {
+		payloadUserId: userId,
+		headerHost: (messager as any).host,
+		title,
+		hasSession: !!sealxSigner.session,
+		sessionUserId: sealxSigner.session?.userId,
+		sessionHost: sealxSigner.session?.host,
+		sessionExpire: sealxSigner.session?.expire,
+	});
 
-    try {
-            const res = await messager.send(
-                { userId, title },
-                SealxTopic.CONNECT,
-                CHANNEL_BACKGROUND
-            );
+	try {
+		const res = await messager.send(
+			{ userId, title },
+			SealxTopic.CONNECT,
+			CHANNEL_BACKGROUND,
+		);
 
-            if (!res?.payload?.session || !res?.payload?.account) {
-                console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', { payload: res?.payload })
-                throw new SessionException('Invalid connection response');
-            }
-            console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
-                sessionUserId: res.payload.session?.userId,
-                sessionHost: res.payload.session?.host,
-                sessionExpire: res.payload.session?.expire,
-                accountUserId: res.payload.account?.userId,
-                accountHost: res.payload.account?.host,
-            });
-            sealxSigner.connected = true;
-            await sealxSigner.initializeSession(res.payload.session);
-            await sealxSigner.initializeAccount(res.payload.account);
-        } catch (error) {
-            console.error('Connection failed:', error);
-            throw new SessionException('Failed to connect to SealX extension');
-        }
+		if (!res?.payload?.session || !res?.payload?.account) {
+			console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', {
+				payload: res?.payload,
+			});
+			throw new SessionException('Invalid connection response');
+		}
+		console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
+			sessionUserId: res.payload.session?.userId,
+			sessionHost: res.payload.session?.host,
+			sessionExpire: res.payload.session?.expire,
+			accountUserId: res.payload.account?.userId,
+			accountHost: res.payload.account?.host,
+		});
+		sealxSigner.connected = true;
+		await sealxSigner.initializeSession(res.payload.session);
+		await sealxSigner.initializeAccount(res.payload.account);
+	} catch (error) {
+		console.error('Connection failed:', error);
+		throw new SessionException('Failed to connect to SealX extension');
+	}
 
-    if (sealxSigner.session) {
-        messager.session = sealxSigner.session;
-    }
+	if (sealxSigner.session) {
+		messager.session = sealxSigner.session;
+	}
 };
 
 /**
  * Binds a public key to the current SealX account
- * 
+ *
  * @remarks
  * This function initiates the public key binding process with the SealX extension.
  * It opens the extension popup to allow the user to generate or import a public key.
@@ -412,14 +448,14 @@ export const connectSealx = async (
  * - Ensure a valid session exists
  * - Send a public key binding request to the extension
  * - Store the returned public key in the account
- * 
+ *
  * @param {string | number} [userId] - Optional user ID to use for binding.
  * If provided and different from the current account, it will update the account user ID.
  * @returns {Promise<string>} A promise that resolves to the bound public key string
  * @throws {SealxUnavailableException} If SealX extension is not installed or not active
  * @throws {SealxUninitializedException} If SealX plugin is not properly initialized
  * @throws {Error} If binding fails due to communication issues or no response payload
- * 
+ *
  * @example
  * ```typescript
  * try {
@@ -437,59 +473,60 @@ export const connectSealx = async (
  * ```
  */
 export const bindSealx = async (userId?: string | number): Promise<string> => {
-    // Check if SealX is active first
-    if (!(await isSealxActive())) {
-        throw new SealxUnavailableException(
-            'SealX extension is not installed or not active'
-        );
-    }
+	// Check if SealX is active first
+	if (!(await isSealxActive())) {
+		throw new SealxUnavailableException(
+			'SealX extension is not installed or not active',
+		);
+	}
 
-    if (userId && userId != sealxSigner.account?.userId) {
-        // await initSealx(userId)
-        sealxSigner.account = {
-            userId,
-        };
-    }
+	if (userId && userId != sealxSigner.account?.userId) {
+		// await initSealx(userId)
+		sealxSigner.account = {
+			userId,
+		};
+	}
 
-    // Initialize if needed
-    if (!sealxSigner.account?.userId) {
-        throw new SealxUninitializedException(
-            'SealX plugin not initialized. Please call initSealx() or connectSealx() first.'
-        );
-    }
+	// Initialize if needed
+	if (!sealxSigner.account?.userId) {
+		throw new SealxUninitializedException(
+			'SealX plugin not initialized. Please call initSealx() or connectSealx() first.',
+		);
+	}
 
-    messager.session = sealxSigner.session!;
-    if (sealxSigner.account) {
-        try {
-            const res = await messager.send(
-                sealxSigner.account.userId,
-                SealxTopic.BIND_PK,
-                CHANNEL_POPUP
-            );
-            if (!res?.payload) {
-                throw new Error(
-                    'Failed to bind public key: No response payload received'
-                );
-            }
-            sealxSigner.account.newPk = '';
-            sealxSigner.account.pk = res.payload;
-            closeSealx()
-            return res.payload as string;
-        } catch (error) {
-            console.error('Public key binding failed:', error);
-            throw new Error(
-                `Failed to bind public key: ${error instanceof Error ? error.message : String(error)
-                }`
-            );
-        }
-    }
+	messager.session = sealxSigner.session!;
+	if (sealxSigner.account) {
+		try {
+			const res = await messager.send(
+				sealxSigner.account.userId,
+				SealxTopic.BIND_PK,
+				CHANNEL_POPUP,
+			);
+			if (!res?.payload) {
+				throw new Error(
+					'Failed to bind public key: No response payload received',
+				);
+			}
+			sealxSigner.account.newPk = '';
+			sealxSigner.account.pk = res.payload;
+			closeSealx();
+			return res.payload as string;
+		} catch (error) {
+			console.error('Public key binding failed:', error);
+			throw new Error(
+				`Failed to bind public key: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+		}
+	}
 
-    throw new Error('SealX account not available for binding');
+	throw new Error('SealX account not available for binding');
 };
 
 /**
  * Signs one or more tasks using SealX service
- * 
+ *
  * @remarks
  * This is the main signing function that allows you to sign documents or data using the SealX extension.
  * It supports both single tasks and batch processing. The function will:
@@ -498,7 +535,7 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  * - Check for public key consistency
  * - Send the signing request to the extension
  * - Handle both single and batch signing operations
- * 
+ *
  * @template T - The type of the expected payload returned from the signing operation
  * @param {SealxSignTask | SealxSignTask[]} task - Single task or array of tasks to sign.
  * Each task should contain the necessary data for signing, including task ID and document content.
@@ -513,7 +550,7 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  * @throws {PkException} If there's a public key mismatch between current and registered keys
  * @throws {SignException} If signing fails or no payload is received from the extension
  * @throws {Error} For other unexpected errors during the signing process
- * 
+ *
  * @example
  * ```typescript
  * // Single task signing
@@ -535,7 +572,7 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  *     console.error('Unexpected error:', error);
  *   }
  * }
- * 
+ *
  * // Batch task signing
  * try {
  *   const signatures = signBySealx([
@@ -543,7 +580,7 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  *     { taskId: 'doc-2', data: 'document 2' },
  *     { taskId: 'doc-3', data: 'document 3' }
  *   ]);
- *   
+ *
  *   if (signatures && typeof signatures[Symbol.asyncIterator] === 'function') {
  *     for await (const signature of signatures) {
  *       console.log('Received signature:', signature);
@@ -555,83 +592,84 @@ export const bindSealx = async (userId?: string | number): Promise<string> => {
  * ```
  */
 export const signBySealx = async <T = unknown>(
-    task: SealxSignTask | SealxSignTask[],
-    userId?: string | number
+	task: SealxSignTask | SealxSignTask[],
+	userId?: string | number,
 ): Promise<T | AsyncGenerator<T> | undefined> => {
-    if (!(await isSealxActive())) {
-        throw new SealxUnavailableException(
-            'SealX extension is not installed or not active'
-        );
-    }
-    if (userId && userId != sealxSigner.account?.userId) {
-        // await initSealx(userId)
-        sealxSigner.account = {
-            userId,
-        };
-    }
-    // Initialize if needed
-    if (!sealxSigner.account?.userId) {
-        throw new SealxUninitializedException(
-            'SealX plugin not initialized. Please call initSealx() or connectSealx() first.'
-        );
-    }
+	if (!(await isSealxActive())) {
+		throw new SealxUnavailableException(
+			'SealX extension is not installed or not active',
+		);
+	}
+	if (userId && userId != sealxSigner.account?.userId) {
+		// await initSealx(userId)
+		sealxSigner.account = {
+			userId,
+		};
+	}
+	// Initialize if needed
+	if (!sealxSigner.account?.userId) {
+		throw new SealxUninitializedException(
+			'SealX plugin not initialized. Please call initSealx() or connectSealx() first.',
+		);
+	}
 
-    messager.session = sealxSigner.session!;
-    if (
-        sealxSigner.account?.newPk &&
-        sealxSigner.account.newPk !== sealxSigner.account.pk
-    ) {
-        throw new PkException(
-            'Public key mismatch - new key does not match registered key'
-        );
-    }
-    try {
-        if (Array.isArray(task)) {
-            // For batch tasks, create an async generator that processes the stream
-            const responseStream = messager.sendStream(
-                task,
-                SealxTopic.BATCH_SIGN,
-                CHANNEL_POPUP
-            );
-            return (async function* () {
-                for await (const response of responseStream) {
-                    if (!response?.payload) {
-                        throw new SignException(response?.error ?? '');
-                    }
-                    yield response.payload as T;
-                }
-            })();
-        } else {
-            // For single task, await the direct response
-            const res = await messager.send(
-                task,
-                SealxTopic.SIGN,
-                CHANNEL_POPUP
-            );
-            if (!res?.payload) {
-              throw new SignException(res?.error ?? '');
-            }
-            return res.payload as T;
-        }
-    } catch (error) {
-        console.error('Signing failed:', error);
-        if (!(error instanceof SignException))
-            throw new Error(
-                `Signing failed: ${error instanceof Error ? error.message : String(error)
-                }`
-            );
-    }
+	messager.session = sealxSigner.session!;
+	if (
+		sealxSigner.account?.newPk &&
+		sealxSigner.account.newPk !== sealxSigner.account.pk
+	) {
+		throw new PkException(
+			'Public key mismatch - new key does not match registered key',
+		);
+	}
+	try {
+		if (Array.isArray(task)) {
+			// For batch tasks, create an async generator that processes the stream
+			const responseStream = messager.sendStream(
+				task,
+				SealxTopic.BATCH_SIGN,
+				CHANNEL_POPUP,
+			);
+			return (async function* () {
+				for await (const response of responseStream) {
+					if (!response?.payload) {
+						throw new SignException(response?.error ?? '');
+					}
+					yield response.payload as T;
+				}
+			})();
+		} else {
+			// For single task, await the direct response
+			const res = await messager.send(
+				task,
+				SealxTopic.SIGN,
+				CHANNEL_POPUP,
+			);
+			if (!res?.payload) {
+				throw new SignException(res?.error ?? '');
+			}
+			return res.payload as T;
+		}
+	} catch (error) {
+		console.error('Signing failed:', error);
+		if (!(error instanceof SignException))
+			throw new Error(
+				`Signing failed: ${
+					error instanceof Error ? error.message : String(error)
+				}`,
+			);
+	}
 };
 
 /**
  * Checks if a valid SealX session exists and is not expired
- * 
+ *
  * @remarks
  * This function verifies that a valid session exists and has not expired.
  * It's useful for checking session status without attempting to re-establish a connection.
- * 
+ *
  * @returns {boolean} True if a valid session exists and is not expired, false otherwise
- * 
+ *
  * @example
  * ```typescript
  * if (isSessionAvailable()) {
@@ -644,7 +682,7 @@ export const signBySealx = async <T = unknown>(
  * ```
  */
 export const isSessionAvailable = (): boolean => {
-    return !!sealxSigner.session && sealxSigner.session.expire >= Date.now();
+	return !!sealxSigner.session && sealxSigner.session.expire >= Date.now();
 };
 
 /**
@@ -655,11 +693,11 @@ export const sealxActive = isSealxActive;
 
 /**
  * Sends a sign response message for a completed signing operation
- * 
+ *
  * @remarks
  * This function is typically used internally to send response messages back to the extension
  * after processing sign requests. It confirms that a signing operation has been completed.
- * 
+ *
  * @param {string} taskId - The unique identifier of the task that was signed
  * @param {string} [error=''] - Optional error message if the signing operation failed
  * @param {string | number} [userId] - Optional user ID to use for the response
@@ -667,7 +705,7 @@ export const sealxActive = isSealxActive;
  * @throws {SealxUnavailableException} If SealX extension is not installed or not active
  * @throws {SealxUninitializedException} If SealX plugin is not properly initialized
  * @throws {SignException} If the response contains an error or no payload is received
- * 
+ *
  * @example
  * ```typescript
  * try {
@@ -685,54 +723,53 @@ export const sealxActive = isSealxActive;
  * ```
  */
 export const sendSignResponse = async (
-    taskId: string,
-    error: string = '',
-    userId?: string | number
+	taskId: string,
+	error: string = '',
+	userId?: string | number,
 ): Promise<any> => {
-    if (!(await isSealxActive())) {
-        throw new SealxUnavailableException(
-            'SealX extension is not installed or not active'
-        );
-    }
+	if (!(await isSealxActive())) {
+		throw new SealxUnavailableException(
+			'SealX extension is not installed or not active',
+		);
+	}
 
-    if (userId && userId != sealxSigner.account?.userId) {
-        // await initSealx(userId)
-        sealxSigner.account = {
-            userId,
-        };
-    }
-    // Initialize if needed
-    if (!sealxSigner.account?.userId) {
-        throw new SealxUninitializedException(
-            'SealX plugin not initialized. Please call initSealx() or connectSealx() first.'
-        );
-    }
+	if (userId && userId != sealxSigner.account?.userId) {
+		// await initSealx(userId)
+		sealxSigner.account = {
+			userId,
+		};
+	}
+	// Initialize if needed
+	if (!sealxSigner.account?.userId) {
+		throw new SealxUninitializedException(
+			'SealX plugin not initialized. Please call initSealx() or connectSealx() first.',
+		);
+	}
 
-    const res = await messager.send(
-        {
-            taskId,
-            error,
-        },
-        SealxTopic.SIGN_RESPONSE,
-        CHANNEL_POPUP
-    );
-    if (!res?.payload) {
-        throw new SignException(res?.error ?? '');
-    }
+	const res = await messager.send(
+		{
+			taskId,
+			error,
+		},
+		SealxTopic.SIGN_RESPONSE,
+		CHANNEL_POPUP,
+	);
+	if (!res?.payload) {
+		throw new SignException(res?.error ?? '');
+	}
 
-    // 签名响应已成功发送给插件，延迟发送关闭消息通知 background 关闭 popup
-    // 延迟 500ms 确保 SIGN_RESPONSE 先到达 popup 处理完成
-    setTimeout(() => {
-        try {
-            messager.send('', SealxTopic.CLOSE, CHANNEL_BACKGROUND);
-        } catch (e) {
-            console.warn('[SealX] Failed to send close message:', e);
-        }
-    }, 500);
+	// 签名响应已成功发送给插件，延迟发送关闭消息通知 background 关闭 popup
+	// 延迟 500ms 确保 SIGN_RESPONSE 先到达 popup 处理完成
+	setTimeout(() => {
+		try {
+			messager.send('', SealxTopic.CLOSE, CHANNEL_BACKGROUND);
+		} catch (e) {
+			console.warn('[SealX] Failed to send close message:', e);
+		}
+	}, 500);
 
-    return res.payload;
+	return res.payload;
 };
-
 
 /**
  * Sets up an event listener for sign response messages for specific task IDs
@@ -767,49 +804,55 @@ export const sendSignResponse = async (
  * ```
  */
 export const onSign = (callback: MessageHandle, taskId?: any) => {
-    const handle: MessageHandle = async (
-        request: SealxRequest<{ taskId: string; signatures: any[] }>,
-        reply?: (res: any) => void
-    ) => {
-        const taskIds = (
-            taskId instanceof Array ? taskId : !!taskId ? [taskId] : []
-        ).map((t) => t + '');
-        if (
-            request.payload &&
-            (taskIds.length === 0 ||
-                taskIds.includes(request.payload.taskId + ''))
-        ) {
-            try {
-                await callback(request, reply);
-            } catch (e) {
-                const error = e instanceof Error ? e.message : String(e);
-                try {
-                    await sendSignResponse(request.payload.taskId, error);
-                } catch (sendError) {
-                    console.warn('[SealX] Failed to send error sign response:', sendError);
-                }
-                return;
-            }
-            // sendSignResponse 成功发送确认回插件，不阻塞主流程
-            try {
-                await sendSignResponse(request.payload.taskId);
-            } catch (sendError) {
-                // 回传失败不影响业务页面已收到的签名结果
-                console.warn('[SealX] Failed to send sign response back to plugin:', sendError);
-            }
-        }
-    };
-    const off = messager.on(SealxTopic.SIGN_RESPONSE, handle, CHANNEL_POPUP);
-    return () => off();
+	const handle: MessageHandle = async (
+		request: SealxRequest<{ taskId: string; signatures: any[] }>,
+		reply?: (res: any) => void,
+	) => {
+		const taskIds = (
+			taskId instanceof Array ? taskId : !!taskId ? [taskId] : []
+		).map((t) => t + '');
+		if (
+			request.payload &&
+			(taskIds.length === 0 ||
+				taskIds.includes(request.payload.taskId + ''))
+		) {
+			try {
+				await callback(request, reply);
+			} catch (e) {
+				const error = e instanceof Error ? e.message : String(e);
+				try {
+					await sendSignResponse(request.payload.taskId, error);
+				} catch (sendError) {
+					console.warn(
+						'[SealX] Failed to send error sign response:',
+						sendError,
+					);
+				}
+				return;
+			}
+			// sendSignResponse 成功发送确认回插件，不阻塞主流程
+			try {
+				await sendSignResponse(request.payload.taskId);
+			} catch (sendError) {
+				// 回传失败不影响业务页面已收到的签名结果
+				console.warn(
+					'[SealX] Failed to send sign response back to plugin:',
+					sendError,
+				);
+			}
+		}
+	};
+	const off = messager.on(SealxTopic.SIGN_RESPONSE, handle, CHANNEL_POPUP);
+	return () => off();
 };
 
 /**
  * Closes the SealX extension connection
- * 
+ *
  * @remarks
  * This function sends a close message to the SealX extension background service.
  * It can be used to clean up resources and notify the extension that the connection is ending.
- * 
+ *
  * @example
  * ```typescript
  * // Clean up before page unload
@@ -819,21 +862,21 @@ export const onSign = (callback: MessageHandle, taskId?: any) => {
  * ```
  */
 export const closeSealx = () => {
-    messager.send('', SealxTopic.CLOSE, MessageChannel.BACKGROUND);
+	messager.send('', SealxTopic.CLOSE, MessageChannel.BACKGROUND);
 };
 
 /**
  * Checks if the SealX extension is initialized and ready
- * 
+ *
  * @remarks
  * This function performs a health check on the SealX extension by sending a check message
  * to the background service. It attempts multiple times (with retry logic) to ensure
  * reliable detection of the extension's initialization status.
- * 
+ *
  * @returns {Promise<string | null>} A promise that resolves to:
  *   - The extension status payload if initialized and ready
  *   - null if the extension is not available or not initialized
- * 
+ *
  * @example
  * ```typescript
  * const status = await checkSealx();
@@ -847,44 +890,44 @@ export const closeSealx = () => {
  * ```
  */
 export const checkSealx = async (): Promise<string | null> => {
-    const maxRetries = 3;
-    const retryDelay = 100;
+	const maxRetries = 3;
+	const retryDelay = 100;
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-            const res = await messager.send(
-                '',
-                SealxTopic.CHECK_INITIALIZED,
-                MessageChannel.BACKGROUND
-            );
+	for (let attempt = 0; attempt < maxRetries; attempt++) {
+		try {
+			const res = await messager.send(
+				'',
+				SealxTopic.CHECK_INITIALIZED,
+				MessageChannel.BACKGROUND,
+			);
 
-            if (res?.payload) {
-                return res.payload;
-            }
-        } catch {
-            // Retry transient extension messaging failures.
-        }
+			if (res?.payload) {
+				return res.payload;
+			}
+		} catch {
+			// Retry transient extension messaging failures.
+		}
 
-        // Wait before next retry, except on last attempt
-        if (attempt < maxRetries - 1) {
-            await wait(retryDelay);
-        }
-    }
+		// Wait before next retry, except on last attempt
+		if (attempt < maxRetries - 1) {
+			await wait(retryDelay);
+		}
+	}
 
-    return null;
+	return null;
 };
 
-let checkTimer: any = null
+let checkTimer: any = null;
 /**
  * Sets up a callback to monitor SealX extension activation status
- * 
+ *
  * @remarks
  * This function registers a callback that will be invoked when the SealX extension
  * activation status changes. Useful for real-time monitoring of extension availability.
- * 
+ *
  * @param {function} callback - Function to call when activation status changes.
  * Receives the extension address/status as a string parameter.
- * 
+ *
  * @example
  * ```typescript
  * checkSealxActive((status) => {
@@ -897,52 +940,56 @@ let checkTimer: any = null
  * ```
  */
 export const checkSealxActive = (callback: (address: string) => void) => {
-    messager.on(SealxTopic.CHECK_INITIALIZED, async (request: SealxRequest<string>) => {
-        callback(request.payload)
-    }, MessageChannel.BACKGROUND)
-    if (checkTimer) {
-        clearInterval(checkTimer)
-    }
-    checkTimer = setInterval(async () => {
-        const res = await messager.send(
-            '',
-            SealxTopic.CHECK_INITIALIZED,
-            MessageChannel.BACKGROUND
-        );
-        if (res.payload) {
-            sealxSigner.activate()
-        } else {
-            sealxSigner.deactivate()
-        }
-        callback(res.payload)
-    }, 2000)
-}
+	messager.on(
+		SealxTopic.CHECK_INITIALIZED,
+		async (request: SealxRequest<string>) => {
+			callback(request.payload);
+		},
+		MessageChannel.BACKGROUND,
+	);
+	if (checkTimer) {
+		clearInterval(checkTimer);
+	}
+	checkTimer = setInterval(async () => {
+		const res = await messager.send(
+			'',
+			SealxTopic.CHECK_INITIALIZED,
+			MessageChannel.BACKGROUND,
+		);
+		if (res.payload) {
+			sealxSigner.activate();
+		} else {
+			sealxSigner.deactivate();
+		}
+		callback(res.payload);
+	}, 2000);
+};
 
 /**
  * Highlight style for located elements
  */
 const HIGHLIGHT_STYLE = {
-    border: '2px solid #007AFF',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    transition: 'all 0.3s ease'
+	border: '2px solid #007AFF',
+	backgroundColor: 'rgba(0, 122, 255, 0.1)',
+	transition: 'all 0.3s ease',
 };
 
 /**
  * Remove highlight style from element
  */
 const removeHighlight = (element: HTMLElement) => {
-    element.style.border = '';
-    element.style.backgroundColor = '';
-    element.style.transition = '';
-    element.classList.remove('sealx-located-element');
+	element.style.border = '';
+	element.style.backgroundColor = '';
+	element.style.transition = '';
+	element.classList.remove('sealx-located-element');
 };
 
 /**
  * Add highlight style to element
  */
 const addHighlight = (element: HTMLElement) => {
-    Object.assign(element.style, HIGHLIGHT_STYLE);
-    element.classList.add('sealx-located-element');
+	Object.assign(element.style, HIGHLIGHT_STYLE);
+	element.classList.add('sealx-located-element');
 };
 
 /**
@@ -953,34 +1000,38 @@ const addHighlight = (element: HTMLElement) => {
  * @returns true if element was found and highlighted, false otherwise
  */
 const locateElementByKey = (key: string, value?: string): boolean => {
-    // Find element with matching data-key attribute
-    const element = document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+	// Find element with matching data-key attribute
+	const element = document.querySelector(
+		`[data-key="${key}"]`,
+	) as HTMLElement;
 
-    if (!element) {
-        return false;
-    }
+	if (!element) {
+		return false;
+	}
 
-    // If value is provided, verify it matches
-    if (value && element.textContent?.trim() !== value) {
-        // Continue anyway - value is optional
-    }
+	// If value is provided, verify it matches
+	if (value && element.textContent?.trim() !== value) {
+		// Continue anyway - value is optional
+	}
 
-    // Remove any existing highlights first
-    const existingHighlighted = document.querySelectorAll('.sealx-located-element');
-    existingHighlighted.forEach(el => removeHighlight(el as HTMLElement));
+	// Remove any existing highlights first
+	const existingHighlighted = document.querySelectorAll(
+		'.sealx-located-element',
+	);
+	existingHighlighted.forEach((el) => removeHighlight(el as HTMLElement));
 
-    // Add highlight to the element
-    addHighlight(element);
+	// Add highlight to the element
+	addHighlight(element);
 
-    // Scroll element into view
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+	// Scroll element into view
+	element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-    // Remove highlight after 3 seconds
-    setTimeout(() => {
-        removeHighlight(element);
-    }, 3000);
+	// Remove highlight after 3 seconds
+	setTimeout(() => {
+		removeHighlight(element);
+	}, 3000);
 
-    return true;
+	return true;
 };
 
 /**
@@ -989,7 +1040,10 @@ const locateElementByKey = (key: string, value?: string): boolean => {
  * @param value - Optional value of the element
  * @returns The element to highlight, or null if not found
  */
-export type LocateElementCallback = (key: string, value?: string) => HTMLElement | null;
+export type LocateElementCallback = (
+	key: string,
+	value?: string,
+) => HTMLElement | null;
 
 /**
  * Set of registered locatable keys
@@ -1011,17 +1065,17 @@ let registeredKeys: Set<string> = new Set();
  * ```
  */
 export const registerLocatableKeys = (keys: string[]): void => {
-    if (!keys || keys.length === 0) {
-        registeredKeys.clear();
-        return;
-    }
+	if (!keys || keys.length === 0) {
+		registeredKeys.clear();
+		return;
+	}
 
-    keys.forEach(key => {
-        // Filter out empty strings
-        if (key && key.trim()) {
-            registeredKeys.add(key);
-        }
-    });
+	keys.forEach((key) => {
+		// Filter out empty strings
+		if (key && key.trim()) {
+			registeredKeys.add(key);
+		}
+	});
 };
 
 /**
@@ -1030,18 +1084,21 @@ export const registerLocatableKeys = (keys: string[]): void => {
  * @returns true if key is registered or no keys are registered (backward compatibility)
  */
 const isKeyRegistered = (key: string): boolean => {
-    // If no keys are registered, allow all keys (backward compatibility)
-    if (registeredKeys.size === 0) {
-        return true;
-    }
-    return registeredKeys.has(key);
+	// If no keys are registered, allow all keys (backward compatibility)
+	if (registeredKeys.size === 0) {
+		return true;
+	}
+	return registeredKeys.has(key);
 };
 
 /**
  * Default locate function - finds element by data-key attribute
  */
-const defaultLocateCallback: LocateElementCallback = (key: string, value?: string): HTMLElement | null => {
-    return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
+const defaultLocateCallback: LocateElementCallback = (
+	key: string,
+	value?: string,
+): HTMLElement | null => {
+	return document.querySelector(`[data-key="${key}"]`) as HTMLElement;
 };
 
 /**
@@ -1067,42 +1124,52 @@ const defaultLocateCallback: LocateElementCallback = (key: string, value?: strin
  * unsubscribe();
  * ```
  */
-export const onLocateElement = (locateCallback?: LocateElementCallback): (() => void) => {
-    const locator = locateCallback || defaultLocateCallback;
+export const onLocateElement = (
+	locateCallback?: LocateElementCallback,
+): (() => void) => {
+	const locator = locateCallback || defaultLocateCallback;
 
-    const handleLocate = async (request: SealxRequest<{ key: string; value?: string }>) => {
-        const { key, value } = request.payload;
+	const handleLocate = async (
+		request: SealxRequest<{ key: string; value?: string }>,
+	) => {
+		const { key, value } = request.payload;
 
-        // Check if key is registered (if any keys are registered)
-        if (!isKeyRegistered(key)) {
-            return;
-        }
+		// Check if key is registered (if any keys are registered)
+		if (!isKeyRegistered(key)) {
+			return;
+		}
 
-        // Call the callback to get the element to highlight
-        const element = locator(key, value);
+		// Call the callback to get the element to highlight
+		const element = locator(key, value);
 
-        if (!element) {
-            return;
-        }
+		if (!element) {
+			return;
+		}
 
-        // Remove any existing highlights first
-        const existingHighlighted = document.querySelectorAll('.sealx-located-element');
-        existingHighlighted.forEach(el => removeHighlight(el as HTMLElement));
+		// Remove any existing highlights first
+		const existingHighlighted = document.querySelectorAll(
+			'.sealx-located-element',
+		);
+		existingHighlighted.forEach((el) => removeHighlight(el as HTMLElement));
 
-        // Add highlight to the element
-        addHighlight(element);
+		// Add highlight to the element
+		addHighlight(element);
 
-        // Scroll element into view
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		// Scroll element into view
+		element.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-        // Remove highlight after 3 seconds
-        setTimeout(() => {
-            removeHighlight(element);
-        }, 3000);
-    };
+		// Remove highlight after 3 seconds
+		setTimeout(() => {
+			removeHighlight(element);
+		}, 3000);
+	};
 
-    const off = messager.on(SealxTopic.LOCATE_ELEMENT, handleLocate, MessageChannel.POPUP);
-    return off;
+	const off = messager.on(
+		SealxTopic.LOCATE_ELEMENT,
+		handleLocate,
+		MessageChannel.POPUP,
+	);
+	return off;
 };
 
 /**
@@ -1121,13 +1188,17 @@ export const onLocateElement = (locateCallback?: LocateElementCallback): (() => 
  * @param callback - Function to invoke when panel closes
  * @returns Cleanup function to deregister the callback
  */
-export const onPanelClose = (callback: () => void): () => void => {
-    const off = messager.on(SealxTopic.PANEL_CLOSE, async () => {
-        try {
-            callback();
-        } catch (err) {
-            console.warn('[SealX] onPanelClose callback error:', err);
-        }
-    }, MessageChannel.BACKGROUND);
-    return off;
+export const onPanelClose = (callback: () => void): (() => void) => {
+	const off = messager.on(
+		SealxTopic.PANEL_CLOSE,
+		async () => {
+			try {
+				callback();
+			} catch (err) {
+				console.warn('[SealX] onPanelClose callback error:', err);
+			}
+		},
+		MessageChannel.BACKGROUND,
+	);
+	return off;
 };

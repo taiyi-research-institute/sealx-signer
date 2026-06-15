@@ -62,6 +62,14 @@ messager.on(SealxTopic.CHECK_INITIALIZED, async (request) => {
  */
 const CHANNEL_POPUP = MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = MessageChannel.BACKGROUND;
+const syncSignerSessionFromResponse = async (response) => {
+    if (!response?.session)
+        return;
+    sealxSigner.connected = true;
+    await sealxSigner.initializeSession(response.session);
+    messager.session = sealxSigner.session;
+};
+messager.addAfterSendHook(syncSignerSessionFromResponse);
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
  * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
@@ -119,9 +127,11 @@ const sealxObserver = new MutationObserver((mutations) => {
             }
         });
         // 属性变更也可能添加 sealx
-        if (mutation.type === 'attributes' && mutation.attributeName === SEALX_SOURCE_ATTR) {
+        if (mutation.type === 'attributes' &&
+            mutation.attributeName === SEALX_SOURCE_ATTR) {
             const el = mutation.target;
-            if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
+            if (el.hasAttribute(SEALX_SOURCE_ATTR) &&
+                !el.hasAttribute(SEALX_ACTION_ATTR)) {
                 el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
                 el.setAttribute('data-sealx-id', sealxId());
                 window.postMessage({
@@ -167,7 +177,7 @@ const CACHE_TTL = 5000; // 5 seconds cache TTL
 const isSealxActive = async () => {
     // Check cache first
     const now = Date.now();
-    if (sealxStatusCache && (now - sealxStatusCache.timestamp) < CACHE_TTL) {
+    if (sealxStatusCache && now - sealxStatusCache.timestamp < CACHE_TTL) {
         return sealxStatusCache.isActive;
     }
     const isActive = (await checkSealx()) !== null;
@@ -179,7 +189,7 @@ const isSealxActive = async () => {
     // Update cache
     sealxStatusCache = {
         isActive,
-        timestamp: now
+        timestamp: now,
     };
     return isActive;
 };
@@ -316,7 +326,9 @@ const connectSealx = async (uId = '') => {
     try {
         const res = await messager.send({ userId, title }, SealxTopic.CONNECT, CHANNEL_BACKGROUND);
         if (!res?.payload?.session || !res?.payload?.account) {
-            console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', { payload: res?.payload });
+            console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', {
+                payload: res?.payload,
+            });
             throw new SessionException('Invalid connection response');
         }
         console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
@@ -388,7 +400,6 @@ const bindSealx = async (userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    await connectSealx();
     messager.session = sealxSigner.session;
     if (sealxSigner.account) {
         try {
@@ -489,7 +500,6 @@ const signBySealx = async (task, userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    await connectSealx();
     messager.session = sealxSigner.session;
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
@@ -514,7 +524,6 @@ const signBySealx = async (task, userId) => {
             if (!res?.payload) {
                 throw new SignException(res?.error ?? '');
             }
-            // if(res.header.){}
             return res.payload;
         }
     }
@@ -788,7 +797,7 @@ const checkSealxActive = (callback) => {
 const HIGHLIGHT_STYLE = {
     border: '2px solid #007AFF',
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    transition: 'all 0.3s ease'
+    transition: 'all 0.3s ease',
 };
 /**
  * Remove highlight style from element
@@ -829,7 +838,7 @@ const registerLocatableKeys = (keys) => {
         registeredKeys.clear();
         return;
     }
-    keys.forEach(key => {
+    keys.forEach((key) => {
         // Filter out empty strings
         if (key && key.trim()) {
             registeredKeys.add(key);
@@ -892,7 +901,7 @@ const onLocateElement = (locateCallback) => {
         }
         // Remove any existing highlights first
         const existingHighlighted = document.querySelectorAll('.sealx-located-element');
-        existingHighlighted.forEach(el => removeHighlight(el));
+        existingHighlighted.forEach((el) => removeHighlight(el));
         // Add highlight to the element
         addHighlight(element);
         // Scroll element into view
@@ -933,5 +942,5 @@ const onPanelClose = (callback) => {
     return off;
 };
 
-export { MessageChannel, MessagerManager, SealxProvider, SealxTopic, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx, wait };
+export { MessageChannel, MessagerManager, PkException, SealxProvider, SealxTopic, SealxUnavailableException, SealxUninitializedException, SessionException, SignException, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx, wait };
 //# sourceMappingURL=index.mjs.map

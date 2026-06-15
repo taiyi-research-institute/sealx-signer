@@ -3,6 +3,26 @@ export * from 'sealx-core';
 import { MessageHandle } from 'sealx-message';
 export * from 'sealx-message';
 
+declare class PkException extends Error {
+    constructor(message: string);
+}
+
+declare class SignException extends Error {
+    constructor(message: string);
+}
+
+declare class SessionException extends Error {
+    constructor(message: string);
+}
+
+declare class SealxUnavailableException extends Error {
+    constructor(message?: string);
+}
+
+declare class SealxUninitializedException extends Error {
+    constructor(message?: string);
+}
+
 declare const setupSealxActions: () => void;
 /**
  * Checks if SealX browser extension is installed and active
@@ -414,7 +434,7 @@ declare const onLocateElement: (locateCallback?: LocateElementCallback) => (() =
  * @param callback - Function to invoke when panel closes
  * @returns Cleanup function to deregister the callback
  */
-declare const onPanelClose: (callback: () => void) => () => void;
+declare const onPanelClose: (callback: () => void) => (() => void);
 
-export { bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx };
+export { PkException, SealxUnavailableException, SealxUninitializedException, SessionException, SignException, bindSealx, checkSealx, checkSealxActive, closeSealx, connectSealx, initSealx, isSealxActive, isSessionAvailable, onLocateElement, onPanelClose, onSign, registerLocatableKeys, sealxActive, sendSignResponse, setupSealxActions, signBySealx };
 export type { LocateElementCallback };

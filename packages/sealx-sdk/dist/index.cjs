@@ -9193,6 +9193,8 @@ class MessagerBase {
     constructor(channel, session) {
         /** Unique identifier for this messager instance */
         this.id = 'messager-base';
+        this.beforeSendHooks = [];
+        this.afterSendHooks = [];
         /**
          * Sends a reply message in response to a received message
          * @param message - The payload to send
@@ -9208,7 +9210,10 @@ class MessagerBase {
             const id = this.messageId();
             const header = {
                 ...request.header,
-                messagerId: this.id
+                host: this.session?.host ?? request.header.host,
+                sessionId: this.session?.sessionId ?? request.header.sessionId,
+                userId: this.session?.userId ?? request.header.userId,
+                messagerId: this.id,
             };
             const response = {
                 ...request,
@@ -9217,7 +9222,7 @@ class MessagerBase {
                 receiver: request.sender,
                 sender: request.receiver,
                 responseId: id,
-                end: end ? end : (request.once ?? false)
+                end: end ? end : (request.once ?? false),
             };
             if (this.session) {
                 response.session = this.session;
@@ -9240,7 +9245,10 @@ class MessagerBase {
             const id = this.messageId();
             const header = {
                 ...request.header,
-                messagerId: this.id
+                host: this.session?.host ?? request.header.host,
+                sessionId: this.session?.sessionId ?? request.header.sessionId,
+                userId: this.session?.userId ?? request.header.userId,
+                messagerId: this.id,
             };
             const response = {
                 ...request,
@@ -9249,7 +9257,7 @@ class MessagerBase {
                 receiver: request.sender,
                 sender: request.receiver,
                 responseId: id,
-                end: end ? end : (request.once ?? false)
+                end: end ? end : (request.once ?? false),
             };
             if (this.session) {
                 response.session = this.session;
@@ -9278,16 +9286,23 @@ class MessagerBase {
          * @param receiver - Optional specific receiver channel (defaults to ALL)
          * @returns Promise that resolves with the response payload or rejects on error
          */
-        this.send = async (message, topic, receiver) => {
-            // const id = this.messageId()
-            const sendMsg = {
-                header: this.header,
+        this.send = async (message, topic, receiver, requestId, header) => {
+            let sendMsg = {
+                header: {
+                    ...this.header,
+                    ...header,
+                },
                 payload: message,
                 receiver: receiver ?? exports.MessageChannel.ALL,
                 sender: this.channel,
                 topic: topic,
                 once: true,
             };
+            if (requestId) {
+                sendMsg.header.requestId = requestId;
+            }
+            sendMsg.header.messagerId = this.id;
+            sendMsg = (await this.applyBeforeSendHooks(sendMsg));
             // if (chrome.tabs) {
             //     await (TabManager.getInstance().updateActiveTab())
             // }
@@ -9299,15 +9314,23 @@ class MessagerBase {
                 catch (e) {
                     rejected(e);
                 }
-                const handle = (event) => {
+                const handle = async (event) => {
                     const message = event instanceof MessageEvent ? event.data : event;
-                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
+                    if (message &&
+                        message.header &&
+                        message.header.messagerId !== this.id &&
+                        message.header.requestId === sendMsg.header.requestId) {
                         this.removeListener(handle);
                         if (message.error) {
                             rejected(message.error);
                         }
                         else {
-                            resolve(message);
+                            try {
+                                resolve(await this.applyAfterSendHooks(message));
+                            }
+                            catch (error) {
+                                rejected(error);
+                            }
                         }
                     }
                 };
@@ -9358,7 +9381,8 @@ class MessagerBase {
             // - Reply timeout handling
             const handler1 = async (message) => {
                 // console.log(message, '----------- message sealx request -----', this.id)
-                if ((message.topic === topic || topic === exports.SealxTopic.ALL) && (channel === exports.MessageChannel.ALL || channel === message.sender)) {
+                if ((message.topic === topic || topic === exports.SealxTopic.ALL) &&
+                    (channel === exports.MessageChannel.ALL || channel === message.sender)) {
                     try {
                         return await handler(message, (res, end = false) => {
                             this.reply(res, message, end);
@@ -9396,13 +9420,16 @@ class MessagerBase {
                 return;
             }
             // Remove the handler
-            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
+            this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== callback);
         };
         this.channel = channel;
         this.forwardHandlers = {};
         this.handlers = {};
         this.onMessage();
         this.session = session;
+        this.addAfterSendHook((response) => {
+            this.syncSessionFromResponse(response);
+        });
         this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
     }
     /**
@@ -9431,8 +9458,12 @@ class MessagerBase {
         const channelAllTopicKey = this.topic(message.sender, exports.SealxTopic.ALL);
         const allChannelAllTopicKey = this.topic(exports.MessageChannel.ALL, exports.SealxTopic.ALL);
         const allChannelTopicKey = this.topic(exports.MessageChannel.ALL, message.topic);
-        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
-            channelTopicKey, allChannelAllTopicKey];
+        const topicKeys = [
+            channelAllTopicKey,
+            allChannelTopicKey,
+            channelTopicKey,
+            allChannelAllTopicKey,
+        ];
         const response = [];
         for (const topicKey of topicKeys) {
             const handles = this.handlers[topicKey] ?? [];
@@ -9455,6 +9486,45 @@ class MessagerBase {
      */
     responseTopic(topic) {
         return `${topic}:response`;
+    }
+    addBeforeSendHook(hook) {
+        if (this.beforeSendHooks.includes(hook)) {
+            return () => { };
+        }
+        this.beforeSendHooks.push(hook);
+        return () => {
+            this.beforeSendHooks = this.beforeSendHooks.filter((h) => h !== hook);
+        };
+    }
+    addAfterSendHook(hook) {
+        if (!this.afterSendHooks.includes(hook)) {
+            this.afterSendHooks.push(hook);
+            return () => {
+                this.afterSendHooks = this.afterSendHooks.filter((h) => h !== hook);
+            };
+        }
+        else {
+            return () => { };
+        }
+    }
+    async applyBeforeSendHooks(request) {
+        let next = request;
+        for (const hook of this.beforeSendHooks) {
+            next = (await hook(next)) ?? next;
+        }
+        return next;
+    }
+    async applyAfterSendHooks(response) {
+        let next = response;
+        for (const hook of this.afterSendHooks) {
+            next = (await hook(next)) ?? next;
+        }
+        return next;
+    }
+    syncSessionFromResponse(response) {
+        if (response.session) {
+            this.session = response.session;
+        }
     }
     /**
      * Generates a unique message ID with QN prefix
@@ -9482,7 +9552,7 @@ class MessagerBase {
             requestId: id,
             sessionId: this.session?.sessionId ?? '',
             messagerId: this.id,
-            userId: this.session?.userId
+            userId: this.session?.userId,
         };
     }
     /**
@@ -9506,14 +9576,15 @@ class MessagerBase {
      */
     async *sendStream(message, topic, receiver) {
         // const id = this.messageId()
-        const sendMsg = {
+        let sendMsg = {
             header: this.header,
             payload: message,
             receiver: receiver ?? exports.MessageChannel.ALL,
             sender: this.channel,
             topic: topic,
-            once: false
+            once: false,
         };
+        sendMsg = (await this.applyBeforeSendHooks(sendMsg));
         this.postMessage(sendMsg);
         // Internal queue for buffering incoming messages
         const queue = [];
@@ -9526,7 +9597,7 @@ class MessagerBase {
          * Handles incoming stream messages
          * @param event - Message event containing the response
          */
-        const handle = (event) => {
+        const handle = async (event) => {
             const data = event.data;
             if (!data.header) {
                 return;
@@ -9542,10 +9613,18 @@ class MessagerBase {
                 rejectNext?.(data.error);
             }
             else {
-                queue.push(data);
-                resolveNext?.(queue.shift());
-                resolveNext = null;
-                rejectNext = null;
+                try {
+                    const next = await this.applyAfterSendHooks(data);
+                    queue.push(next);
+                    resolveNext?.(queue.shift());
+                    resolveNext = null;
+                    rejectNext = null;
+                }
+                catch (error) {
+                    done = true;
+                    this.removeListener(handle);
+                    rejectNext?.(error);
+                }
             }
             if (data.end) {
                 done = true;
@@ -18007,6 +18086,14 @@ messager.on(exports.SealxTopic.CHECK_INITIALIZED, async (request) => {
  */
 const CHANNEL_POPUP = exports.MessageChannel.POPUP;
 const CHANNEL_BACKGROUND = exports.MessageChannel.BACKGROUND;
+const syncSignerSessionFromResponse = async (response) => {
+    if (!response?.session)
+        return;
+    sealxSigner.connected = true;
+    await sealxSigner.initializeSession(response.session);
+    messager.session = sealxSigner.session;
+};
+messager.addAfterSendHook(syncSignerSessionFromResponse);
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
  * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
@@ -18064,9 +18151,11 @@ const sealxObserver = new MutationObserver((mutations) => {
             }
         });
         // 属性变更也可能添加 sealx
-        if (mutation.type === 'attributes' && mutation.attributeName === SEALX_SOURCE_ATTR) {
+        if (mutation.type === 'attributes' &&
+            mutation.attributeName === SEALX_SOURCE_ATTR) {
             const el = mutation.target;
-            if (el.hasAttribute(SEALX_SOURCE_ATTR) && !el.hasAttribute(SEALX_ACTION_ATTR)) {
+            if (el.hasAttribute(SEALX_SOURCE_ATTR) &&
+                !el.hasAttribute(SEALX_ACTION_ATTR)) {
                 el.setAttribute(SEALX_ACTION_ATTR, SEALX_ACTION_VALUE);
                 el.setAttribute('data-sealx-id', sealxId());
                 window.postMessage({
@@ -18112,7 +18201,7 @@ const CACHE_TTL = 5000; // 5 seconds cache TTL
 const isSealxActive = async () => {
     // Check cache first
     const now = Date.now();
-    if (sealxStatusCache && (now - sealxStatusCache.timestamp) < CACHE_TTL) {
+    if (sealxStatusCache && now - sealxStatusCache.timestamp < CACHE_TTL) {
         return sealxStatusCache.isActive;
     }
     const isActive = (await checkSealx()) !== null;
@@ -18124,7 +18213,7 @@ const isSealxActive = async () => {
     // Update cache
     sealxStatusCache = {
         isActive,
-        timestamp: now
+        timestamp: now,
     };
     return isActive;
 };
@@ -18261,7 +18350,9 @@ const connectSealx = async (uId = '') => {
     try {
         const res = await messager.send({ userId, title }, exports.SealxTopic.CONNECT, CHANNEL_BACKGROUND);
         if (!res?.payload?.session || !res?.payload?.account) {
-            console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', { payload: res?.payload });
+            console.warn('[TRACE-CONNECT:SDK] connectSealx response INVALID', {
+                payload: res?.payload,
+            });
             throw new SessionException('Invalid connection response');
         }
         console.warn('[TRACE-CONNECT:SDK] connectSealx response received', {
@@ -18333,7 +18424,6 @@ const bindSealx = async (userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    await connectSealx();
     messager.session = sealxSigner.session;
     if (sealxSigner.account) {
         try {
@@ -18434,7 +18524,6 @@ const signBySealx = async (task, userId) => {
     if (!sealxSigner.account?.userId) {
         throw new SealxUninitializedException('SealX plugin not initialized. Please call initSealx() or connectSealx() first.');
     }
-    await connectSealx();
     messager.session = sealxSigner.session;
     if (sealxSigner.account?.newPk &&
         sealxSigner.account.newPk !== sealxSigner.account.pk) {
@@ -18459,7 +18548,6 @@ const signBySealx = async (task, userId) => {
             if (!res?.payload) {
                 throw new SignException(res?.error ?? '');
             }
-            // if(res.header.){}
             return res.payload;
         }
     }
@@ -18733,7 +18821,7 @@ const checkSealxActive = (callback) => {
 const HIGHLIGHT_STYLE = {
     border: '2px solid #007AFF',
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    transition: 'all 0.3s ease'
+    transition: 'all 0.3s ease',
 };
 /**
  * Remove highlight style from element
@@ -18774,7 +18862,7 @@ const registerLocatableKeys = (keys) => {
         registeredKeys.clear();
         return;
     }
-    keys.forEach(key => {
+    keys.forEach((key) => {
         // Filter out empty strings
         if (key && key.trim()) {
             registeredKeys.add(key);
@@ -18837,7 +18925,7 @@ const onLocateElement = (locateCallback) => {
         }
         // Remove any existing highlights first
         const existingHighlighted = document.querySelectorAll('.sealx-located-element');
-        existingHighlighted.forEach(el => removeHighlight(el));
+        existingHighlighted.forEach((el) => removeHighlight(el));
         // Add highlight to the element
         addHighlight(element);
         // Scroll element into view
@@ -18886,8 +18974,13 @@ exports.DataCorruptedError = DataCorruptedError;
 exports.ExtensionMessager = ExtensionMessager;
 exports.MessagerManager = MessagerManager;
 exports.PinError = PinError;
+exports.PkException = PkException;
 exports.SealxProvider = SealxProvider;
 exports.SealxSigner = SealxSigner;
+exports.SealxUnavailableException = SealxUnavailableException;
+exports.SealxUninitializedException = SealxUninitializedException;
+exports.SessionException = SessionException;
+exports.SignException = SignException;
 exports.TOPIC_PREFIX = TOPIC_PREFIX;
 exports.TabManager = TabManager$1;
 exports.WindowMessager = WindowMessager;
