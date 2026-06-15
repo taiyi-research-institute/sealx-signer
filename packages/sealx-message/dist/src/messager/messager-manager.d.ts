@@ -19,5 +19,5 @@ export default class MessagerManager {
      *          The appropriate messager instance
      * @throws {Error} If the environment is not supported
      */
-    static getMessager(): WindowMessager | BackgroundMessager | ExtensionMessager | ContentMessager;
+    static getMessager(): ExtensionMessager | ContentMessager | BackgroundMessager | WindowMessager;
 }

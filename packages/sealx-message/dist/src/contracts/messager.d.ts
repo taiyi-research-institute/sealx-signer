@@ -1,7 +1,8 @@
-import { MessageChannel, SealxTopic } from "../enums";
-import { Topic } from "./message";
-import { SealxRequest } from "./request";
-import { SealxResponse } from "./response";
+import { SealxSession } from 'sealx-core';
+import { MessageChannel, SealxTopic } from '../enums';
+import type { SealxHeader, Topic } from './message';
+import { SealxRequest } from './request';
+import { SealxResponse } from './response';
 type ReplyType = string | number | Object | Boolean | Record<string, any>;
 export interface ReplyFunc<R = ReplyType> {
     (res: R, end?: boolean): void;
@@ -14,6 +15,12 @@ export interface ReplyFunc<R = ReplyType> {
  */
 export interface MessageHandle {
     (request: SealxRequest, reply?: ReplyFunc): Promise<any>;
+}
+export interface MessageBeforeSendHook {
+    (request: SealxRequest): SealxRequest | void | Promise<SealxRequest | void>;
+}
+export interface MessageAfterSendHook {
+    (response: SealxResponse): SealxResponse | void | Promise<SealxResponse | void>;
 }
 /**
  * Interface for sending messages and receiving multiple responses via streaming
@@ -48,7 +55,7 @@ export interface MessageSendStream {
  * @returns Promise that resolves with the response
  */
 export interface MessageSend {
-    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string): Promise<SealxResponse>;
+    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string, header?: Partial<SealxHeader>): Promise<SealxResponse>;
 }
 /**
  * Interface for sending reply messages
@@ -85,6 +92,8 @@ export interface OffMessageListener {
  * between different parts of an application.
  */
 export interface Messager {
+    session?: SealxSession;
+    host?: string;
     /**
      * The communication channel used for sending and receiving messages.
      */
@@ -94,6 +103,14 @@ export interface Messager {
      * Each topic is associated with an array of message handling functions.
      */
     handlers: Record<Topic, MessageHandle[]>;
+    /**
+     * Registers a lifecycle hook that can inspect or modify requests before sending.
+     */
+    addBeforeSendHook: (hook: MessageBeforeSendHook) => () => void;
+    /**
+     * Registers a lifecycle hook that can inspect or modify responses after sending.
+     */
+    addAfterSendHook: (hook: MessageAfterSendHook) => () => void;
     /**
      * Sends a message to the specified recipient or channel.
      */

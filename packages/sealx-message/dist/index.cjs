@@ -137,6 +137,8 @@ class MessagerBase {
     constructor(channel, session) {
         /** Unique identifier for this messager instance */
         this.id = 'messager-base';
+        this.beforeSendHooks = [];
+        this.afterSendHooks = [];
         /**
          * Sends a reply message in response to a received message
          * @param message - The payload to send
@@ -152,7 +154,10 @@ class MessagerBase {
             const id = this.messageId();
             const header = {
                 ...request.header,
-                messagerId: this.id
+                host: this.session?.host ?? request.header.host,
+                sessionId: this.session?.sessionId ?? request.header.sessionId,
+                userId: this.session?.userId ?? request.header.userId,
+                messagerId: this.id,
             };
             const response = {
                 ...request,
@@ -161,7 +166,7 @@ class MessagerBase {
                 receiver: request.sender,
                 sender: request.receiver,
                 responseId: id,
-                end: end ? end : (request.once ?? false)
+                end: end ? end : (request.once ?? false),
             };
             if (this.session) {
                 response.session = this.session;
@@ -184,7 +189,10 @@ class MessagerBase {
             const id = this.messageId();
             const header = {
                 ...request.header,
-                messagerId: this.id
+                host: this.session?.host ?? request.header.host,
+                sessionId: this.session?.sessionId ?? request.header.sessionId,
+                userId: this.session?.userId ?? request.header.userId,
+                messagerId: this.id,
             };
             const response = {
                 ...request,
@@ -193,7 +201,7 @@ class MessagerBase {
                 receiver: request.sender,
                 sender: request.receiver,
                 responseId: id,
-                end: end ? end : (request.once ?? false)
+                end: end ? end : (request.once ?? false),
             };
             if (this.session) {
                 response.session = this.session;
@@ -222,16 +230,23 @@ class MessagerBase {
          * @param receiver - Optional specific receiver channel (defaults to ALL)
          * @returns Promise that resolves with the response payload or rejects on error
          */
-        this.send = async (message, topic, receiver) => {
-            // const id = this.messageId()
-            const sendMsg = {
-                header: this.header,
+        this.send = async (message, topic, receiver, requestId, header) => {
+            let sendMsg = {
+                header: {
+                    ...this.header,
+                    ...header,
+                },
                 payload: message,
                 receiver: receiver ?? exports.MessageChannel.ALL,
                 sender: this.channel,
                 topic: topic,
                 once: true,
             };
+            if (requestId) {
+                sendMsg.header.requestId = requestId;
+            }
+            sendMsg.header.messagerId = this.id;
+            sendMsg = (await this.applyBeforeSendHooks(sendMsg));
             // if (chrome.tabs) {
             //     await (TabManager.getInstance().updateActiveTab())
             // }
@@ -243,15 +258,23 @@ class MessagerBase {
                 catch (e) {
                     rejected(e);
                 }
-                const handle = (event) => {
+                const handle = async (event) => {
                     const message = event instanceof MessageEvent ? event.data : event;
-                    if (message && message.header && message.header.messagerId !== this.id && message.header.requestId === sendMsg.header.requestId) {
+                    if (message &&
+                        message.header &&
+                        message.header.messagerId !== this.id &&
+                        message.header.requestId === sendMsg.header.requestId) {
                         this.removeListener(handle);
                         if (message.error) {
                             rejected(message.error);
                         }
                         else {
-                            resolve(message);
+                            try {
+                                resolve(await this.applyAfterSendHooks(message));
+                            }
+                            catch (error) {
+                                rejected(error);
+                            }
                         }
                     }
                 };
@@ -302,7 +325,8 @@ class MessagerBase {
             // - Reply timeout handling
             const handler1 = async (message) => {
                 // console.log(message, '----------- message sealx request -----', this.id)
-                if ((message.topic === topic || topic === exports.SealxTopic.ALL) && (channel === exports.MessageChannel.ALL || channel === message.sender)) {
+                if ((message.topic === topic || topic === exports.SealxTopic.ALL) &&
+                    (channel === exports.MessageChannel.ALL || channel === message.sender)) {
                     try {
                         return await handler(message, (res, end = false) => {
                             this.reply(res, message, end);
@@ -340,13 +364,16 @@ class MessagerBase {
                 return;
             }
             // Remove the handler
-            this.handlers[topicKey] = this.handlers[topicKey].filter(h => h !== callback);
+            this.handlers[topicKey] = this.handlers[topicKey].filter((h) => h !== callback);
         };
         this.channel = channel;
         this.forwardHandlers = {};
         this.handlers = {};
         this.onMessage();
         this.session = session;
+        this.addAfterSendHook((response) => {
+            this.syncSessionFromResponse(response);
+        });
         this.id = `messager-${channel}-${Date.now()}-${(Math.random() * 1000).toFixed(0)}`;
     }
     /**
@@ -375,8 +402,12 @@ class MessagerBase {
         const channelAllTopicKey = this.topic(message.sender, exports.SealxTopic.ALL);
         const allChannelAllTopicKey = this.topic(exports.MessageChannel.ALL, exports.SealxTopic.ALL);
         const allChannelTopicKey = this.topic(exports.MessageChannel.ALL, message.topic);
-        const topicKeys = [channelAllTopicKey, allChannelTopicKey,
-            channelTopicKey, allChannelAllTopicKey];
+        const topicKeys = [
+            channelAllTopicKey,
+            allChannelTopicKey,
+            channelTopicKey,
+            allChannelAllTopicKey,
+        ];
         const response = [];
         for (const topicKey of topicKeys) {
             const handles = this.handlers[topicKey] ?? [];
@@ -399,6 +430,45 @@ class MessagerBase {
      */
     responseTopic(topic) {
         return `${topic}:response`;
+    }
+    addBeforeSendHook(hook) {
+        if (this.beforeSendHooks.includes(hook)) {
+            return () => { };
+        }
+        this.beforeSendHooks.push(hook);
+        return () => {
+            this.beforeSendHooks = this.beforeSendHooks.filter((h) => h !== hook);
+        };
+    }
+    addAfterSendHook(hook) {
+        if (!this.afterSendHooks.includes(hook)) {
+            this.afterSendHooks.push(hook);
+            return () => {
+                this.afterSendHooks = this.afterSendHooks.filter((h) => h !== hook);
+            };
+        }
+        else {
+            return () => { };
+        }
+    }
+    async applyBeforeSendHooks(request) {
+        let next = request;
+        for (const hook of this.beforeSendHooks) {
+            next = (await hook(next)) ?? next;
+        }
+        return next;
+    }
+    async applyAfterSendHooks(response) {
+        let next = response;
+        for (const hook of this.afterSendHooks) {
+            next = (await hook(next)) ?? next;
+        }
+        return next;
+    }
+    syncSessionFromResponse(response) {
+        if (response.session) {
+            this.session = response.session;
+        }
     }
     /**
      * Generates a unique message ID with QN prefix
@@ -426,7 +496,7 @@ class MessagerBase {
             requestId: id,
             sessionId: this.session?.sessionId ?? '',
             messagerId: this.id,
-            userId: this.session?.userId
+            userId: this.session?.userId,
         };
     }
     /**
@@ -450,14 +520,15 @@ class MessagerBase {
      */
     async *sendStream(message, topic, receiver) {
         // const id = this.messageId()
-        const sendMsg = {
+        let sendMsg = {
             header: this.header,
             payload: message,
             receiver: receiver ?? exports.MessageChannel.ALL,
             sender: this.channel,
             topic: topic,
-            once: false
+            once: false,
         };
+        sendMsg = (await this.applyBeforeSendHooks(sendMsg));
         this.postMessage(sendMsg);
         // Internal queue for buffering incoming messages
         const queue = [];
@@ -470,7 +541,7 @@ class MessagerBase {
          * Handles incoming stream messages
          * @param event - Message event containing the response
          */
-        const handle = (event) => {
+        const handle = async (event) => {
             const data = event.data;
             if (!data.header) {
                 return;
@@ -486,10 +557,18 @@ class MessagerBase {
                 rejectNext?.(data.error);
             }
             else {
-                queue.push(data);
-                resolveNext?.(queue.shift());
-                resolveNext = null;
-                rejectNext = null;
+                try {
+                    const next = await this.applyAfterSendHooks(data);
+                    queue.push(next);
+                    resolveNext?.(queue.shift());
+                    resolveNext = null;
+                    rejectNext = null;
+                }
+                catch (error) {
+                    done = true;
+                    this.removeListener(handle);
+                    rejectNext?.(error);
+                }
             }
             if (data.end) {
                 done = true;
@@ -814,7 +893,7 @@ var hasRequiredCore;
 function requireCore () {
 	if (hasRequiredCore) return core$1.exports;
 	hasRequiredCore = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1627,7 +1706,7 @@ var hasRequiredX64Core;
 function requireX64Core () {
 	if (hasRequiredX64Core) return x64Core$1.exports;
 	hasRequiredX64Core = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -1937,7 +2016,7 @@ var hasRequiredLibTypedarrays;
 function requireLibTypedarrays () {
 	if (hasRequiredLibTypedarrays) return libTypedarrays$1.exports;
 	hasRequiredLibTypedarrays = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2019,7 +2098,7 @@ var hasRequiredEncUtf16;
 function requireEncUtf16 () {
 	if (hasRequiredEncUtf16) return encUtf16$1.exports;
 	hasRequiredEncUtf16 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2174,7 +2253,7 @@ var hasRequiredEncBase64;
 function requireEncBase64 () {
 	if (hasRequiredEncBase64) return encBase64$1.exports;
 	hasRequiredEncBase64 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2316,7 +2395,7 @@ var hasRequiredEncBase64url;
 function requireEncBase64url () {
 	if (hasRequiredEncBase64url) return encBase64url$1.exports;
 	hasRequiredEncBase64url = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2470,7 +2549,7 @@ var hasRequiredMd5;
 function requireMd5 () {
 	if (hasRequiredMd5) return md5$1.exports;
 	hasRequiredMd5 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2744,7 +2823,7 @@ var hasRequiredSha1;
 function requireSha1 () {
 	if (hasRequiredSha1) return sha1$1.exports;
 	hasRequiredSha1 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -2900,7 +2979,7 @@ var hasRequiredSha256;
 function requireSha256 () {
 	if (hasRequiredSha256) return sha256$1.exports;
 	hasRequiredSha256 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -3105,7 +3184,7 @@ var hasRequiredSha224;
 function requireSha224 () {
 	if (hasRequiredSha224) return sha224$1.exports;
 	hasRequiredSha224 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3191,7 +3270,7 @@ var hasRequiredSha512;
 function requireSha512 () {
 	if (hasRequiredSha512) return sha512$1.exports;
 	hasRequiredSha512 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3523,7 +3602,7 @@ var hasRequiredSha384;
 function requireSha384 () {
 	if (hasRequiredSha384) return sha384$1.exports;
 	hasRequiredSha384 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3612,7 +3691,7 @@ var hasRequiredSha3;
 function requireSha3 () {
 	if (hasRequiredSha3) return sha3$1.exports;
 	hasRequiredSha3 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -3944,7 +4023,7 @@ var hasRequiredRipemd160;
 function requireRipemd160 () {
 	if (hasRequiredRipemd160) return ripemd160$1.exports;
 	hasRequiredRipemd160 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -4217,7 +4296,7 @@ var hasRequiredHmac;
 function requireHmac () {
 	if (hasRequiredHmac) return hmac$1.exports;
 	hasRequiredHmac = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory) {
 			{
 				// CommonJS
@@ -4366,7 +4445,7 @@ var hasRequiredPbkdf2;
 function requirePbkdf2 () {
 	if (hasRequiredPbkdf2) return pbkdf2$1.exports;
 	hasRequiredPbkdf2 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -4517,7 +4596,7 @@ var hasRequiredEvpkdf;
 function requireEvpkdf () {
 	if (hasRequiredEvpkdf) return evpkdf$1.exports;
 	hasRequiredEvpkdf = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -4657,7 +4736,7 @@ var hasRequiredCipherCore;
 function requireCipherCore () {
 	if (hasRequiredCipherCore) return cipherCore$1.exports;
 	hasRequiredCipherCore = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5558,7 +5637,7 @@ var hasRequiredModeCfb;
 function requireModeCfb () {
 	if (hasRequiredModeCfb) return modeCfb$1.exports;
 	hasRequiredModeCfb = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5644,7 +5723,7 @@ var hasRequiredModeCtr;
 function requireModeCtr () {
 	if (hasRequiredModeCtr) return modeCtr$1.exports;
 	hasRequiredModeCtr = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5708,7 +5787,7 @@ var hasRequiredModeCtrGladman;
 function requireModeCtrGladman () {
 	if (hasRequiredModeCtrGladman) return modeCtrGladman$1.exports;
 	hasRequiredModeCtrGladman = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5830,7 +5909,7 @@ var hasRequiredModeOfb;
 function requireModeOfb () {
 	if (hasRequiredModeOfb) return modeOfb$1.exports;
 	hasRequiredModeOfb = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5890,7 +5969,7 @@ var hasRequiredModeEcb;
 function requireModeEcb () {
 	if (hasRequiredModeEcb) return modeEcb$1.exports;
 	hasRequiredModeEcb = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5936,7 +6015,7 @@ var hasRequiredPadAnsix923;
 function requirePadAnsix923 () {
 	if (hasRequiredPadAnsix923) return padAnsix923$1.exports;
 	hasRequiredPadAnsix923 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -5991,7 +6070,7 @@ var hasRequiredPadIso10126;
 function requirePadIso10126 () {
 	if (hasRequiredPadIso10126) return padIso10126$1.exports;
 	hasRequiredPadIso10126 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6041,7 +6120,7 @@ var hasRequiredPadIso97971;
 function requirePadIso97971 () {
 	if (hasRequiredPadIso97971) return padIso97971$1.exports;
 	hasRequiredPadIso97971 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6087,7 +6166,7 @@ var hasRequiredPadZeropadding;
 function requirePadZeropadding () {
 	if (hasRequiredPadZeropadding) return padZeropadding$1.exports;
 	hasRequiredPadZeropadding = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6140,7 +6219,7 @@ var hasRequiredPadNopadding;
 function requirePadNopadding () {
 	if (hasRequiredPadNopadding) return padNopadding$1.exports;
 	hasRequiredPadNopadding = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6176,7 +6255,7 @@ var hasRequiredFormatHex;
 function requireFormatHex () {
 	if (hasRequiredFormatHex) return formatHex$1.exports;
 	hasRequiredFormatHex = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6248,7 +6327,7 @@ var hasRequiredAes;
 function requireAes () {
 	if (hasRequiredAes) return aes$1.exports;
 	hasRequiredAes = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -6488,7 +6567,7 @@ var hasRequiredTripledes;
 function requireTripledes () {
 	if (hasRequiredTripledes) return tripledes$1.exports;
 	hasRequiredTripledes = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7273,7 +7352,7 @@ var hasRequiredRc4;
 function requireRc4 () {
 	if (hasRequiredRc4) return rc4$1.exports;
 	hasRequiredRc4 = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7418,7 +7497,7 @@ var hasRequiredRabbit;
 function requireRabbit () {
 	if (hasRequiredRabbit) return rabbit$1.exports;
 	hasRequiredRabbit = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7616,7 +7695,7 @@ var hasRequiredRabbitLegacy;
 function requireRabbitLegacy () {
 	if (hasRequiredRabbitLegacy) return rabbitLegacy$1.exports;
 	hasRequiredRabbitLegacy = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -7812,7 +7891,7 @@ var hasRequiredBlowfish;
 function requireBlowfish () {
 	if (hasRequiredBlowfish) return blowfish$1.exports;
 	hasRequiredBlowfish = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS
@@ -8287,7 +8366,7 @@ var hasRequiredCryptoJs;
 function requireCryptoJs () {
 	if (hasRequiredCryptoJs) return cryptoJs$1.exports;
 	hasRequiredCryptoJs = 1;
-	(function (module, exports$1) {
+	(function (module, exports) {
 (function (root, factory, undef) {
 			{
 				// CommonJS

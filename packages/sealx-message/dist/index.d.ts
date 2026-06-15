@@ -210,6 +210,12 @@ interface ReplyFunc<R = ReplyType> {
 interface MessageHandle {
     (request: SealxRequest, reply?: ReplyFunc): Promise<any>;
 }
+interface MessageBeforeSendHook {
+    (request: SealxRequest): SealxRequest | void | Promise<SealxRequest | void>;
+}
+interface MessageAfterSendHook {
+    (response: SealxResponse): SealxResponse | void | Promise<SealxResponse | void>;
+}
 /**
  * Interface for sending messages and receiving multiple responses via streaming
  * @typeParam T - Type of the message payload
@@ -243,7 +249,7 @@ interface MessageSendStream {
  * @returns Promise that resolves with the response
  */
 interface MessageSend {
-    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string): Promise<SealxResponse>;
+    <T = any>(message: T, topic: SealxTopic, receiver?: MessageChannel, requestId?: string, header?: Partial<SealxHeader>): Promise<SealxResponse>;
 }
 /**
  * Interface for sending reply messages
@@ -280,6 +286,8 @@ interface OffMessageListener {
  * between different parts of an application.
  */
 interface Messager {
+    session?: SealxSession;
+    host?: string;
     /**
      * The communication channel used for sending and receiving messages.
      */
@@ -289,6 +297,14 @@ interface Messager {
      * Each topic is associated with an array of message handling functions.
      */
     handlers: Record<Topic, MessageHandle[]>;
+    /**
+     * Registers a lifecycle hook that can inspect or modify requests before sending.
+     */
+    addBeforeSendHook: (hook: MessageBeforeSendHook) => () => void;
+    /**
+     * Registers a lifecycle hook that can inspect or modify responses after sending.
+     */
+    addAfterSendHook: (hook: MessageAfterSendHook) => () => void;
     /**
      * Sends a message to the specified recipient or channel.
      */
@@ -408,6 +424,8 @@ declare abstract class MessagerBase implements Messager {
     id: string;
     /** Optional session information including host and session ID */
     session?: SealxSession;
+    protected beforeSendHooks: MessageBeforeSendHook[];
+    protected afterSendHooks: MessageAfterSendHook[];
     forwardHandlers: Record<string, MessageHandle>;
     /**
      * Creates a new MessagerBase instance
@@ -470,6 +488,11 @@ declare abstract class MessagerBase implements Messager {
      * ```
      */
     protected responseTopic(topic: Topic): string;
+    addBeforeSendHook(hook: MessageBeforeSendHook): () => void;
+    addAfterSendHook(hook: MessageAfterSendHook): () => void;
+    protected applyBeforeSendHooks(request: SealxRequest): Promise<SealxRequest<any, SealxTopic, never>>;
+    protected applyAfterSendHooks(response: SealxResponse): Promise<SealxResponse<any, SealxTopic>>;
+    protected syncSessionFromResponse(response: SealxResponse): void;
     /**
      * Generates a unique message ID with QN prefix
      * @returns Unique message ID string combining:
@@ -838,7 +861,7 @@ declare class MessagerManager {
      *          The appropriate messager instance
      * @throws {Error} If the environment is not supported
      */
-    static getMessager(): ExtensionMessager | ContentMessager | BackgroundMessager | WindowMessager;
+    static getMessager(): ContentMessager | ExtensionMessager | BackgroundMessager | WindowMessager;
 }
 
 /**
@@ -910,4 +933,4 @@ declare class ChannelManager {
 }
 
 export { BackgroundMessager, Channel, ChannelManager, ContentMessager, ExtensionMessager, MessageChannel, MessagerManager, SealxTopic, TOPIC_PREFIX, WindowMessager, checkSealxSignerActive };
-export type { ConnectionRequest, ConnectionRequestMessage, ConnectionResponseMessage, ConnectionSession, DelSignRequest, DisconnectRequest, LocateElementMessage, MessageHandle, MessageListener, MessageReply, MessageSend, MessageSendStream, Messager, OffMessageListener, ReplyFunc, SealxHeader, SealxRequest, SealxTopicEvent, SignRequest, SignResponseMessage, SignResult, SignTask, SignTaskMessage, Topic };
+export type { ConnectionRequest, ConnectionRequestMessage, ConnectionResponseMessage, ConnectionSession, DelSignRequest, DisconnectRequest, LocateElementMessage, MessageAfterSendHook, MessageBeforeSendHook, MessageHandle, MessageListener, MessageReply, MessageSend, MessageSendStream, Messager, OffMessageListener, ReplyFunc, SealxHeader, SealxRequest, SealxTopicEvent, SignRequest, SignResponseMessage, SignResult, SignTask, SignTaskMessage, Topic };

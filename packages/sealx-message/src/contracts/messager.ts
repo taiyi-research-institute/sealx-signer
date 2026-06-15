@@ -120,6 +120,7 @@ export interface OffMessageListener {
  */
 export interface Messager {
   session?: SealxSession;
+  host?: string;
   /**
    * The communication channel used for sending and receiving messages.
    */
