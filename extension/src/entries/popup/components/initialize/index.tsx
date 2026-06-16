@@ -6,6 +6,7 @@ import { initializeSealx, login } from '@src/core/background';
 import { useSealXNavigate } from '../../hooks/useSealXNavigate';
 import { useGlobalContext } from '@src/hooks/useGlobalContext';
 import { useRequestContext } from '@src/hooks/useRequestContextHook';
+import { VersionFooter } from '../version-footer';
 // import type { SealxRequest } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 // import { useInitializedStore } from '@src/core/state';
@@ -255,8 +256,11 @@ export default function Initialize() {
                                     : 'Re-enter the new 6-character PIN.'
                                 : 'Set your 6-character PIN. It must include a mix of numbers (0-9), uppercase letters(A-Z), and lowercase letters (a-z).'}
                 </div>
-                <div className=' text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen absolute bottom-[32px]  w-full text-center'>
-                    What you see is what you sign
+                <div className='absolute bottom-[24px] w-full text-center'>
+                    <div className='text-[#000]/36 text-[1.5625rem] leading-[2.5] font-nanum-pen'>
+                        What you see is what you sign
+                    </div>
+                    <VersionFooter />
                 </div>
             </div>
         </div>

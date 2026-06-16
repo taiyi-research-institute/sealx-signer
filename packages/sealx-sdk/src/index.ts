@@ -89,6 +89,17 @@ const syncSignerSessionFromResponse = async (response?: {
 	}
 ).addAfterSendHook(syncSignerSessionFromResponse);
 
+(
+	messager as typeof messager & {
+		addBeforeSendHook: (hook: (request: SealxRequest) => SealxRequest) => () => void;
+	}
+).addBeforeSendHook((request: SealxRequest) => {
+	if (!request.header.userId && sealxSigner.account?.userId) {
+		request.header.userId = String(sealxSigner.account.userId);
+	}
+	return request;
+});
+
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
  * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
@@ -861,8 +872,8 @@ export const onSign = (callback: MessageHandle, taskId?: any) => {
  * });
  * ```
  */
-export const closeSealx = () => {
-	messager.send('', SealxTopic.CLOSE, MessageChannel.BACKGROUND);
+export const closeSealx = async (): Promise<void> => {
+	await messager.send('', SealxTopic.CLOSE, MessageChannel.BACKGROUND);
 };
 
 /**

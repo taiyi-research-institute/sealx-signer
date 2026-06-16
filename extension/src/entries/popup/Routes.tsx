@@ -27,8 +27,9 @@ const RootLayout = () => {
     const { pathname, state } = useLocation() as { pathname: string; state: { fromInitialize?: boolean; skipTransitionOnRoute?: string } | null };
     const navigate = useSealXNavigate();
     const { address, lockTime } = useGlobalContext()
-    const { setSession } = useRequestContext()
+    const { setSession, initializing } = useRequestContext()
     const checkRoute = useCallback(async () => {
+        if (initializing) return;
         const session = useSessionStore.getState().session
         const address = useInitializedStore.getState().address
         console.warn('[TRACE-CONNECT:ROUTE] checkRoute', {
@@ -48,7 +49,7 @@ const RootLayout = () => {
                 setSession(session)
             }
         }
-    }, [pathname, navigate, lockTime, setSession])
+    }, [pathname, navigate, lockTime, setSession, initializing])
     React.useLayoutEffect(() => {
         window.scrollTo(0, 0);
     }, [pathname]);

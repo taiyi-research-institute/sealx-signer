@@ -12,7 +12,8 @@ export type RequestContextType = {
     setRequest: React.Dispatch<React.SetStateAction<SealxRequest>>;
     setActiveTabHost: (host: string) => void;
     userId: string,
-    title: string
+    title: string,
+    initializing: boolean
 };
 
 export const RequestContext = createContext<RequestContextType>({} as RequestContextType);

@@ -48,9 +48,9 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
     const setStoreAddress = useInitializedStore.use.setAddress()
     const address = useInitializedStore.use.address()
 
-    const [messageQueueIframe, setMessageQueueIframe] = useState<HTMLIFrameElement>()
-    const [messageQueueReady, setMessageQueueReady] = useState<boolean>(false)
     const iframeRef = useRef<HTMLIFrameElement | null>(null)
+    const iframeCleanupRef = useRef<(() => void) | null>(null)
+    const messageQueueReadyRef = useRef(false)
     const messageQueueRef = useRef<PendingIframeMessage[]>([])
     const pendingMessagesRef = useRef<Map<string, PendingIframeMessage>>(new Map())
 
@@ -65,14 +65,12 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
     const setupIframe = useCallback(() => {
         const iframe = document.createElement('iframe');
         iframe.src = chrome.runtime.getURL('src/entries/sandbox/index.html');
-        iframe.sandbox.add('allow-scripts');
         iframe.style.display = 'none';
         document.body.appendChild(iframe);
         iframeRef.current = iframe
-        setMessageQueueIframe(iframe)
 
         const handleLoad = () => {
-            setMessageQueueReady(true)
+            messageQueueReadyRef.current = true
             const queued = messageQueueRef.current.splice(0)
             for (const pending of queued) {
                 postIframeMessage(pending)
@@ -83,8 +81,20 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
             iframe.removeEventListener('load', handleLoad)
             iframe.remove()
             iframeRef.current = null
-            setMessageQueueIframe(undefined)
-            setMessageQueueReady(false)
+            messageQueueReadyRef.current = false
+        }
+    }, [postIframeMessage])
+
+    const ensureIframe = useCallback(() => {
+        if (iframeRef.current) return;
+        iframeCleanupRef.current = setupIframe();
+    }, [setupIframe])
+
+    const flushIframeQueue = useCallback(() => {
+        if (!messageQueueReadyRef.current) return;
+        const queued = messageQueueRef.current.splice(0)
+        for (const pending of queued) {
+            postIframeMessage(pending)
         }
     }, [postIframeMessage])
 
@@ -103,16 +113,11 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
                 resolve,
                 timeoutId
             }
-            if (messageQueueIframe && messageQueueReady) {
-                if (!postIframeMessage(pending)) {
-                    clearTimeout(timeoutId)
-                    resolve({ type: 'error', output: '', error: 'sandbox not available', messageId })
-                }
-            } else {
-                messageQueueRef.current.push(pending)
-            }
+            messageQueueRef.current.push(pending)
+            ensureIframe()
+            flushIframeQueue()
         })
-    }, [messageQueueIframe, messageQueueReady, postIframeMessage])
+    }, [ensureIframe, flushIframeQueue])
 
     useEffect(() => {
         const pendingMessages = pendingMessagesRef.current
@@ -137,6 +142,8 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
             }
             pendingMessages.clear()
             queuedMessages.length = 0
+            iframeCleanupRef.current?.()
+            iframeCleanupRef.current = null
         }
     }, [])
     /**
@@ -203,13 +210,6 @@ export const GlobalConextProvider: React.FC<GlobalConextProviderProps> = ({ chil
     useEffect(() => {
         checkLock();
     }, [checkLock]);
-
-    /**
-     * Effect to setup the iframe for message communication
-     */
-    useEffect(() => {
-        return setupIframe();
-    }, [setupIframe]);
 
     /**
      * Effect to get and track the current active browser tab

@@ -2,7 +2,7 @@
 
 // import { sessionStore } from "@src/core/state"
 import { getSealxInfo } from "./state"
-import { ChannelManager, MessageChannel, SealxTopic, type Messager } from "sealx-message"
+import { Channel, ChannelManager, MessageChannel, SealxTopic, type Messager } from "sealx-message"
 import { TabManager } from "sealx-core"
 
 /**
@@ -41,6 +41,7 @@ type AllowedRoute = typeof ALLOWED_ROUTES[number];
 export default class PanelManager {
     static panelPath: string = 'src/entries/popup/index.html'
     static messager: Messager | null = null
+    private static panelChannel: Channel | null = null
 
     // 面板状态
     private static isPanelOpen: boolean = false
@@ -115,6 +116,7 @@ export default class PanelManager {
 
         // 长链接监听：side panel 端口断开即视为面板关闭
         ChannelManager.accept('sealx-panel', (channel) => {
+            this.panelChannel = channel
             channel.on('ready', (payload: unknown) => {
                 const route = typeof (payload as Record<string, unknown>)?.route === 'string'
                     ? (payload as Record<string, unknown>).route as string
@@ -122,6 +124,7 @@ export default class PanelManager {
                 this.notifyPanelOpened(route);
             });
             channel.onDisconnect(() => {
+                if (this.panelChannel === channel) this.panelChannel = null
                 this.notifyPanelClosing();
             });
         });
@@ -250,6 +253,12 @@ export default class PanelManager {
             panelTriggerSource: 'button',
             panelTriggerSourceAt: Date.now(),
         })
+        // Keep this fire-and-forget: awaiting before sidePanel.open can break transient activation.
+        chrome.sidePanel.setOptions({
+            tabId,
+            path: this.panelPath,
+            enabled: true,
+        }).catch(err => console.warn('PanelManager: setOptions before open failed', err))
         // MUST remain synchronous — no await between set and open, preserves transient activation
         await chrome.sidePanel.open({ tabId })
     }
@@ -417,18 +426,32 @@ export default class PanelManager {
      *
      * 如果调用方需要强制隐藏面板（如错误场景），使用 forceHide()
      */
-    static async closePanel(): Promise<void> {
-        await this.forceHide()
+    static async closePanel(tabId?: number | null): Promise<void> {
+        if (this.panelChannel) {
+            try {
+                this.panelChannel.send('close-window', { tabId })
+                return
+            } catch (err) {
+                console.warn('PanelManager: close-window send failed', err)
+            }
+        }
+        await this.forceHide(tabId)
     }
 
     /**
      * 强制隐藏面板（禁用再启用）
      * 适用于错误/超时等需要"关闭"面板的场景
      */
-    static async forceHide(): Promise<void> {
+    static async forceHide(tabId?: number | null): Promise<void> {
         try {
-            await chrome.sidePanel.setOptions({ enabled: false })
-            await chrome.sidePanel.setOptions({ enabled: true })
+            const targetTabId = tabId ?? this.processingTabId ?? await this.getCurrentTabId()
+            if (targetTabId) {
+                await chrome.sidePanel.setOptions({ tabId: targetTabId, enabled: false })
+                await chrome.sidePanel.setOptions({ tabId: targetTabId, path: this.panelPath, enabled: true })
+            } else {
+                await chrome.sidePanel.setOptions({ enabled: false })
+                await chrome.sidePanel.setOptions({ path: this.panelPath, enabled: true })
+            }
             this.isPanelOpen = false
             this.currentRoute = ''
         } catch (err) {

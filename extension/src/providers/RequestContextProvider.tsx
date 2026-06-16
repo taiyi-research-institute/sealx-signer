@@ -9,40 +9,87 @@ import { useLocation } from 'react-router-dom';
 import type { ReplyFunc } from 'sealx-message';
 import type { SealxSession } from 'sealx-core';
 import { useRequestStore } from '@src/core/state/request';
-import { loginAnimatingRef, loginAnimatingMeta, LOGIN_ANIMATING_TIMEOUT_MS } from '@src/core/state/login-animating';
+import { requestCache, REQUEST_CACHE_KEY } from '@src/core/request-cache';
+import {
+  loginAnimatingRef,
+  loginAnimatingMeta,
+  LOGIN_ANIMATING_TIMEOUT_MS,
+} from '@src/core/state/login-animating';
 // import { MessageChannel } from 'sealx-message';
 
 /**
  * Props for RequestContextProvider component
  */
 interface RequestContextProps {
-    /** Child components that will have access to the request context */
-    children: React.ReactNode;
+  /** Child components that will have access to the request context */
+  children: React.ReactNode;
 }
 
 /**
  * Check if session is expired or invalid
  */
-const isSessionValid = (
-    session: SealxSession | null,
-    host?: string,
-    userId?: string
-): boolean => {
-    if (!session) return false;
-    if (session.expire <= Date.now()) return false;
-    if (host && session.host !== host) return false;
-    if (userId && session.userId !== userId) return false;
-    return true;
+const isSessionValid = (session: SealxSession | null, host?: string, userId?: string): boolean => {
+  if (!session) return false;
+  if (session.expire <= Date.now()) return false;
+  if (host && session.host !== host) return false;
+  if (userId && session.userId !== userId) return false;
+  return true;
 };
 
 const REQUEST_ONLY_ROUTES = new Set(['/bind-pubkey', '/task-detail', '/task-home']);
-const PANEL_TRIGGER_MAX_AGE_MS = 2_000;
+const PANEL_TRIGGER_MAX_AGE_MS = 10_000;
+const REQUEST_CACHE_POLL_INTERVAL_MS = 300;
+const REQUEST_CACHE_POLL_ATTEMPTS = 20;
+
+const waitForRequestCacheChange = (attempt: number) => {
+  return new Promise<void>((resolve) => {
+    const waitStart = Date.now();
+    const timer = setTimeout(() => {
+      chrome.storage.onChanged.removeListener(listener);
+      console.warn('[TRACE-RECOVER:PANEL] request cache wait timeout', {
+        attempt,
+        elapsed: Date.now() - waitStart,
+      });
+      resolve();
+    }, REQUEST_CACHE_POLL_INTERVAL_MS);
+
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+      if (areaName !== 'session' || !changes[REQUEST_CACHE_KEY]?.newValue) return;
+      clearTimeout(timer);
+      chrome.storage.onChanged.removeListener(listener);
+      console.warn('[TRACE-RECOVER:PANEL] request cache storage changed', {
+        attempt,
+        elapsed: Date.now() - waitStart,
+      });
+      resolve();
+    };
+
+    chrome.storage.onChanged.addListener(listener);
+  });
+};
 
 const normalizeRoute = (route: string) => {
-    const normalizedRoute = route.replace(/^#/, '');
-    if (!normalizedRoute || normalizedRoute === '/') return '/';
-    return normalizedRoute.startsWith('/') ? normalizedRoute : `/${normalizedRoute}`;
+  const normalizedRoute = route.replace(/^#/, '');
+  if (!normalizedRoute || normalizedRoute === '/') return '/';
+  return normalizedRoute.startsWith('/') ? normalizedRoute : `/${normalizedRoute}`;
 };
+
+const getActiveTabHost = async () => {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.url) return '';
+    const url = new URL(tab.url);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') return '';
+    return url.host;
+  } catch {
+    return '';
+  }
+};
+
+const providerModuleLoadedAt = Date.now();
+console.warn('[TRACE-PANEL-TIMING:PROVIDER] module loaded', {
+  providerModuleLoadedAt,
+});
 
 /**
  * Request context provider that manages:
@@ -50,622 +97,574 @@ const normalizeRoute = (route: string) => {
  * - Current active tab host information
  * - Session state for the current host
  */
-export const RequestContextProvider: React.FC<RequestContextProps> = ({
-    children,
-}) => {
-    // State management
-    const [request, setRequest] = useState<SealxRequest>({} as SealxRequest);
-    const [title, setTitle] = useState<string>('Sealx Sign What You See');
-    const [loading, setLoading] = useState(false);
+export const RequestContextProvider: React.FC<RequestContextProps> = ({ children }) => {
+  const renderAt = Date.now();
+  console.warn('[TRACE-PANEL-TIMING:PROVIDER] render', {
+    elapsedSinceModuleLoad: renderAt - providerModuleLoadedAt,
+  });
 
-    // Keep loading brief so it does not cover already-rendered signing details.
-    const loadingStartRef = useRef(0);
-    const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const buttonFallbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const MIN_LOADING_MS = 500;
+  useEffect(() => {
+    console.warn('[TRACE-PANEL-TIMING:PROVIDER] mounted', {
+      elapsedSinceModuleLoad: Date.now() - providerModuleLoadedAt,
+    });
+  }, []);
 
-    // Clear loading only after minimum duration has elapsed
-    const finishLoading = useCallback(() => {
-        if (loadingTimerRef.current) {
-            clearTimeout(loadingTimerRef.current);
-            loadingTimerRef.current = null;
+  // State management
+  const [request, setRequest] = useState<SealxRequest>({} as SealxRequest);
+  const [title, setTitle] = useState<string>('Sealx Sign What You See');
+  const [initializing, setInitializing] = useState(true);
+
+  // Use ref to track initialization status and prevent duplicate operations
+  const initializedRef = useRef(false);
+  const initializeEffectRanRef = useRef(false);
+
+  // Session related state from store (single source of truth)
+  const host = useSessionStore.use.host();
+  const setHost = useSessionStore.use.setHost();
+  const userId = useSessionStore.use.userId();
+  const setUserId = useSessionStore.use.setUserId();
+  const session = useSessionStore.use.session();
+  const setSession = useSessionStore.use.setSession();
+
+  // Navigation and initialization state
+  const address = useInitializedStore.use.address();
+  const navigate = useSealXNavigate();
+  const { pathname } = useLocation();
+  const pathnameRef = useRef(pathname);
+  const requestTopicRef = useRef<SealxTopic | undefined>(undefined);
+
+  useEffect(() => {
+    pathnameRef.current = pathname;
+  }, [pathname]);
+
+  useEffect(() => {
+    requestTopicRef.current = request.topic;
+  }, [request.topic]);
+
+  // Freeze isButtonTriggered: once set, don't unset on re-render
+  const buttonTriggeredRef = useRef(false);
+  const buttonTriggerCheckedRef = useRef(false);
+  const [isButtonTriggered, setIsButtonTriggered] = useState(false);
+
+  const consumePanelTriggerSource = useCallback(async () => {
+    if (buttonTriggerCheckedRef.current) return buttonTriggeredRef.current;
+
+    buttonTriggerCheckedRef.current = true;
+    try {
+      const res = await chrome.storage.session.get(['panelTriggerSource', 'panelTriggerSourceAt']);
+      console.warn('[TRACE-CONNECT:PANEL] consumePanelTriggerSource', {
+        panelTriggerSource: res.panelTriggerSource,
+        panelTriggerSourceAt: res.panelTriggerSourceAt,
+      });
+      const sourceAt = typeof res.panelTriggerSourceAt === 'number' ? res.panelTriggerSourceAt : 0;
+      const sourceAge = sourceAt > 0 ? Date.now() - sourceAt : 0;
+      const isFreshButtonSource =
+        res.panelTriggerSource === 'button' &&
+        sourceAt > 0 &&
+        sourceAge <= PANEL_TRIGGER_MAX_AGE_MS;
+
+      console.warn('[TRACE-CONNECT:PANEL] consumePanelTriggerSource result', {
+        sourceAge,
+        maxAge: PANEL_TRIGGER_MAX_AGE_MS,
+        isFreshButtonSource,
+      });
+
+      await chrome.storage.session.remove(['panelTriggerSource', 'panelTriggerSourceAt']);
+
+      if (isFreshButtonSource) {
+        buttonTriggeredRef.current = true;
+        setIsButtonTriggered(true);
+        return true;
+      }
+    } catch {
+      // Storage can fail in non-extension test contexts; fall back to normal open.
+    }
+    return false;
+  }, []);
+
+  useEffect(() => {
+    if (isButtonTriggered) return;
+
+    const clearRequestRoute = () => {
+      if (request.topic) return;
+      if (REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) {
+        useRequestStore.getState().clearRequest();
+        setRequest({} as SealxRequest);
+        navigate('/', { replace: true });
+      }
+    };
+
+    const handleVisible = () => {
+      if (!document.hidden) {
+        clearRequestRoute();
+      }
+    };
+
+    window.addEventListener('focus', clearRequestRoute);
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => {
+      window.removeEventListener('focus', clearRequestRoute);
+      document.removeEventListener('visibilitychange', handleVisible);
+    };
+  }, [isButtonTriggered, navigate, pathname, request.topic]);
+
+  useEffect(() => {
+    const clearOnPageHide = () => {
+      buttonTriggeredRef.current = false;
+      buttonTriggerCheckedRef.current = false;
+      setIsButtonTriggered(false);
+      if (!REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) return;
+
+      useRequestStore.getState().clearRequest();
+      setRequest({} as SealxRequest);
+      navigate('/', { replace: true });
+    };
+
+    window.addEventListener('pagehide', clearOnPageHide);
+    return () => {
+      window.removeEventListener('pagehide', clearOnPageHide);
+    };
+  }, [navigate, pathname]);
+
+  /**
+   * Determine target route based on request topic and session state
+   */
+  const getTargetRoute = useCallback(
+    (req: SealxRequest, currentSession: SealxSession | null): string | null => {
+      const sessionValid = isSessionValid(currentSession, req.payload?.host, req.payload?.userId);
+
+      // For CONNECT requests
+      if (req.topic === SealxTopic.CONNECT) {
+        // If session valid, reply with session and stay on current route
+        if (currentSession && sessionValid) {
+          req.reply?.({
+            session: currentSession,
+            account: {
+              userId: currentSession.userId,
+              host: currentSession.host,
+              pk: currentSession.pk,
+            },
+          });
+          return null; // Valid session — stay on current route
         }
-        const elapsed = Date.now() - loadingStartRef.current;
-        const remaining = Math.max(0, MIN_LOADING_MS - elapsed);
-        if (remaining > 0) {
-            loadingTimerRef.current = setTimeout(() => setLoading(false), remaining);
+        // F3: Session invalid — redirect to login
+        return '/login';
+      }
+
+      // If session invalid, redirect to login
+      if (!sessionValid) {
+        return '/login';
+      }
+
+      // Handle specific routes based on current pathname and request topic
+      if (
+        pathname === '/task-detail' ||
+        (pathname === '/task-home' &&
+          (req.topic === SealxTopic.SIGN || req.topic === SealxTopic.BATCH_SIGN))
+      ) {
+        return pathname;
+      }
+
+      // Determine target route based on request topic
+      switch (req.topic) {
+        case SealxTopic.BIND_PK:
+          return '/bind-pubkey';
+        case SealxTopic.SIGN:
+        case SealxTopic.BATCH_SIGN:
+          return '/task-home';
+        case SealxTopic.SIGN_RESPONSE:
+          return pathname;
+        default:
+          return '/';
+      }
+    },
+    [pathname],
+  );
+
+  /**
+   * Handle routing based on request
+   */
+  const routeByRequest = useCallback(
+    (req: SealxRequest) => {
+      // Don't navigate during the logging-in animation — Login handles it
+      if (loginAnimatingRef.current) {
+        if (Date.now() - loginAnimatingMeta.setAt > LOGIN_ANIMATING_TIMEOUT_MS) {
+          loginAnimatingRef.current = false;
         } else {
-            setLoading(false);
+          return;
         }
-    }, []);
+      }
 
-    // Use ref to track initialization status and prevent duplicate operations
-    const initializedRef = useRef(false);
+      const currentSession = useSessionStore.getState().session;
+      const targetRoute = getTargetRoute(req, currentSession);
 
-    // Session related state from store (single source of truth)
-    const host = useSessionStore.use.host();
-    const setHost = useSessionStore.use.setHost();
-    const userId = useSessionStore.use.userId();
-    const setUserId = useSessionStore.use.setUserId();
-    const session = useSessionStore.use.session();
-    const setSession = useSessionStore.use.setSession();
+      console.warn('[TRACE-CONNECT:PANEL] routeByRequest', {
+        topic: req.topic,
+        pathname,
+        targetRoute,
+        hasSession: !!currentSession,
+        sessionUserId: currentSession?.userId,
+        sessionHost: currentSession?.host,
+      });
 
-    // Navigation and initialization state
-    const address = useInitializedStore.use.address();
-    const navigate = useSealXNavigate();
-    const { pathname } = useLocation();
+      if (targetRoute && targetRoute !== pathname) {
+        navigate(targetRoute, { replace: true });
+      }
+    },
+    [pathname, getTargetRoute, navigate],
+  );
 
-    // Freeze isButtonTriggered: once set, don't unset on re-render
-    const buttonTriggeredRef = useRef(false);
-    const buttonTriggerCheckedRef = useRef(false);
-    const [isButtonTriggered, setIsButtonTriggered] = useState(false);
-    const [blockingSync, setBlockingSync] = useState(false);
-
-    const consumePanelTriggerSource = useCallback(async () => {
-        if (buttonTriggerCheckedRef.current) return buttonTriggeredRef.current;
-
-        buttonTriggerCheckedRef.current = true;
-        try {
-            const res = await chrome.storage.session.get(['panelTriggerSource', 'panelTriggerSourceAt']);
-            const sourceAt = typeof res.panelTriggerSourceAt === 'number' ? res.panelTriggerSourceAt : 0;
-            const isFreshButtonSource =
-                res.panelTriggerSource === 'button' &&
-                sourceAt > 0 &&
-                Date.now() - sourceAt <= PANEL_TRIGGER_MAX_AGE_MS;
-
-            await chrome.storage.session.remove(['panelTriggerSource', 'panelTriggerSourceAt']);
-
-            if (isFreshButtonSource) {
-                buttonTriggeredRef.current = true;
-                setIsButtonTriggered(true);
-                setBlockingSync(true);
-                setLoading(true);
-                loadingStartRef.current = Date.now();
-                return true;
-            }
-        } catch {
-            // Storage can fail in non-extension test contexts; fall back to normal open.
-        }
-        return false;
-    }, []);
-
-    // 5s timeout fallback: unlock loading if no bind/sign request arrives in time
-    useEffect(() => {
-        if (!isButtonTriggered) return;
-        const fallbackTimer = setTimeout(() => {
-            if (loadingTimerRef.current) {
-                clearTimeout(loadingTimerRef.current);
-                loadingTimerRef.current = null;
-            }
-            setBlockingSync(false);
-            setLoading(false);
-            if (!request.topic && REQUEST_ONLY_ROUTES.has(pathname)) {
-                useRequestStore.getState().clearRequest();
-                setRequest({} as SealxRequest);
-                navigate('/', { replace: true });
-            }
-        }, 5_000);
-        return () => {
-            clearTimeout(fallbackTimer);
-        };
-    }, [isButtonTriggered, navigate, pathname, request.topic]);
-
-    // Keep button-triggered panel blank only until the real request arrives.
-    // Loading is cleared by routeByRequest after navigation completes.
-    useEffect(() => {
-        if (!isButtonTriggered) return;
-        if (!request.topic) return;
-        setBlockingSync(false);
-    }, [request.topic, isButtonTriggered]);
-
-    // Clear button fallback timer when request arrives
-    useEffect(() => {
-        if (request.topic && buttonFallbackTimerRef.current) {
-            clearTimeout(buttonFallbackTimerRef.current);
-            buttonFallbackTimerRef.current = null;
-        }
-    }, [request.topic]);
-
-    useEffect(() => {
-        if (isButtonTriggered) return;
-
-        const clearRequestRoute = () => {
-            if (request.topic) return;
-            if (REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) {
-                useRequestStore.getState().clearRequest();
-                setRequest({} as SealxRequest);
-                navigate('/', { replace: true });
-            }
-        };
-
-        const handleVisible = () => {
-            if (!document.hidden) {
-                clearRequestRoute();
-            }
-        };
-
-        window.addEventListener('focus', clearRequestRoute);
-        document.addEventListener('visibilitychange', handleVisible);
-        return () => {
-            window.removeEventListener('focus', clearRequestRoute);
-            document.removeEventListener('visibilitychange', handleVisible);
-        };
-    }, [isButtonTriggered, navigate, pathname, request.topic]);
-
-    useEffect(() => {
-        const clearOnPageHide = () => {
-            buttonTriggeredRef.current = false;
-            buttonTriggerCheckedRef.current = false;
-            setIsButtonTriggered(false);
-            setBlockingSync(false);
-            if (!REQUEST_ONLY_ROUTES.has(normalizeRoute(window.location.hash || pathname))) return;
-
-            useRequestStore.getState().clearRequest();
-            setRequest({} as SealxRequest);
-            navigate('/', { replace: true });
-        };
-
-        window.addEventListener('pagehide', clearOnPageHide);
-        return () => {
-            window.removeEventListener('pagehide', clearOnPageHide);
-        };
-    }, [navigate, pathname]);
-
-    /**
-     * Determine target route based on request topic and session state
-     */
-    const getTargetRoute = useCallback(
-        (
-            req: SealxRequest,
-            currentSession: SealxSession | null
-        ): string | null => {
-            const sessionValid = isSessionValid(
-                currentSession,
-                req.payload?.host,
-                req.payload?.userId
-            );
-
-            // For CONNECT requests
-            if (req.topic === SealxTopic.CONNECT) {
-                // If session valid, reply with session and stay on current route
-                if (currentSession && sessionValid) {
-                    req.reply?.({
-                        session: currentSession,
-                        account: {
-                            userId: currentSession.userId,
-                            host: currentSession.host,
-                            pk: currentSession.pk
-                        }
-                    });
-                    return null;  // Valid session — stay on current route
-                }
-                // F3: Session invalid — redirect to login
-                return '/login';
-            }
-
-            // If session invalid, redirect to login
-            if (!sessionValid) {
-                return '/login';
-            }
-
-            // Handle specific routes based on current pathname and request topic
-            if (
-                pathname === '/task-detail' ||
-                (pathname === '/task-home' &&
-                    (req.topic === SealxTopic.SIGN ||
-                        req.topic === SealxTopic.BATCH_SIGN))
-            ) {
-                return pathname;
-            }
-
-            // Determine target route based on request topic
-            switch (req.topic) {
-                case SealxTopic.BIND_PK:
-                    return '/bind-pubkey';
-                case SealxTopic.SIGN:
-                case SealxTopic.BATCH_SIGN:
-                    return '/task-home';
-                case SealxTopic.SIGN_RESPONSE:
-                    return pathname;
-                default:
-                    return '/';
-            }
-        },
-        [pathname]
-    );
-
-    /**
-     * Handle routing based on request
-     */
-    const routeByRequest = useCallback(
-        (req: SealxRequest) => {
-            // Don't navigate during the logging-in animation — Login handles it
-            if (loginAnimatingRef.current) {
-                if (Date.now() - loginAnimatingMeta.setAt > LOGIN_ANIMATING_TIMEOUT_MS) {
-                    loginAnimatingRef.current = false;
-                } else {
-                    return;
-                }
-            }
-
-            const currentSession = useSessionStore.getState().session;
-            const targetRoute = getTargetRoute(req, currentSession);
-
-            console.warn('[TRACE-CONNECT:PANEL] routeByRequest', {
-              topic: req.topic,
-              pathname,
-              targetRoute,
-              hasSession: !!currentSession,
-              sessionUserId: currentSession?.userId,
-              sessionHost: currentSession?.host,
-            });
-
-            if (targetRoute && targetRoute !== pathname) {
-                navigate(targetRoute, { replace: true });
-            }
-            // Clear loading after navigation — reset start to ensure full MIN_LOADING_MS delay
-            loadingStartRef.current = Date.now();
-            finishLoading();
-        },
-        [pathname, getTargetRoute, navigate, finishLoading]
-    );
-
-    /**
-     * Helper function to update host and userId from request
-     */
-    const updateHostAndUserId = useCallback(
-        (req: SealxRequest) => {
-            if (req.topic === SealxTopic.CONNECT) {
-                const newHost = req.payload?.host ?? '';
-                const newUserId = req.payload?.userId ?? '';
-                const newTitle = req.payload?.title ?? 'Sealx Sign What You See';
-                console.warn(
-                  '[TRACE-CONNECT:PANEL] updateHostAndUserId CONNECT',
-                  {
-                    newHost,
-                    newUserId,
-                    newTitle,
-                    payloadKeys: req.payload ? Object.keys(req.payload) : [],
-                  },
-                );
-                setHost(newHost);
-                setUserId(newUserId);
-                setTitle(newTitle);
-            } else if (req.header) {
-                if (req.header.host) setHost(req.header.host);
-                if (req.header.userId) setUserId(req.header.userId);
-            }
-        },
-        [setHost, setUserId]
-    );
-
-    // useEffect(() => {
-    //     // Tab模式下打开插件页面不用发送这个信息
-    //     // Only send CHECK_ACTIVED messages when not in tab mode
-    //     if (popupType === 'tab') {
-    //         return;
-    //     }
-
-    //     messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
-    //     const timer = setInterval(() => {
-    //         messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
-    //     }, 10000);
-    //     return () => {
-    //         clearInterval(timer)
-    //     }
-    // }, [popupType])
-
-    /**
-     * Handle incoming SealX requests
-     */
-    const handleRequest = useCallback(
-        async (req: SealxRequest, reply?: ReplyFunc) => {
-            // Skip invalid requests
-            if (!req || !req.topic) {
-                return;
-            }
-
-            // Handle CHECK_ACTIVE immediately
-            if (req.topic === SealxTopic.CHECK_ACTIVE) {
-                reply?.(true);
-                return;
-            }
-
-            // Update TabManager's currentTab when receiving from content/inpage
-            // This ensures that when sending messages back to the business page
-            // (via createWindow popup), we use the correct tab ID
-            // if (req.header?.tabId) {
-            //     try {
-            //         const tab = await chrome.tabs.get(req.header.tabId);
-            //         if (tab) {
-            //             TabManager.getInstance().currentTab = tab;
-            //         }
-            //     } catch (e) {
-            //         // Tab may not be accessible, ignore error
-            //     }
-            // }
-
-
-
-            try {
-                // Bind reply function to request
-                req.reply = (res, end?: boolean) => {
-                    if (reply) reply(res, end);
-                };
-
-                console.warn('[TRACE-CONNECT:PANEL] handleRequest received', {
-                  topic: req.topic,
-                  payloadHost: (req.payload as any)?.host,
-                  payloadUserId: (req.payload as any)?.userId,
-                  headerHost: req.header?.host,
-                  headerUserId: req.header?.userId,
-                  currentRequestTopic: request.topic,
-                });
-
-                // Update host and userId from request
-                updateHostAndUserId(req);
-                // Skip duplicate request IDs
-                if (req.header?.requestId === request.header?.requestId) {
-                    console.warn(
-                      '[TRACE-CONNECT:PANEL] handleRequest SKIP duplicate',
-                      { requestId: req.header?.requestId },
-                    );
-                    return;
-                }
-                // Set request state and trigger routing
-                console.warn(
-                  '[TRACE-CONNECT:PANEL] handleRequest → setRequest',
-                  {
-                    newTopic: req.topic,
-                    oldTopic: request.topic,
-                    newPayloadHost: (req.payload as any)?.host,
-                    newPayloadUserId: (req.payload as any)?.userId,
-                  },
-                );
-                setRequest(req);
-            } catch (error) {
-                console.error('Error handling SealX request:', error);
-                throw error;
-            }
-        },
-        [request.header?.requestId, updateHostAndUserId]
-    );
-
-    /**
-     * Initialize application based on current state
-     */
-    const initializeApplication = useCallback(async () => {
-        console.warn('[TRACE-CONNECT:PANEL] initializeApplication START', {
-          alreadyInit: initializedRef.current,
-          pathname,
-          openedByButton: buttonTriggeredRef.current,
+  /**
+   * Helper function to update host and userId from request
+   */
+  const updateHostAndUserId = useCallback(
+    (req: SealxRequest) => {
+      if (req.topic === SealxTopic.CONNECT) {
+        const newHost = req.payload?.host ?? '';
+        const newUserId = req.payload?.userId ?? '';
+        const newTitle = req.payload?.title ?? 'Sealx Sign What You See';
+        console.warn('[TRACE-CONNECT:PANEL] updateHostAndUserId CONNECT', {
+          newHost,
+          newUserId,
+          newTitle,
+          payloadKeys: req.payload ? Object.keys(req.payload) : [],
         });
-        if (initializedRef.current) return;
+        setHost(newHost);
+        setUserId(newUserId);
+        setTitle(newTitle);
+      } else if (req.header) {
+        if (req.header.host) setHost(req.header.host);
+        if (req.header.userId) setUserId(req.header.userId);
+      }
+    },
+    [setHost, setUserId],
+  );
 
-        const openedByButton = await consumePanelTriggerSource();
-        console.warn(
-          '[TRACE-CONNECT:PANEL] initializeApplication after consumeTrigger',
-          {
-            openedByButton,
-            pathname,
-          },
-        );
+  // useEffect(() => {
+  //     // Tab模式下打开插件页面不用发送这个信息
+  //     // Only send CHECK_ACTIVED messages when not in tab mode
+  //     if (popupType === 'tab') {
+  //         return;
+  //     }
 
-        setLoading(true);
-        loadingStartRef.current = Date.now();
+  //     messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+  //     const timer = setInterval(() => {
+  //         messager.send(MessageChannel.POPUP, SealxTopic.CHECK_ACTIVED, MessageChannel.INPAGE)
+  //     }, 10000);
+  //     return () => {
+  //         clearInterval(timer)
+  //     }
+  // }, [popupType])
 
-        // Wait for store hydration
-        const addressLoaded = useInitializedStore.persist.hasHydrated();
-        if (!addressLoaded) {
-            // Wait a bit for hydration to complete
-            setTimeout(() => initializeApplication(), 100);
-            return;
-        }
+  /**
+   * Handle incoming SealX requests
+   */
+  const handleRequest = useCallback(
+    async (req: SealxRequest, reply?: ReplyFunc) => {
+      // Skip invalid requests
+      if (!req || !req.topic) {
+        return;
+      }
 
-        // Check if address exists (plugin initialization)
-        const currentAddress = useInitializedStore.getState().address;
-        if (!currentAddress) {
-            if (pathname !== '/initialize') {
-                navigate('/initialize', { replace: true });
-            }
-            if (!buttonTriggeredRef.current) {
-                finishLoading();
-            }
-            initializedRef.current = true;
-            return;
-        }
+      // Handle CHECK_ACTIVE immediately
+      if (req.topic === SealxTopic.CHECK_ACTIVE) {
+        reply?.(true);
+        return;
+      }
 
-        // F2: 等待 useRequestStore hydration 完成（Zustand persist 从 chrome.storage.local 回灌）
-        // background 的 setRequest() 通过 chrome.storage.local 同步到 panel，
-        // 但异步写入可能有延迟。先 rehydrate，再轮询重试。
-        if (!useRequestStore.persist.hasHydrated()) {
-            await useRequestStore.persist.rehydrate();
-        }
-
-        if (!openedByButton) {
-            useRequestStore.getState().clearRequest();
-            if (REQUEST_ONLY_ROUTES.has(pathname)) {
-                navigate('/', { replace: true });
-            }
-        } else {
-            // Check for cached request data with polling retry
-            // (handles race: background wrote to storage but async propagation hasn't completed)
-            let storeRequest = useRequestStore.getState().request;
-            for (let attempt = 0; attempt < 10 && !storeRequest; attempt++) {
-                if (attempt > 0) {
-                    await new Promise(r => setTimeout(r, attempt * 100));
-                }
-                storeRequest = useRequestStore.getState().request;
-            }
-            if (storeRequest) {
-                console.warn(
-                  '[TRACE-CONNECT:PANEL] initializeApplication found storeRequest',
-                  {
-                    storeRequestTopic: storeRequest.topic,
-                    storeRequestId: storeRequest.header?.requestId,
-                  },
-                );
-                // Restore request with reply function binding
-                if (storeRequest.once) {
-                    storeRequest.reply = (res, end?: boolean) => {
-                        messager.reply(res, storeRequest, end);
-                    };
-                }
-                setRequest(storeRequest);
-                useRequestStore.getState().clearRequest();
-                initializedRef.current = true;
-                return;
-            }
-        }
-
-        // No cached request, check session
-        const currentSession = useSessionStore.getState().session;
-        const sessionValid = isSessionValid(currentSession);
-
-        console.warn(
-          '[TRACE-CONNECT:PANEL] initializeApplication session check',
-          {
-            hasSession: !!currentSession,
-            sessionValid,
-            sessionUserId: currentSession?.userId,
-            sessionHost: currentSession?.host,
-            pathname,
-            openedByButton,
-            currentSession,
-          },
-        );
-
-        if (!sessionValid) {
-            console.warn(
-              '[TRACE-CONNECT:PANEL] initializeApplication → navigate /login (no valid session)',
-            );
-            setHost('')
-            setUserId('')
-            // Clear session if invalid
-            if (currentSession) {
-
-                setSession(null);
-            }
-            // Redirect to login if not already there
-            if (pathname !== '/login') {
-                navigate('/login', { replace: true });
-            }
-        } else {
-            // Session is valid
-            // If on login or initialize pages, redirect to main page
-            if (pathname === '/login' || pathname === '/initialize' || pathname === '/initialized') {
-                navigate('/', { replace: true });
-            } else if (!openedByButton && REQUEST_ONLY_ROUTES.has(pathname)) {
-                navigate('/', { replace: true });
-            }
-            // Button-triggered + valid session: keep loading until SIGN/BIND_PK arrives.
-            // The request will arrive shortly (SDK sends it after connectSealx) and
-            // routeByRequest will drive navigation. Loading is cleared by the
-            // request.topic effect, preventing a flash of the initial route.
-            if (openedByButton) {
-                initializedRef.current = true;
-                // 3s fallback: if request never arrives, navigate home and clear loading
-                buttonFallbackTimerRef.current = setTimeout(() => {
-                    buttonFallbackTimerRef.current = null;
-                    if (!request.topic) {
-                        finishLoading();
-                        navigate('/', { replace: true });
-                    }
-                }, 3_000);
-                return;
-            }
-        }
-
-        if (!openedByButton) {
-            setLoading(false);
-        }
-        initializedRef.current = true;
-    }, [consumePanelTriggerSource, pathname, navigate, setHost, setUserId, setSession, finishLoading]);
-
-    /**
-     * Setup messager listener - runs once on mount
-     */
-    useEffect(() => {
-        const off = messager.on(SealxTopic.ALL, handleRequest);
-        return () => off();
-    }, [handleRequest]);
-
-    /**
-     * Initialize application on mount - runs once
-     */
-    useEffect(() => {
-        initializeApplication();
-    }, [initializeApplication]);
-
-    /**
-     * Handle request-based routing
-     */
-    useEffect(() => {
-        if (request.header) {
-            routeByRequest(request);
-        }
-    }, [request, routeByRequest]);
-
-    // Cleanup loading timer on unmount
-    useEffect(() => {
-        return () => {
-            if (loadingTimerRef.current) {
-                clearTimeout(loadingTimerRef.current);
-                loadingTimerRef.current = null;
-            }
-            if (buttonFallbackTimerRef.current) {
-                clearTimeout(buttonFallbackTimerRef.current);
-                buttonFallbackTimerRef.current = null;
-            }
+      try {
+        // Bind reply function to request
+        req.reply = (res, end?: boolean) => {
+          if (reply) reply(res, end);
         };
-    }, []);
 
-    /**
-     * Clear expired session and handle address changes
-     */
-    useEffect(() => {
-        // Clear expired session
-        if (session && session.expire <= Date.now()) {
-            setSession(null);
+        console.warn('[TRACE-CONNECT:PANEL] handleRequest received', {
+          topic: req.topic,
+          payload: req.payload,
+          headerHost: req.header?.host,
+          headerUserId: req.header?.userId,
+          currentRequestTopic: request.topic,
+        });
+
+        // Update host and userId from request
+        updateHostAndUserId(req);
+        // Skip duplicate request IDs
+        if (req.header?.requestId === request.header?.requestId) {
+          console.warn('[TRACE-CONNECT:PANEL] handleRequest SKIP duplicate', {
+            requestId: req.header?.requestId,
+          });
+          return;
         }
+        // Set request state and trigger routing
+        console.warn('[TRACE-CONNECT:PANEL] handleRequest → setRequest', {
+          newTopic: req.topic,
+          oldTopic: request.topic,
+          payload: req.payload,
+        });
+        console.warn('[TRACE-RECOVER:PANEL] live request received', {
+          topic: req.topic,
+          requestId: req.header?.requestId,
+          wasInitializing: initializing,
+        });
+        setRequest(req);
+        setInitializing(false);
+      } catch (error) {
+        console.error('Error handling SealX request:', error);
+        throw error;
+      }
+    },
+    [request.header?.requestId, request.topic, updateHostAndUserId, initializing],
+  );
 
-        // Handle address changes
-        if (!address && pathname !== '/initialize') {
-            navigate('/initialize', { replace: true });
-        }
-    }, [session, setSession, address, pathname, navigate]);
-
-    return (
-        <RequestContext.Provider
-            value={{
-                request,
-                activeTabHost: host,
-                setActiveTabHost: setHost,
-                setRequest,
-                session,
-                setSession,
-                userId,
-                title,
-            }}>
-            <>
-                {children}
-                {loading && <Loading compact={isButtonTriggered} blocking={blockingSync} />}
-            </>
-        </RequestContext.Provider>
-    );
-};
-
-const Loading: React.FC<{ compact?: boolean; blocking?: boolean }> = ({ compact, blocking }) => {
-    if (compact && blocking) {
-        return <div className='fixed inset-0 z-50 bg-white' aria-hidden="true" />;
+  /**
+   * Initialize application based on current state
+   */
+  const initializeApplication = useCallback(async () => {
+    if (initializedRef.current) {
+      setInitializing(false);
+      return;
     }
 
-    if (compact) return null;
+    const initStart = Date.now();
+    const currentPath = pathnameRef.current;
+    console.warn('[TRACE-RECOVER:PANEL] initializeApplication START', {
+      alreadyInit: initializedRef.current,
+      pathname: currentPath,
+      openedByButton: buttonTriggeredRef.current,
+    });
 
-    return (
-        <div className='pointer-events-none fixed right-[16px] top-[16px] z-50 flex items-center gap-[8px] rounded-[999px] border border-[var(--sx-border)] bg-white/92 px-[12px] py-[8px] text-[12px] font-[800] text-[var(--sx-muted)] shadow-[0_10px_24px_rgba(16,24,32,0.10)]'>
-            <span className='h-[8px] w-[8px] animate-pulse rounded-full bg-[var(--sx-brand)]'></span>
-            Loading
-        </div>
-    );
+    const openedByButton = await consumePanelTriggerSource();
+    console.warn('[TRACE-CONNECT:PANEL] initializeApplication after consumeTrigger', {
+      openedByButton,
+      pathname: currentPath,
+      elapsed: Date.now() - initStart,
+    });
+
+    // Wait for store hydration
+    const addressLoaded = useInitializedStore.persist.hasHydrated();
+    if (!addressLoaded) {
+      // Wait a bit for hydration to complete
+      setTimeout(() => initializeApplication(), 100);
+      return;
+    }
+
+    // Wait for session store hydration before route decisions.
+    if (!useSessionStore.persist.hasHydrated()) {
+      const sessionHydrateStart = Date.now();
+      await useSessionStore.persist.rehydrate();
+      console.warn('[TRACE-RECOVER:PANEL] session store rehydrated', {
+        elapsed: Date.now() - sessionHydrateStart,
+        totalElapsed: Date.now() - initStart,
+        hasSession: !!useSessionStore.getState().session,
+      });
+    } else {
+      console.warn('[TRACE-RECOVER:PANEL] session store already hydrated', {
+        totalElapsed: Date.now() - initStart,
+        hasSession: !!useSessionStore.getState().session,
+      });
+    }
+
+    // Check if address exists (plugin initialization)
+    const currentAddress = useInitializedStore.getState().address;
+    if (!currentAddress) {
+      if (currentPath !== '/initialize') {
+        navigate('/initialize', { replace: true });
+      }
+      setInitializing(false);
+      initializedRef.current = true;
+      return;
+    }
+    let cachedRequest: SealxRequest | null = null;
+    if (!openedByButton) {
+      const activeHost = await getActiveTabHost();
+      if (activeHost) {
+        console.warn('[TRACE-CONNECT:PANEL] initializeApplication active tab host', {
+          activeHost,
+        });
+        setHost(activeHost);
+      }
+      await requestCache.clear();
+      useRequestStore.getState().clearRequest();
+      if (REQUEST_ONLY_ROUTES.has(currentPath)) {
+        navigate('/', { replace: true });
+      }
+    } else {
+      // Wait for the business request before rendering/routes.
+      // This avoids a home-page flash while SDK SIGN/BIND_PK is still arriving.
+
+      const requestRecoverStart = Date.now();
+      for (let attempt = 0; attempt < REQUEST_CACHE_POLL_ATTEMPTS && !cachedRequest; attempt++) {
+        cachedRequest = await requestCache.consume();
+        console.warn('[TRACE-RECOVER:PANEL] request cache poll', {
+          attempt: attempt + 1,
+          hit: !!cachedRequest,
+          elapsed: Date.now() - requestRecoverStart,
+          totalElapsed: Date.now() - initStart,
+        });
+        if (!cachedRequest && attempt < REQUEST_CACHE_POLL_ATTEMPTS - 1) {
+          await waitForRequestCacheChange(attempt + 1);
+        }
+      }
+
+      if (cachedRequest) {
+        const restoredRequest = cachedRequest;
+        console.warn('[TRACE-CONNECT:PANEL] initializeApplication found cachedRequest', {
+          cachedRequestTopic: restoredRequest.topic,
+          cachedRequestId: restoredRequest.header?.requestId,
+          elapsed: Date.now() - requestRecoverStart,
+          totalElapsed: Date.now() - initStart,
+        });
+        // Restore request with reply function binding
+        if (restoredRequest.once) {
+          restoredRequest.reply = (res, end?: boolean) => {
+            messager.reply(res, restoredRequest, end);
+          };
+        }
+        setRequest(restoredRequest);
+        setInitializing(false);
+        initializedRef.current = true;
+        const currentSession = useSessionStore.getState().session;
+        const sessionValid = isSessionValid(currentSession);
+        if (!sessionValid) {
+          navigate('/login', { replace: true });
+        } else {
+          const targetRoute = getTargetRoute(restoredRequest, currentSession);
+          if (targetRoute && targetRoute !== currentPath) {
+            navigate(targetRoute, { replace: true });
+          }
+        }
+        return;
+      } else {
+        // Button-triggered panel without a request: stop loading and return home.
+        console.warn('[TRACE-RECOVER:PANEL] request cache miss fallback', {
+          attempts: REQUEST_CACHE_POLL_ATTEMPTS,
+          elapsed: Date.now() - requestRecoverStart,
+          totalElapsed: Date.now() - initStart,
+        });
+        setInitializing(false);
+        navigate('/', { replace: true });
+        initializedRef.current = true;
+        return;
+      }
+    }
+
+    // No cached request, check session
+    const currentSession = useSessionStore.getState().session;
+    const sessionValid = isSessionValid(currentSession);
+
+    console.warn('[TRACE-CONNECT:PANEL] initializeApplication session check', {
+      hasSession: !!currentSession,
+      sessionValid,
+      sessionUserId: currentSession?.userId,
+      sessionHost: currentSession?.host,
+      pathname: currentPath,
+      openedByButton,
+      currentSession,
+    });
+
+    if (!sessionValid) {
+      console.warn(
+        '[TRACE-CONNECT:PANEL] initializeApplication → navigate /login (no valid session)',
+      );
+      setHost('');
+      setUserId('');
+      // Clear session if invalid
+      if (currentSession) {
+        setSession(null);
+      }
+      // Redirect to login if not already there
+      if (currentPath !== '/login') {
+        navigate('/login', { replace: true });
+      }
+    } else {
+      // Session is valid
+      // If on login or initialize pages, redirect to main page
+      if (
+        currentPath === '/login' ||
+        currentPath === '/initialize' ||
+        currentPath === '/initialized'
+      ) {
+        navigate('/', { replace: true });
+      } else if (REQUEST_ONLY_ROUTES.has(currentPath)) {
+        navigate('/', { replace: true });
+      }
+    }
+
+    setInitializing(false);
+    initializedRef.current = true;
+  }, [consumePanelTriggerSource, navigate, setHost, setUserId, setSession]);
+
+  /**
+   * Setup messager listener - runs once on mount
+   */
+  useEffect(() => {
+    const off = messager.on(SealxTopic.ALL, handleRequest);
+    return () => off();
+  }, [handleRequest]);
+
+  /**
+   * Initialize application on mount - runs once
+   */
+  useEffect(() => {
+    if (initializeEffectRanRef.current) return;
+    initializeEffectRanRef.current = true;
+    initializeApplication();
+  }, [initializeApplication]);
+
+  /**
+   * Handle request-based routing
+   */
+  useEffect(() => {
+    if (request.header) {
+      routeByRequest(request);
+    }
+  }, [request, routeByRequest]);
+
+  /**
+   * Clear expired session and handle address changes
+   */
+  useEffect(() => {
+    // Clear expired session
+    if (session && session.expire <= Date.now()) {
+      setSession(null);
+    }
+
+    // Handle address changes
+    if (!address && pathname !== '/initialize') {
+      navigate('/initialize', { replace: true });
+    }
+  }, [session, setSession, address, pathname, navigate]);
+
+  return (
+    <RequestContext.Provider
+      value={{
+        request,
+        activeTabHost: host,
+        setActiveTabHost: setHost,
+        setRequest,
+        session,
+        setSession,
+        userId,
+        title,
+        initializing,
+      }}
+    >
+      {initializing ? <Loading /> : children}
+    </RequestContext.Provider>
+  );
+};
+
+const Loading: React.FC = () => {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
+      style={{ backgroundColor: '#FFFFFF', color: 'rgba(0, 0, 0, 0.52)' }}
+    >
+      <span
+        className="mb-3 h-[12px] w-[12px] animate-pulse rounded-full"
+        style={{ backgroundColor: 'var(--sx-brand)' }}
+      ></span>
+      <span className="text-[0.875rem] font-[800]">Loading data...</span>
+    </div>
+  );
 };

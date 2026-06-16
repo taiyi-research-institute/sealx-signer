@@ -8,13 +8,74 @@
         <meta
             name="viewport"
             content="width=device-width, initial-scale=1.0" />
-        <title>Sealx Sign What You See</title>
         <link
-            rel="stylesheet"
-            href="/src/assets/main.css" />
+            rel="preload"
+            href="/public/logo/sealx-logo.svg"
+            as="image"
+            type="image/svg+xml" />
+        <title>Sealx Sign What You See</title>
+        <style>
+            html,
+            body,
+            #root {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                background: #ffffff;
+            }
+            .sealx-initial-loading {
+                position: fixed;
+                inset: 0;
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                background: #ffffff;
+                color: rgba(0, 0, 0, 0.52);
+                font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            }
+            .sealx-initial-loading-logo {
+                width: 118px;
+                height: auto;
+                margin-bottom: 14px;
+                display: block;
+            }
+            .sealx-initial-loading-dot {
+                width: 12px;
+                height: 12px;
+                margin-bottom: 12px;
+                border-radius: 999px;
+                background: #0aa06e;
+                animation: sealx-initial-pulse 1.1s ease-in-out infinite;
+            }
+            .sealx-initial-loading-text {
+                font-size: 14px;
+                line-height: 1.5;
+                font-weight: 800;
+            }
+            @keyframes sealx-initial-pulse {
+                0%, 100% { opacity: 0.35; transform: scale(0.92); }
+                50% { opacity: 1; transform: scale(1); }
+            }
+        </style>
     </head>
     <body>
-        <div id="root"></div>
+        <div id="root">
+            <div class="sealx-initial-loading">
+                <img
+                    class="sealx-initial-loading-logo"
+                    src="/public/logo/sealx-logo.svg"
+                    alt="SealX Logo"
+                    decoding="sync"
+                    fetchpriority="high" />
+                <div class="sealx-initial-loading-dot"></div>
+                <div class="sealx-initial-loading-text">Loading data...</div>
+            </div>
+        </div>
+        <script
+            type="module"
+            src="./bootstrap-timing.ts"></script>
         <script
             type="module"
             src="./main.tsx"></script>

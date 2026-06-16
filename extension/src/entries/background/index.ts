@@ -20,7 +20,7 @@ import {
 import { decodeSession, decodeSessionPrivateKey, sessionKey } from "@src/core/utils/helper";
 import { sessionStore } from "@src/core/state";
 import { TabManager, type Eip712Struct } from "sealx-core";
-import { useRequestStore } from "@src/core/state/request";
+import { requestCache } from "@src/core/request-cache";
 import { createMemorySigningProvider } from "./signing-providers";
 import { signingFailure, SigningError } from "./signing-errors";
 
@@ -32,6 +32,10 @@ const DB_VERSION = 1
 const messager = MessagerManager.getMessager()
 PanelManager.setMessager(messager)
 PanelManager.init()
+
+let lastPanelOpenRequestAt = 0
+let lastPanelOpenTabId: number | null = null
+const PANEL_OPEN_DEDUPE_MS = 500
 
 // Wait for Zustand persist to rehydrate from chrome.storage.local,
 // then clear stale session. On SW restart the in-memory privateKeyCache is
@@ -125,8 +129,7 @@ messager.on(SealxTopic.CONNECT, async (request: SealxRequest<{ userId: string, t
         return { session: state.session, account: user }
     } else {
         clearSessionFor(host, userId)
-        const setRequest = useRequestStore.getState().setRequest
-        setRequest(request)
+        await requestCache.set(request)
         // Panel opens via gesture channel (content script click listener),
         // not via openPanel(). Store the request for panel self-routing.
 
@@ -184,9 +187,8 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
     const state = sessionStore.getState()
     if (host) state.setHost(host)
     if (userId) state.setUserId(userId)
-    const setRequest = useRequestStore.getState().setRequest
-    setRequest(request)
-    // Store request in persist store — panel self-routes from store on load.
+    await requestCache.set(request)
+    // Store request in session cache — panel self-routes from cache on load.
     // Panel opens via gesture channel (content script click listener).
     // No need to openPanel() or determine route here.
     // Forward the message to panel via bridge (no-op if panel not loaded).
@@ -197,8 +199,36 @@ messager.onForward(MessageChannel.POPUP, async (request: SealxRequest) => {
 chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender) => {
     if (message?.type === 'open-side-panel') {
         const tabId = _sender.tab?.id
+        const openRequestedAt = Date.now()
+        if (
+            tabId &&
+            lastPanelOpenTabId === tabId &&
+            openRequestedAt - lastPanelOpenRequestAt < PANEL_OPEN_DEDUPE_MS
+        ) {
+            console.warn('[TRACE-PANEL-TIMING:BG] duplicate open-side-panel ignored', {
+                tabId,
+                elapsedSinceLastOpen: openRequestedAt - lastPanelOpenRequestAt,
+            })
+            return true
+        }
+        lastPanelOpenTabId = tabId ?? null
+        lastPanelOpenRequestAt = openRequestedAt
+        chrome.storage.session.set({
+            panelOpenRequestedAt: openRequestedAt,
+        }).catch(() => {})
+        console.warn('[TRACE-PANEL-TIMING:BG] open-side-panel received', {
+            tabId,
+            openRequestedAt,
+        })
         if (tabId) {
             PanelManager.openPanelWithSource(tabId).then(() => {
+                const openSucceededAt = Date.now()
+                chrome.storage.session.set({ panelOpenSucceededAt: openSucceededAt }).catch(() => {})
+                console.warn('[TRACE-PANEL-TIMING:BG] sidePanel.open resolved', {
+                    tabId,
+                    elapsed: openSucceededAt - openRequestedAt,
+                    openSucceededAt,
+                })
                 PanelManager.notifyPanelOpened('')
             }).catch((err: Error) => {
                 console.warn('open-side-panel: openPanelWithSource failed', err.message)
@@ -244,7 +274,7 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
             PanelManager.clearCurrentProcessingQueue()
         }
         PanelManager.notifyPanelClosing()
-        useRequestStore.getState().clearRequest()
+        requestCache.clear().catch(() => {})
         return true
     }
     return false
@@ -252,8 +282,8 @@ chrome.runtime.onMessage.addListener((message: Record<string, unknown>, _sender)
 
 // ========== 其他 handler ==========
 
-messager.on(SealxTopic.CLOSE, async () => {
-    return await PanelManager.closePanel()
+messager.on(SealxTopic.CLOSE, async (request: SealxRequest) => {
+    return await PanelManager.closePanel(request.header?.tabId)
 })
 
 messager.on(SealxTopic.BIND_PK, async (request: SealxRequest<{ pk: string, userId: string, host: string }>) => {

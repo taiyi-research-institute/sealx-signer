@@ -639,6 +639,18 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
     }
   }, [props.signContent, props.extenals]);
   const session = useSessionStore.use.session();
+  const setSession = useSessionStore.use.setSession();
+  const handleSessionExpired = useCallback(() => {
+    setSession(null);
+    props.onSessionExpired?.();
+    if (!props.onSessionExpired) {
+      navigate('/login', { replace: true });
+    }
+  }, [setSession, props, navigate]);
+  const approvalProps = useMemo(
+    () => ({ ...props, onSessionExpired: handleSessionExpired }),
+    [props, handleSessionExpired],
+  );
   useEffect(() => {
     if (request.topic === SealxTopic.REMOTE_SIGN) {
       // Other window post sign task
@@ -654,11 +666,11 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
             req.header.userId = session?.userId;
             req.header.sessionId = session?.sessionId ?? '';
           }
-          onApproval(props, req);
+          onApproval(approvalProps, req);
         }
       }
     }
-  }, [request, props, session?.userId, session?.sessionId, handleReject]);
+  }, [request, approvalProps, session?.userId, session?.sessionId, handleReject]);
 
   const onReview = useCallback(() => {
     // If task has subtasks (array of signContent), navigate to detail page
@@ -730,7 +742,7 @@ export const SignTaskRender = memo((props: SignTaskRenderProps) => {
                   req.header.userId = session?.userId;
                   req.header.sessionId = session?.sessionId ?? '';
                 }
-                onApproval(props, req);
+                onApproval(approvalProps, req);
               }}
             >
               {props.confirmText ?? 'Sign to Approve'}

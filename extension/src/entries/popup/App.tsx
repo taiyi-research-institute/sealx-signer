@@ -8,9 +8,25 @@ import { usePopupType } from '@src/hooks/usePopupType';
 import { TabManager } from 'sealx-core';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-
+const appModuleLoadedAt = Date.now();
+console.warn('[TRACE-PANEL-TIMING:APP] module loaded', {
+    appModuleLoadedAt,
+});
 
 function App() {
+    const renderAt = Date.now();
+    console.warn('[TRACE-PANEL-TIMING:APP] render', {
+        elapsedSinceModuleLoad: renderAt - appModuleLoadedAt,
+        pathname: window.location.hash,
+    });
+
+    useEffect(() => {
+        console.warn('[TRACE-PANEL-TIMING:APP] mounted', {
+            elapsedSinceModuleLoad: Date.now() - appModuleLoadedAt,
+            pathname: window.location.hash,
+        });
+    }, []);
+
     const { request } = useRequestContext()
     const isFullscreen = useMemo(() => {
         return request?.header?.fullscreen
@@ -105,7 +121,13 @@ function App() {
     useEffect(() => {
         const channel = ChannelManager.connect('sealx-panel');
         channel.send('ready', { route: window.location.hash });
-        return () => channel.disconnect();
+        const offCloseWindow = channel.on('close-window', () => {
+            window.close();
+        });
+        return () => {
+            offCloseWindow();
+            channel.disconnect();
+        };
     }, []);
 
     return (

@@ -34,11 +34,8 @@ export function Initialized() {
                         Initialization Completed
                     </div>
 
-                    <div className='text-[1.125rem] text-[#000]/60 leading-[2] mb-12'>
-                        {isPageInitiated
-                            ? 'Your SealX Signer has been successfully initialized. You can now return to the page to continue.'
-                            : 'Your SealX Signer has been successfully initialized. You can now start using all features.'
-                        }
+                    <div className='text-[1.125rem] text-[#000]/60 leading-[2] mb-14'>
+                        Your SealX Signer has been successfully initialized. Return to the business page to complete the next steps, or continue using SealX.
                     </div>
 
                     <Button
