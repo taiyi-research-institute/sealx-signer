@@ -325,7 +325,7 @@ declare const onSign: (callback: MessageHandle, taskId?: any) => () => void;
  * });
  * ```
  */
-declare const closeSealx: () => void;
+declare const closeSealx: () => Promise<void>;
 /**
  * Checks if the SealX extension is initialized and ready
  *

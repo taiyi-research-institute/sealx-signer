@@ -18094,6 +18094,12 @@ const syncSignerSessionFromResponse = async (response) => {
     messager.session = sealxSigner.session;
 };
 messager.addAfterSendHook(syncSignerSessionFromResponse);
+messager.addBeforeSendHook((request) => {
+    if (!request.header.userId && sealxSigner.account?.userId) {
+        request.header.userId = String(sealxSigner.account.userId);
+    }
+    return request;
+});
 /**
  * 自动扫描页面中带 sealx 属性的元素，添加 data-sealx-action="open"
  * 供 content script 的事件委托监听使用，实现点击 → sidePanel.open()
@@ -18728,8 +18734,8 @@ const onSign = (callback, taskId) => {
  * });
  * ```
  */
-const closeSealx = () => {
-    messager.send('', exports.SealxTopic.CLOSE, exports.MessageChannel.BACKGROUND);
+const closeSealx = async () => {
+    await messager.send('', exports.SealxTopic.CLOSE, exports.MessageChannel.BACKGROUND);
 };
 /**
  * Checks if the SealX extension is initialized and ready
