@@ -108,6 +108,43 @@ const SEALX_ACTION_ATTR = 'data-sealx-action';
 const SEALX_ACTION_VALUE = 'open';
 const SEALX_SOURCE_ATTR = 'sealx-component';
 
+/**
+ * Scans the current document for elements with the `sealx-component` boolean attribute
+ * and marks them with `data-sealx-action="open"` so the content script's event delegation
+ * listener can open the Side Panel when they are clicked.
+ *
+ * @remarks
+ * This function is called automatically:
+ * - On `DOMContentLoaded` (if the DOM is still loading), or immediately otherwise.
+ * - Continuously by a MutationObserver that watches for dynamically added or
+ *   attribute-modified elements carrying the `sealx-component` attribute (see
+ *   `sealxObserver` below).
+ *
+ * Application code almost never needs to call this directly; it is exposed
+ * mainly for tests or for custom render pipelines that bypass the SDK's own
+ * observers.
+ *
+ * The Side Panel gesture bridge requires a real user click (browsers reject
+ * `chrome.sidePanel.open()` triggered by pure JavaScript), so this function's
+ * only job is to annotate elements so the content script can wire the click
+ * event into a Side Panel open request.
+ *
+ * @example
+ * ```typescript
+ * // After a React/Vue re-render, trigger a rescan if you bypass the MutationObserver
+ * import { setupSealxActions } from 'sealx-sdk';
+ *
+ * useEffect(() => {
+ *   setupSealxActions();
+ * }, [renderedDynamicElements]);
+ * ```
+ *
+ * @example
+ * ```html
+ * <!-- The SDK observes this automatically; no manual call needed -->
+ * <button sealx-component>Sign with SealX</button>
+ * ```
+ */
 export const setupSealxActions = () => {
 	document.querySelectorAll(`[${SEALX_SOURCE_ATTR}]`).forEach((el) => {
 		if (!el.hasAttribute(SEALX_ACTION_ATTR)) {
